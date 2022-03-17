@@ -229,7 +229,7 @@ if __name__ == '__main__':
     parser.add_argument('--gpus', type=int, nargs='+', default=[0,1])
     parser.add_argument('--mixed_precision', action='store_true', help='use mixed precision')
 
-    parser.add_argument('--iters', type=int, default=12)
+    parser.add_argument('--iters', type=int, default=6)
     parser.add_argument('--wdecay', type=float, default=.00005)
     parser.add_argument('--epsilon', type=float, default=1e-8)
     parser.add_argument('--clip', type=float, default=1.0)

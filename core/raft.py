@@ -7,6 +7,7 @@ from update import BasicUpdateBlock, SmallUpdateBlock
 from extractor import BasicEncoder, SmallEncoder
 from corr import CorrBlock, AlternateCorrBlock
 from utils.utils import bilinear_sampler, coords_grid, upflow8
+from update import Decoder
 
 try:
     autocast = torch.cuda.amp.autocast
@@ -55,6 +56,9 @@ class RAFT(nn.Module):
             self.cnet = BasicEncoder(output_dim=hdim+cdim, norm_fn='batch', dropout=args.dropout)
             self.update_block = BasicUpdateBlock(self.args, hidden_dim=hdim)
 
+        self.decoders = [Decoder(self.args, first=i == 0, hidden_dim=256, num_heads=8, ff_dim=1024, dropout=0.1)
+                         for i in range(args.iters)]
+
     def freeze_bn(self):
         for m in self.modules():
             if isinstance(m, nn.BatchNorm2d):
@@ -82,7 +86,6 @@ class RAFT(nn.Module):
         up_flow = up_flow.permute(0, 1, 4, 2, 5, 3)
         return up_flow.reshape(N, 2, 8*H, 8*W)
 
-
     def forward(self, image1, image2, iters=12, flow_init=None, upsample=True, test_mode=False):
         """ Estimate optical flow between pair of frames """
 
@@ -92,53 +95,64 @@ class RAFT(nn.Module):
         image1 = image1.contiguous()
         image2 = image2.contiguous()
 
-        hdim = self.hidden_dim
-        cdim = self.context_dim
-
         # run the feature network
         with autocast(enabled=self.args.mixed_precision):
             fmap1, fmap2 = self.fnet([image1, image2])        
         
         fmap1 = fmap1.float()
         fmap2 = fmap2.float()
-        if self.args.alternate_corr:
-            corr_fn = AlternateCorrBlock(fmap1, fmap2, radius=self.args.corr_radius)
-        else:
-            corr_fn = CorrBlock(fmap1, fmap2, radius=self.args.corr_radius)
+
+        # if self.args.alternate_corr:
+        #     corr_fn = AlternateCorrBlock(fmap1, fmap2, radius=self.args.corr_radius)
+        # else:
+        #     corr_fn = CorrBlock(fmap1, fmap2, radius=self.args.corr_radius)
 
         # run the context network
-        with autocast(enabled=self.args.mixed_precision):
-            cnet = self.cnet(image1)
-            net, inp = torch.split(cnet, [hdim, cdim], dim=1)
-            net = torch.tanh(net)
-            inp = torch.relu(inp)
+        # with autocast(enabled=self.args.mixed_precision):
+        #     cnet = self.cnet(image1)
+        #     net, inp = torch.split(cnet, [hdim, cdim], dim=1)
+        #     net = torch.tanh(net)
+        #     inp = torch.relu(inp)
 
-        coords0, coords1 = self.initialize_flow(image1)
+        # coords0, coords1 = self.initialize_flow(image1)
+        #
+        # if flow_init is not None:
+        #     coords1 = coords1 + flow_init
+        #
+        # flow_predictions = []
+        # for itr in range(iters):
+        #     coords1 = coords1.detach()
+        #     corr = corr_fn(coords1) # index correlation volume
+        #
+        #     flow = coords1 - coords0
+        #     with autocast(enabled=self.args.mixed_precision):
+        #         net, up_mask, delta_flow = self.update_block(net, inp, corr, flow)
+        #
+        #     # F(t+1) = F(t) + \Delta(t)
+        #     coords1 = coords1 + delta_flow
+        #
+        #     # upsample predictions
+        #     if up_mask is None:
+        #         flow_up = upflow8(coords1 - coords0)
+        #     else:
+        #         flow_up = self.upsample_flow(coords1 - coords0, up_mask)
+        #
+        #     flow_predictions.append(flow_up)
+        #
+        # if test_mode:
+        #     return coords1 - coords0, flow_up
 
-        if flow_init is not None:
-            coords1 = coords1 + flow_init
-
+        net = fmap1
         flow_predictions = []
         for itr in range(iters):
-            coords1 = coords1.detach()
-            corr = corr_fn(coords1) # index correlation volume
-
-            flow = coords1 - coords0
-            with autocast(enabled=self.args.mixed_precision):
-                net, up_mask, delta_flow = self.update_block(net, inp, corr, flow)
-
-            # F(t+1) = F(t) + \Delta(t)
-            coords1 = coords1 + delta_flow
+            net, preds = self.decoders[itr](query=net, key=fmap2)
 
             # upsample predictions
-            if up_mask is None:
-                flow_up = upflow8(coords1 - coords0)
-            else:
-                flow_up = self.upsample_flow(coords1 - coords0, up_mask)
-            
+            flow_up = upflow8(preds)
+
             flow_predictions.append(flow_up)
 
         if test_mode:
-            return coords1 - coords0, flow_up
+            return preds, flow_up
             
         return flow_predictions

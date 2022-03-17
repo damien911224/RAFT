@@ -141,8 +141,7 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
         self.args = args
         self.first = first
-        self.decoder = nn.TransformerDecoderLayer(hidden_dim, num_heads,
-                                                  dim_feedforward=ff_dim, dropout=dropout, batch_first=True)
+        self.decoder = nn.TransformerDecoderLayer(hidden_dim, num_heads, dim_feedforward=ff_dim, dropout=dropout)
         self.head = nn.Sequential(
             nn.Conv2d(hidden_dim, hidden_dim, 3, padding=1),
             nn.ReLU(inplace=True),
@@ -161,16 +160,26 @@ class Decoder(nn.Module):
             query += self.pos_embeds
             key += self.pos_embeds
 
-        q_c, q_h, q_w = query.size()
-        k_c, k_h, k_w = key.size()
+        q_n, q_c, q_h, q_w = query.size()
+        k_n, k_c, k_h, k_w = key.size()
 
-        query = query.view((q_c, q_h * q_w))
-        key = key.view((k_c, k_h * k_w))
+        print(k_c, k_h, k_w)
+
+        query = torch.permute(query, (2, 3, 0, 1))
+        key = torch.permute(key, (2, 3, 0, 1))
+
+        query = query.view((q_h * q_w, q_n, q_c))
+        key = key.view((k_h * k_w, k_n, k_c))
 
         net = self.decoder(query, key)
 
-        preds = net.view((q_c, q_h, q_w))
-        preds = self.head(preds)
+        print(net)
+        exit()
+
+        net = torch.permute(net, (1, 2, 0))
+        net = net.view((q_n, q_c, q_h, q_w))
+
+        preds = self.head(net)
 
         return net, preds
 

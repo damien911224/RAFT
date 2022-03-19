@@ -58,7 +58,7 @@ class RAFT(nn.Module):
 
         self.embedding = PositionEmbedding(self.args, hidden_dim=256)
 
-        self.decoders = [Decoder(self.args, PE=i == 0, hidden_dim=256, num_heads=8, ff_dim=1024, dropout=0.1)
+        self.decoders = [Decoder(self.args, hidden_dim=256, num_heads=8, ff_dim=1024, dropout=0.1)
                          for i in range(args.iters)]
 
     def freeze_bn(self):

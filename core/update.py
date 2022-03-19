@@ -141,17 +141,24 @@ class PositionEmbedding(nn.Module):
         super(PositionEmbedding, self).__init__()
         self.args = args
         self.hidden_dim = hidden_dim
-        w, h = args.image_size[1] // 8, args.image_size[0] // 8
-        self.embedding = nn.Embedding(num_embeddings=w * h, embedding_dim=hidden_dim)
-        pos_indices = torch.arange(start=0, end=w * h, dtype=torch.int)
-        self.register_buffer('pos_indices', pos_indices)
+        self.w, self.h = args.image_size[1] // 8, args.image_size[0] // 8
+        # self.embedding = nn.Embedding(num_embeddings=w * h, embedding_dim=hidden_dim)
+        # pos_indices = torch.arange(start=0, end=w * h, dtype=torch.int)
+        # self.register_buffer('pos_indices', pos_indices)
+        self.H_embedding = nn.Parameter(torch.empty((1, hidden_dim // 2, self.h, 1)))
+        self.W_embedding = nn.Parameter(torch.empty((1, hidden_dim // 2, 1, self.w)))
 
     def forward(self, net):
+        PE = torch.cat((self.H_embedding.repeat((1, 1, 1, self.w)),
+                        self.H_embedding.repeat((1, 1, self.h, 1))), dim=1)
 
         n, c, h, w = net.size()
-        pe = self.embedding(self.pos_indices).view((1, h, w, c))
-        pe = pe.permute((0, 3, 1, 2))
-        net = net + pe
+        if h != self.h or w != self.w:
+            PE = F.interpolate(PE, size=(h, w), mode='bilinear')
+
+        # pe = self.embedding(self.pos_indices).view((1, h, w, c))
+        # pe = pe.permute((0, 3, 1, 2))
+        net = net + PE
 
         return net
 

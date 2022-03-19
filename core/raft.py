@@ -156,6 +156,7 @@ class RAFT(nn.Module):
 
             # upsample predictions
             flow_up = upflow8(preds)
+            print(flow_up.size())
 
             flow_predictions.append(flow_up)
 

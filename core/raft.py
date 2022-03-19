@@ -59,10 +59,10 @@ class RAFT(nn.Module):
         self.embedding = PositionEmbedding(self.args, hidden_dim=256)
 
         w, h = args.image_size[1] // 8, args.image_size[0] // 8
-        self.query = nn.Parameter(torch.empty((1, 16, h, w)))
+        self.query = nn.Parameter(torch.empty((1, 256, h, w)))
 
         self.decoders = \
-            nn.ModuleList([Decoder(self.args, hidden_dim=16, num_heads=8, ff_dim=16 * 4, dropout=0.1)
+            nn.ModuleList([Decoder(self.args, hidden_dim=256, num_heads=8, ff_dim=256 * 4, dropout=0.1)
                            for _ in range(args.iters)])
 
     def freeze_bn(self):

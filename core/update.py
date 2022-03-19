@@ -151,7 +151,7 @@ class PositionEmbedding(nn.Module):
         n, c, h, w = net.size()
         pe = self.embedding(self.pos_indices).view((1, h, w, c))
         pe = pe.permute((0, 3, 1, 2))
-        net += pe
+        net = net + pe
 
         return net
 

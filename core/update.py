@@ -173,7 +173,7 @@ class Decoder(nn.Module):
 
         net = self.decoder(query, key)
 
-        print(net)
+        print(net.size())
         exit()
 
         net = torch.permute(net, (1, 2, 0))

@@ -156,9 +156,9 @@ class Decoder(nn.Module):
 
     def forward(self, query, key):
 
-        # if self.first:
-        #     query += self.pos_embeds
-        #     key += self.pos_embeds
+        if self.first:
+            query += self.pos_embeds
+            key += self.pos_embeds
 
         q_n, q_c, q_h, q_w = query.size()
         k_n, k_c, k_h, k_w = key.size()

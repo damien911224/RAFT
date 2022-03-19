@@ -161,7 +161,7 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
         self.args = args
         # self.decoder = nn.TransformerDecoderLayer(hidden_dim, num_heads, dim_feedforward=ff_dim, dropout=dropout)
-        self.decoder = nn.MultiheadAttention(hidden_dim, num_heads, dropout=dropout)
+        self.decoder = nn.MultiheadAttention(hidden_dim, num_heads, dropout=dropout, bias=False)
         self.head = nn.Sequential(
             nn.Conv2d(hidden_dim, hidden_dim, 3, padding=1),
             nn.ReLU(inplace=True),

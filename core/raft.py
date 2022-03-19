@@ -156,6 +156,10 @@ class RAFT(nn.Module):
 
         # net = fmap1
         net = self.query.repeat((n, 1, 1, 1))
+        _, _, q_h, q_w = net.size()
+        if h != q_h or w != q_w:
+            net = F.interpolate(net, size=(h, w), mode='bilinear', align_corners=True)
+
         memory = torch.stack((fmap1, fmap2), axis=2)
         memory = memory + self.memory_embedding
         flow_predictions = []

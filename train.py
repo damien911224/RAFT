@@ -151,7 +151,7 @@ class Logger:
             print(image.shape)
             image = image.astype(np.uint8)
 
-            self.writer.add_image("Image_{:02d}".format(n_i + 1), image, self.total_steps)
+            self.writer.add_image("Image_{:02d}".format(n_i + 1), image, self.total_steps, dataformats='HWC')
 
     def close(self):
         self.writer.close()

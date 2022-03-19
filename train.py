@@ -135,7 +135,9 @@ class Logger:
             self.writer = SummaryWriter()
 
         image1 = image1.detach().cpu().numpy()
+        image1 = np.transpose(image1, (0, 2, 3, 1))
         image2 = image2.detach().cpu().numpy()
+        image2 = np.transpose(image2, (0, 2, 3, 1))
         targets = targets.detach().cpu().numpy()
         targets = np.transpose(targets, (0, 2, 3, 1))
         for n_i in range(len(targets)):

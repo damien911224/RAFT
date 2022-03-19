@@ -130,13 +130,17 @@ class Logger:
         for key in results:
             self.writer.add_scalar(key, results[key], self.total_steps)
 
-    def write_images(self, targets, preds):
+    def write_images(self, image1, image2, targets, preds):
         if self.writer is None:
             self.writer = SummaryWriter()
 
+        image1 = image1.detach().cpu().numpy()
+        image2 = image2.detach().cpu().numpy()
         targets = targets.detach().cpu().numpy()
         targets = np.transpose(targets, (0, 2, 3, 1))
         for n_i in range(len(targets)):
+            this_image1 = image1[n_i]
+            this_image2 = image2[n_i]
             target_img = flow_vis.flow_to_color(targets[n_i], convert_to_bgr=False)
             pred_img = list()
             for p_i in range(len(preds)):
@@ -144,7 +148,7 @@ class Logger:
                 this_pred = np.transpose(this_pred, (1, 2, 0))
                 pred_img.append(flow_vis.flow_to_color(this_pred, convert_to_bgr=False))
             pred_img = np.concatenate(pred_img, axis=1)
-            image = np.concatenate((target_img, pred_img), axis=1)
+            image = np.concatenate((this_image1, this_image2, target_img, pred_img), axis=1)
 
             image = image.astype(np.uint8)
 
@@ -205,7 +209,7 @@ def train(args):
 
             logger.push(metrics)
             if total_steps % IMAGE_FREQ == IMAGE_FREQ - 1:
-                logger.write_images(flow, flow_predictions)
+                logger.write_images(image1, image2, flow, flow_predictions)
 
             if total_steps % VAL_FREQ == VAL_FREQ - 1:
                 PATH = 'checkpoints/%d_%s.pth' % (total_steps+1, args.name)

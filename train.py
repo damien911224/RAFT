@@ -146,6 +146,8 @@ class Logger:
             pred_img = np.concatenate(pred_img, axis=1)
             image = np.concatenate((target_img, pred_img), axis=1)
 
+            image = image.astype(np.uint8)
+
             self.writer.add_image("Image_{:02d}".format(n_i + 1), image, self.total_steps)
 
     def close(self):

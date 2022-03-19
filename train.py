@@ -18,6 +18,7 @@ from torch.utils.data import DataLoader
 from raft import RAFT
 import evaluate
 import datasets
+import flow_vis
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -129,6 +130,19 @@ class Logger:
         for key in results:
             self.writer.add_scalar(key, results[key], self.total_steps)
 
+    def write_images(self, targets, preds):
+        targets = targets.detach().cpu().numpy()
+        for n_i in range(len(targets)):
+            target_img = flow_vis.flow_to_color(targets[n_i], convert_to_bgr=False)
+            pred_img = list()
+            for p_i in range(len(preds)):
+                this_pred = preds[p_i].detach().cpu().numpy()[n_i]
+                pred_img.append(flow_vis.flow_to_color(this_pred, convert_to_bgr=False))
+            pred_img = np.concatenate(pred_img, axis=1)
+            image = np.concatenate((target_img, pred_img), axis=1)
+
+            self.writer.add_image("Image_{:02d}".format(n_i + 1), image, self.total_steps)
+
     def close(self):
         self.writer.close()
 
@@ -156,6 +170,7 @@ def train(args):
 
     VAL_FREQ = 5000
     # VAL_FREQ = 100
+    IMAGE_FREQ = 100
     add_noise = True
 
     should_keep_training = True
@@ -182,6 +197,8 @@ def train(args):
             scaler.update()
 
             logger.push(metrics)
+            if total_steps % IMAGE_FREQ == IMAGE_FREQ - 1:
+                logger.write_images(flow, flow_predictions)
 
             if total_steps % VAL_FREQ == VAL_FREQ - 1:
                 PATH = 'checkpoints/%d_%s.pth' % (total_steps+1, args.name)

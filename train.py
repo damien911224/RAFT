@@ -136,7 +136,6 @@ class Logger:
 
         targets = targets.detach().cpu().numpy()
         targets = np.transpose(targets, (0, 2, 3, 1))
-        print(np.max(targets))
         for n_i in range(len(targets)):
             target_img = flow_vis.flow_to_color(targets[n_i], convert_to_bgr=False)
             pred_img = list()
@@ -147,8 +146,6 @@ class Logger:
             pred_img = np.concatenate(pred_img, axis=1)
             image = np.concatenate((target_img, pred_img), axis=1)
 
-            print(np.max(image))
-            print(image.shape)
             image = image.astype(np.uint8)
 
             self.writer.add_image("Image_{:02d}".format(n_i + 1), image, self.total_steps, dataformats='HWC')

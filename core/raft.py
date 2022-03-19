@@ -151,8 +151,7 @@ class RAFT(nn.Module):
         net = fmap1
         flow_predictions = []
         for itr in range(iters):
-            # net, preds = self.decoders[itr](query=net, key=fmap2)
-            net, preds = self.decoders(query=net, key=fmap2)
+            net, preds = self.decoders[itr](query=net, key=fmap2)
 
             # upsample predictions
             flow_up = upflow8(preds)

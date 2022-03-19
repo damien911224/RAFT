@@ -148,10 +148,8 @@ class PositionEmbedding(nn.Module):
 
     def forward(self, net):
 
-        n, h, w, c = net.size()
-        print(net.size())
+        n, c, h, w = net.size()
         pe = self.embedding(self.pos_indices).view((1, h, w, c))
-        print(pe.size())
         pe = pe.permute((0, 3, 1, 2))
         net += pe
 

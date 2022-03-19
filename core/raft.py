@@ -144,8 +144,8 @@ class RAFT(nn.Module):
         # if test_mode:
         #     return coords1 - coords0, flow_up
 
-        fmap1 = self.embedding(fmap1)
-        fmap2 = self.embedding(fmap2)
+        # fmap1 = self.embedding(fmap1)
+        # fmap2 = self.embedding(fmap2)
 
         net = fmap1
         flow_predictions = []

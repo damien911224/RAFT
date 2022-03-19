@@ -57,6 +57,7 @@ class RAFT(nn.Module):
             self.update_block = BasicUpdateBlock(self.args, hidden_dim=hdim)
 
         self.embedding = PositionEmbedding(self.args, hidden_dim=256)
+        self.memory_embedding = nn.Parameter(torch.empty((1, 256, 1, 1, 1)))
 
         w, h = args.image_size[1] // 8, args.image_size[0] // 8
         self.query = nn.Parameter(torch.empty((1, 256, h, w)))
@@ -156,6 +157,7 @@ class RAFT(nn.Module):
         # net = fmap1
         net = self.query.repeat((n, 1, 1, 1))
         memory = torch.stack((fmap1, fmap2), axis=2)
+        memory = memory + self.memory_embedding
         flow_predictions = []
         for itr in range(iters):
             net, preds = self.decoders[itr](query=net, key=memory)

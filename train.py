@@ -68,6 +68,7 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
         '1px': (epe < 1).float().mean().item(),
         '3px': (epe < 3).float().mean().item(),
         '5px': (epe < 5).float().mean().item(),
+        'loss': flow_loss
     }
 
     return flow_loss, metrics

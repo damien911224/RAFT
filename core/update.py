@@ -156,13 +156,14 @@ class Decoder(nn.Module):
 
     def forward(self, query, key):
 
-        if self.first:
-            query += self.pos_embeds
-            key += self.pos_embeds
+        # if self.first:
+        #     query += self.pos_embeds
+        #     key += self.pos_embeds
 
         q_n, q_c, q_h, q_w = query.size()
         k_n, k_c, k_h, k_w = key.size()
 
+        print(q_c, q_h, q_w)
         print(k_c, k_h, k_w)
 
         query = torch.permute(query, (2, 3, 0, 1))

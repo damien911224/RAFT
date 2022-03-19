@@ -152,7 +152,9 @@ class Decoder(nn.Module):
             # h_embeds = Parameter(torch.empty((1, hidden_dim // 2, h, 1))).repeat((1, 1, 1, w))
             # w_embeds = Parameter(torch.empty((1, hidden_dim // 2, 1, w))).repeat((1, 1, h, 1))
             # self.pos_embeds = torch.cat((h_embeds, w_embeds), dim=1)
-            self.pos_embeds = Parameter(torch.empty((1, hidden_dim, h, w)))
+            self.pos_embeds = nn.Embedding(num_embeddings=w * h, embedding_dim=hidden_dim)
+            self.pos_embeds = self.pos_embeds(torch.range(w * h))
+            self.pos_embeds.view((1, h, w, hidden_dim))
 
     def forward(self, query, key):
 

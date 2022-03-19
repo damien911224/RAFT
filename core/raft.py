@@ -7,7 +7,7 @@ from update import BasicUpdateBlock, SmallUpdateBlock
 from extractor import BasicEncoder, SmallEncoder
 from corr import CorrBlock, AlternateCorrBlock
 from utils.utils import bilinear_sampler, coords_grid, upflow8
-from update import Decoder
+from update import Decoder, PositionEmbedding
 
 try:
     autocast = torch.cuda.amp.autocast
@@ -56,7 +56,9 @@ class RAFT(nn.Module):
             self.cnet = BasicEncoder(output_dim=hdim+cdim, norm_fn='batch', dropout=args.dropout)
             self.update_block = BasicUpdateBlock(self.args, hidden_dim=hdim)
 
-        self.decoders = [Decoder(self.args, first=i == 0, hidden_dim=256, num_heads=8, ff_dim=1024, dropout=0.1)
+        self.embedding = PositionEmbedding(self.args, hidden_dim=256)
+
+        self.decoders = [Decoder(self.args, PE=i == 0, hidden_dim=256, num_heads=8, ff_dim=1024, dropout=0.1)
                          for i in range(args.iters)]
 
     def freeze_bn(self):
@@ -141,6 +143,9 @@ class RAFT(nn.Module):
         #
         # if test_mode:
         #     return coords1 - coords0, flow_up
+
+        fmap1 = self.embedding(fmap1)
+        fmap2 = self.embedding(fmap2)
 
         net = fmap1
         flow_predictions = []

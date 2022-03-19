@@ -135,9 +135,29 @@ class BasicUpdateBlock(nn.Module):
         mask = .25 * self.mask(net)
         return net, mask, delta_flow
 
+class PositionEmbedding(nn.Module):
+
+    def __init__(self, args, hidden_dim=256):
+        super(PositionEmbedding, self).__init__()
+        self.args = args
+        self.hidden_dim = hidden_dim
+        w, h = args.image_size[1] // 8, args.image_size[0] // 8
+        self.embedding = nn.Embedding(num_embeddings=w * h, embedding_dim=hidden_dim)
+        pos_indices = torch.arange(start=0, end=w * h, dtype=torch.int)
+        self.register_buffer('pos_indices', pos_indices)
+
+    def forward(self, net):
+
+        n, h, w, c = net.size()
+        pe = self.pos_embeds(self.pos_indices).view((1, h, w, c))
+        pe = pe.permute((0, 3, 1, 2))
+        net += pe
+
+        return net
+
 class Decoder(nn.Module):
 
-    def __init__(self, args, first=False, hidden_dim=256, num_heads=8, ff_dim=1024, dropout=0.1):
+    def __init__(self, args, hidden_dim=256, num_heads=8, ff_dim=1024, dropout=0.1):
         super(Decoder, self).__init__()
         self.args = args
         self.first = first
@@ -147,24 +167,9 @@ class Decoder(nn.Module):
             nn.ReLU(inplace=True),
             nn.Conv2d(hidden_dim, 2, 1, padding=0))
 
-        if first:
-            w, h = args.image_size[1] // 8, args.image_size[0] // 8
-            # h_embeds = Parameter(torch.empty((1, hidden_dim // 2, h, 1))).repeat((1, 1, 1, w))
-            # w_embeds = Parameter(torch.empty((1, hidden_dim // 2, 1, w))).repeat((1, 1, h, 1))
-            # self.pos_embeds = torch.cat((h_embeds, w_embeds), dim=1)
-            self.pos_embeds = nn.Embedding(num_embeddings=w * h, embedding_dim=hidden_dim)
-            pos_indices = torch.arange(start=0, end=w * h, dtype=torch.int)
-            self.register_buffer('pos_indices', pos_indices)
-
     def forward(self, query, key):
         q_n, q_c, q_h, q_w = query.size()
         k_n, k_c, k_h, k_w = key.size()
-
-        if self.first:
-            pe = self.pos_embeds(self.pos_indices).view((1, q_h, q_w, q_c))
-            pe = pe.permute((0, 3, 1, 2))
-            query += pe
-            key += pe
 
         print(q_c, q_h, q_w)
         print(k_c, k_h, k_w)

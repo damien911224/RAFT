@@ -160,12 +160,15 @@ class Decoder(nn.Module):
     def __init__(self, args, hidden_dim=256, num_heads=8, ff_dim=1024, dropout=0.1):
         super(Decoder, self).__init__()
         self.args = args
-        self.decoder = nn.TransformerDecoderLayer(hidden_dim, num_heads, dim_feedforward=ff_dim, dropout=dropout, device="cuda")
+        self.decoder = nn.TransformerDecoderLayer(hidden_dim, num_heads,
+                                                  dim_feedforward=ff_dim, dropout=dropout)
         # self.decoder = nn.MultiheadAttention(hidden_dim, num_heads, dropout=dropout)
         self.head = nn.Sequential(
             nn.Conv2d(hidden_dim, hidden_dim, 3, padding=1),
             nn.ReLU(inplace=True),
             nn.Conv2d(hidden_dim, 2, 1, padding=0))
+
+        self._reset_parameters()
 
     def forward(self, query, key):
         q_n, q_c, q_h, q_w = query.size()

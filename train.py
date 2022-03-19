@@ -132,11 +132,13 @@ class Logger:
 
     def write_images(self, targets, preds):
         targets = targets.detach().cpu().numpy()
+        targets = np.transpose(targets, (0, 2, 3, 1))
         for n_i in range(len(targets)):
             target_img = flow_vis.flow_to_color(targets[n_i], convert_to_bgr=False)
             pred_img = list()
             for p_i in range(len(preds)):
                 this_pred = preds[p_i].detach().cpu().numpy()[n_i]
+                this_pred = np.transpose(this_pred, (1, 2, 0))
                 pred_img.append(flow_vis.flow_to_color(this_pred, convert_to_bgr=False))
             pred_img = np.concatenate(pred_img, axis=1)
             image = np.concatenate((target_img, pred_img), axis=1)

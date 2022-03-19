@@ -160,15 +160,15 @@ class Decoder(nn.Module):
 
         if self.first:
             pe = self.pos_embeds(torch.arange(start=0, end=q_h * q_w, dtype=torch.int)).view((1, q_h, q_w, q_c))
-            pe = torch.permute(pe, (0, 3, 1, 2))
+            pe = pe.permute((0, 3, 1, 2))
             query += pe
             key += pe
 
         print(q_c, q_h, q_w)
         print(k_c, k_h, k_w)
 
-        query = torch.permute(query, (2, 3, 0, 1))
-        key = torch.permute(key, (2, 3, 0, 1))
+        query = query.permute((2, 3, 0, 1))
+        key = key.permute((2, 3, 0, 1))
 
         query = query.view((q_h * q_w, q_n, q_c))
         key = key.view((k_h * k_w, k_n, k_c))
@@ -176,12 +176,14 @@ class Decoder(nn.Module):
         net = self.decoder(query, key)
 
         print(net.size())
-        exit()
 
-        net = torch.permute(net, (1, 2, 0))
+        net = net.permute((1, 2, 0))
         net = net.view((q_n, q_c, q_h, q_w))
+        print(net.size())
 
         preds = self.head(net)
+        print(preds.size())
+        exit()
 
         return net, preds
 

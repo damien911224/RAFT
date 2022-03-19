@@ -160,6 +160,7 @@ class Decoder(nn.Module):
 
         if self.first:
             pe = self.pos_embeds(torch.arange(start=0, end=q_h * q_w, dtype=torch.int)).view((1, q_h, q_w, q_c))
+            pe = torch.permute(pe, (0, 3, 1, 2))
             query += pe
             key += pe
 

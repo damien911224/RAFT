@@ -181,7 +181,7 @@ class Decoder(nn.Module):
         query = query.view((q_h * q_w, q_n, q_c))
         key = key.view((k_h * k_w, k_n, k_c))
 
-        net = self.decoder(query, key, key)
+        net = self.decoder(query, key)
 
         print(net.size())
 

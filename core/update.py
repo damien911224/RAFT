@@ -153,13 +153,15 @@ class Decoder(nn.Module):
             # w_embeds = Parameter(torch.empty((1, hidden_dim // 2, 1, w))).repeat((1, 1, h, 1))
             # self.pos_embeds = torch.cat((h_embeds, w_embeds), dim=1)
             self.pos_embeds = nn.Embedding(num_embeddings=w * h, embedding_dim=hidden_dim)
+            pos_indices = torch.arange(start=0, end=w * h, dtype=torch.int)
+            self.register_buffer('pos_indices', pos_indices)
 
     def forward(self, query, key):
         q_n, q_c, q_h, q_w = query.size()
         k_n, k_c, k_h, k_w = key.size()
 
         if self.first:
-            pe = self.pos_embeds(torch.arange(start=0, end=q_h * q_w, dtype=torch.int)).view((1, q_h, q_w, q_c))
+            pe = self.pos_embeds(self.pos_indices).view((1, q_h, q_w, q_c))
             pe = pe.permute((0, 3, 1, 2))
             query += pe
             key += pe

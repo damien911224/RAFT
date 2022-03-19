@@ -158,7 +158,7 @@ class RAFT(nn.Module):
         memory = torch.stack((fmap1, fmap2), axis=2)
         flow_predictions = []
         for itr in range(iters):
-            net, preds = self.decoders[itr](query=net, key=fmap2)
+            net, preds = self.decoders[itr](query=net, key=memory)
 
             # upsample predictions
             flow_up = upflow8(preds)

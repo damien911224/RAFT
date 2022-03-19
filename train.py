@@ -136,7 +136,6 @@ class Logger:
 
         targets = targets.detach().cpu().numpy()
         targets = np.transpose(targets, (0, 2, 3, 1))
-        print(np.max(targets))
         for n_i in range(len(targets)):
             target_img = flow_vis.flow_to_color(targets[n_i], convert_to_bgr=False)
             pred_img = list()

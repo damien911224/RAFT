@@ -150,7 +150,7 @@ class PositionEmbedding(nn.Module):
 
     def forward(self, net):
         PE = torch.cat((self.H_embedding.repeat((1, 1, 1, self.w)),
-                        self.H_embedding.repeat((1, 1, self.h, 1))), dim=1)
+                        self.W_embedding.repeat((1, 1, self.h, 1))), dim=1)
 
         n, c, h, w = net.size()
         if h != self.h or w != self.w:

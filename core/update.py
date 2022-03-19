@@ -148,10 +148,12 @@ class Decoder(nn.Module):
             nn.Conv2d(hidden_dim, 2, 1, padding=0))
 
         if first:
-            w, h = args.image_size[1] // 8, args.image_size[0] // 8
+            h, w = args.image_size[1] // 8, args.image_size[0] // 8
             h_embeds = Parameter(torch.empty((1, hidden_dim // 2, h, 1))).repeat((1, 1, 1, w))
             w_embeds = Parameter(torch.empty((1, hidden_dim // 2, 1, w))).repeat((1, 1, h, 1))
             self.pos_embeds = torch.cat((h_embeds, w_embeds), dim=0)
+            print(self.pos_embeds.size())
+            exit()
             # self.pos_embeds = Parameter(torch.empty((512, h, w)))
 
     def forward(self, query, key):

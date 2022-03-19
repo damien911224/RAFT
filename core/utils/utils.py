@@ -79,4 +79,4 @@ def coords_grid(batch, ht, wd, device):
 
 def upflow8(flow, mode='bilinear'):
     new_size = (8 * flow.shape[2], 8 * flow.shape[3])
-    return  8 * F.interpolate(flow, size=new_size, mode=mode, align_corners=True)
+    return 8 * F.interpolate(flow, size=new_size, mode=mode, align_corners=True)

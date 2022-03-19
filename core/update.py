@@ -154,7 +154,7 @@ class PositionEmbedding(nn.Module):
 
         n, c, h, w = net.size()
         if h != self.h or w != self.w:
-            PE = F.interpolate(PE, size=(h, w), mode='bilinear')
+            PE = F.interpolate(PE, size=(h, w), mode='bilinear', align_corners=True)
 
         # pe = self.embedding(self.pos_indices).view((1, h, w, c))
         # pe = pe.permute((0, 3, 1, 2))
@@ -177,13 +177,13 @@ class Decoder(nn.Module):
 
     def forward(self, query, key):
         q_n, q_c, q_h, q_w = query.size()
-        k_n, k_c, k_h, k_w = key.size()
+        k_n, k_c, k_t, k_h, k_w = key.size()
 
         query = query.permute((2, 3, 0, 1))
-        key = key.permute((2, 3, 0, 1))
+        key = key.permute((2, 3, 4, 0, 1))
 
         query = query.view((q_h * q_w, q_n, q_c))
-        key = key.view((k_h * k_w, k_n, k_c))
+        key = key.view((k_t * k_h * k_w, k_n, k_c))
 
         net = self.decoder(query, key)
 

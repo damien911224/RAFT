@@ -58,9 +58,12 @@ class RAFT(nn.Module):
 
         self.embedding = PositionEmbedding(self.args, hidden_dim=256)
 
+        w, h = args.image_size[1] // 8, args.image_size[0] // 8
+        self.query = nn.Parameter(torch.empty((1, 16, h, w)))
+
         self.decoders = \
-            nn.ModuleList([Decoder(self.args, hidden_dim=256, num_heads=8, ff_dim=1024, dropout=0.1)
-                           for i in range(args.iters)])
+            nn.ModuleList([Decoder(self.args, hidden_dim=16, num_heads=8, ff_dim=16 * 4, dropout=0.1)
+                           for _ in range(args.iters)])
 
     def freeze_bn(self):
         for m in self.modules():
@@ -148,7 +151,11 @@ class RAFT(nn.Module):
         fmap1 = self.embedding(fmap1)
         fmap2 = self.embedding(fmap2)
 
-        net = fmap1
+        n, c, h, w = fmap1.size()
+
+        # net = fmap1
+        net = self.query.repeat((n, 1, 1, 1))
+        memory = torch.stack((fmap1, fmap2), axis=2)
         flow_predictions = []
         for itr in range(iters):
             net, preds = self.decoders[itr](query=net, key=fmap2)

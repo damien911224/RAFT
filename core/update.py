@@ -172,9 +172,6 @@ class Decoder(nn.Module):
         q_n, q_c, q_h, q_w = query.size()
         k_n, k_c, k_h, k_w = key.size()
 
-        print(q_c, q_h, q_w)
-        print(k_c, k_h, k_w)
-
         query = query.permute((2, 3, 0, 1))
         key = key.permute((2, 3, 0, 1))
 
@@ -183,15 +180,10 @@ class Decoder(nn.Module):
 
         net = self.decoder(query, key)
 
-        print(net.size())
-
         net = net.permute((1, 2, 0))
         net = net.view((q_n, q_c, q_h, q_w))
-        print(net.size())
 
         preds = self.head(net)
-        print(preds.size())
-        exit()
 
         return net, preds
 

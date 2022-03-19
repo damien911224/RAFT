@@ -58,8 +58,9 @@ class RAFT(nn.Module):
 
         self.embedding = PositionEmbedding(self.args, hidden_dim=256)
 
-        self.decoders = [Decoder(self.args, hidden_dim=256, num_heads=8, ff_dim=1024, dropout=0.1)
-                         for i in range(args.iters)]
+        # self.decoders = [Decoder(self.args, hidden_dim=256, num_heads=8, ff_dim=1024, dropout=0.1)
+        #                  for i in range(args.iters)]
+        self.decoders = Decoder(self.args, hidden_dim=256, num_heads=8, ff_dim=1024, dropout=0.1)
 
     def freeze_bn(self):
         for m in self.modules():
@@ -144,13 +145,14 @@ class RAFT(nn.Module):
         # if test_mode:
         #     return coords1 - coords0, flow_up
 
-        # fmap1 = self.embedding(fmap1)
-        # fmap2 = self.embedding(fmap2)
+        fmap1 = self.embedding(fmap1)
+        fmap2 = self.embedding(fmap2)
 
         net = fmap1
         flow_predictions = []
         for itr in range(iters):
-            net, preds = self.decoders[itr](query=net, key=fmap2)
+            # net, preds = self.decoders[itr](query=net, key=fmap2)
+            net, preds = self.decoders(query=net, key=fmap2)
 
             # upsample predictions
             flow_up = upflow8(preds)

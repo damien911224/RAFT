@@ -128,6 +128,7 @@ class DeformableTransformer(nn.Module):
         spatial_shapes = []
         for lvl, (src_01, src_02, pos_embed) in enumerate(zip(srcs_01, srcs_02, pos_embeds)):
             bs, c, h, w = src_01.shape
+            print(bs, c, h, w)
             spatial_shape = (h, w)
             spatial_shapes.append(spatial_shape)
             src_01 = src_01.flatten(2).transpose(1, 2)

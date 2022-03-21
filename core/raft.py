@@ -46,24 +46,26 @@ class RAFT(nn.Module):
             self.args.alternate_corr = False
 
         # feature network, context network, and update block
-        if args.small:
-            self.fnet = SmallEncoder(output_dim=128, norm_fn='instance', dropout=args.dropout)        
-            self.cnet = SmallEncoder(output_dim=hdim+cdim, norm_fn='none', dropout=args.dropout)
-            self.update_block = SmallUpdateBlock(self.args, hidden_dim=hdim)
+        # if args.small:
+        #     self.fnet = SmallEncoder(output_dim=128, norm_fn='instance', dropout=args.dropout)
+        #     self.cnet = SmallEncoder(output_dim=hdim+cdim, norm_fn='none', dropout=args.dropout)
+        #     self.update_block = SmallUpdateBlock(self.args, hidden_dim=hdim)
+        #
+        # else:
+        #     self.fnet = BasicEncoder(output_dim=256, norm_fn='instance', dropout=args.dropout)
+        #     self.cnet = BasicEncoder(output_dim=hdim+cdim, norm_fn='batch', dropout=args.dropout)
+        #     self.update_block = BasicUpdateBlock(self.args, hidden_dim=hdim)
 
-        else:
-            self.fnet = BasicEncoder(output_dim=256, norm_fn='instance', dropout=args.dropout)        
-            self.cnet = BasicEncoder(output_dim=hdim+cdim, norm_fn='batch', dropout=args.dropout)
-            self.update_block = BasicUpdateBlock(self.args, hidden_dim=hdim)
+        self.fnet = BasicEncoder(output_dim=128, norm_fn='batch', dropout=args.dropout)
 
-        self.embedding = PositionEmbedding(self.args, hidden_dim=256)
-        self.memory_embedding = nn.Parameter(torch.empty((1, 256, 1, 1, 1)))
+        self.embedding = PositionEmbedding(self.args, hidden_dim=128)
+        self.memory_embedding = nn.Parameter(torch.empty((1, 128, 2, 1, 1)))
 
         w, h = args.image_size[1] // 8, args.image_size[0] // 8
-        self.query = nn.Parameter(torch.empty((1, 256, h, w)))
+        self.query = nn.Parameter(torch.empty((1, 128, h, w)))
 
         self.decoders = \
-            nn.ModuleList([Decoder(self.args, hidden_dim=256, num_heads=8, ff_dim=256 * 4, dropout=0.1)
+            nn.ModuleList([Decoder(self.args, hidden_dim=128, num_heads=8, ff_dim=128 * 4, dropout=0.0)
                            for _ in range(args.iters)])
 
     def freeze_bn(self):
@@ -103,9 +105,12 @@ class RAFT(nn.Module):
         image2 = image2.contiguous()
 
         # run the feature network
-        with autocast(enabled=self.args.mixed_precision):
-            fmap1, fmap2 = self.fnet([image1, image2])        
-        
+        # with autocast(enabled=self.args.mixed_precision):
+        #     fmap1, fmap2 = self.fnet([image1, image2])
+
+        fmap1 = self.fnet(image1)
+        fmap2 = self.fnet(image2)
+
         fmap1 = fmap1.float()
         fmap2 = fmap2.float()
 

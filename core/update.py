@@ -167,6 +167,7 @@ class Decoder(nn.Module):
     def __init__(self, args, hidden_dim=256, num_heads=8, ff_dim=1024, dropout=0.1):
         super(Decoder, self).__init__()
         self.args = args
+        self.hidden_dim = hidden_dim
         self.decoder = nn.TransformerDecoderLayer(hidden_dim, num_heads,
                                                   dim_feedforward=ff_dim, dropout=dropout)
         # self.decoder = nn.MultiheadAttention(hidden_dim, num_heads, dropout=dropout)

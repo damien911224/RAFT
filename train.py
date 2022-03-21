@@ -15,7 +15,8 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 from torch.utils.data import DataLoader
-from raft import RAFT
+# from raft import RAFT
+from core.ours import RAFT
 import evaluate
 import datasets
 import flow_vis

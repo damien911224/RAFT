@@ -154,7 +154,11 @@ class DeformableTransformer(nn.Module):
         reference_points = self.encoder.get_reference_points(spatial_shapes, device=memory_01.device)
         init_reference_out = reference_points
 
+        print(memory_01.size())
+
         tgt_embed = self.tgt_embed(memory_01)
+
+        print(tgt_embed.size())
 
         # decoder
         hs, inter_references = self.decoder(tgt_embed, reference_points, memory_02,

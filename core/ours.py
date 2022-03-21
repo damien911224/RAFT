@@ -117,11 +117,9 @@ class RAFT(nn.Module):
         return up_flow.reshape(N, 2, 8*H, 8*W)
 
     def get_embedding(self, target_feat, col_embed, row_embed):
-        f_n, f_h, f_w, _ = target_feat.size()
+        f_n, _, f_h, f_w = target_feat.size()
         p_h, _ = col_embed.weight.size()
         p_w, _ = row_embed.weight.size()
-
-        print(f_h, f_w, p_h, p_w)
 
         this_embed = torch.cat((col_embed.weight.unsqueeze(1).repeat(1, p_w, 1),
                                 row_embed.weight.unsqueeze(0).repeat(p_h, 1, 1)), dim=-1)

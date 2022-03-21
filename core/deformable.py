@@ -121,40 +121,32 @@ class DeformableTransformer(nn.Module):
         valid_ratio = torch.stack([valid_ratio_w, valid_ratio_h], -1)
         return valid_ratio
 
-    def forward(self, srcs_01, srcs_02, pos_embeds, query_embed):
+    def forward(self, srcs_01, srcs_02, pos_embeds):
         # prepare input for encoder
         src_flatten_01 = []
         src_flatten_02 = []
-        lvl_pos_embed_flatten_01 = []
-        lvl_pos_embed_flatten_02 = []
-        lvl_query_embed_flatten = []
+        lvl_pos_embed_flatten = []
         spatial_shapes = []
-        for lvl, (src_01, src_02, pos_embed, query_embed) in enumerate(zip(srcs_01, srcs_02, pos_embeds, query_embed)):
+        for lvl, (src_01, src_02, pos_embed) in enumerate(zip(srcs_01, srcs_02, pos_embeds)):
             bs, c, h, w = src_01.shape
             spatial_shape = (h, w)
             spatial_shapes.append(spatial_shape)
             src_01 = src_01.flatten(2).transpose(1, 2)
             src_02 = src_02.flatten(2).transpose(1, 2)
             pos_embed = pos_embed.flatten(2).transpose(1, 2)
-            lvl_pos_embed_01 = pos_embed + self.level_embed[lvl].view(1, 1, -1)
-            lvl_pos_embed_flatten_01.append(lvl_pos_embed_01)
-            lvl_pos_embed_02 = pos_embed + self.level_embed[lvl].view(1, 1, -1)
-            lvl_pos_embed_flatten_02.append(lvl_pos_embed_02)
-            lvl_query_embed = query_embed + self.level_embed[lvl].view(1, 1, -1)
-            lvl_query_embed_flatten.append(lvl_query_embed)
+            lvl_pos_embed = pos_embed + self.level_embed[lvl].view(1, 1, -1)
+            lvl_pos_embed_flatten.append(lvl_pos_embed)
             src_flatten_01.append(src_01)
             src_flatten_02.append(src_02)
         src_flatten_01 = torch.cat(src_flatten_01, 1)
         src_flatten_02 = torch.cat(src_flatten_02, 1)
-        lvl_pos_embed_flatten_01 = torch.cat(lvl_pos_embed_flatten_01, 1)
-        lvl_pos_embed_flatten_02 = torch.cat(lvl_pos_embed_flatten_02, 1)
-        lvl_query_embed_flatten = torch.cat(lvl_query_embed_flatten, 1)
+        lvl_pos_embed_flatten = torch.cat(lvl_pos_embed_flatten, 1)
         spatial_shapes = torch.as_tensor(spatial_shapes, dtype=torch.long, device=src_flatten_01.device)
         level_start_index = torch.cat((spatial_shapes.new_zeros((1, )), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
         # encoder
-        memory_01 = self.encoder(src_flatten_01, spatial_shapes, level_start_index, lvl_pos_embed_flatten_01)
-        memory_02 = self.encoder(src_flatten_02, spatial_shapes, level_start_index, lvl_pos_embed_flatten_02)
+        memory_01 = self.encoder(src_flatten_01, spatial_shapes, level_start_index, lvl_pos_embed_flatten)
+        memory_02 = self.encoder(src_flatten_02, spatial_shapes, level_start_index, lvl_pos_embed_flatten)
         # memory = torch.cat((memory_01, memory_02), 1)
 
         # prepare input for decoder
@@ -166,7 +158,7 @@ class DeformableTransformer(nn.Module):
 
         # decoder
         hs, inter_references = self.decoder(tgt_embed, reference_points, memory_02,
-                                            spatial_shapes, level_start_index, lvl_query_embed_flatten)
+                                            spatial_shapes, level_start_index, lvl_pos_embed_flatten)
 
         inter_references_out = inter_references
         return hs, init_reference_out, inter_references_out

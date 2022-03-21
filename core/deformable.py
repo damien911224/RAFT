@@ -144,10 +144,14 @@ class DeformableTransformer(nn.Module):
         spatial_shapes = torch.as_tensor(spatial_shapes, dtype=torch.long, device=src_flatten_01.device)
         level_start_index = torch.cat((spatial_shapes.new_zeros((1, )), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
+        print(src_flatten_01.size())
+
         # encoder
         memory_01 = self.encoder(src_flatten_01, spatial_shapes, level_start_index, lvl_pos_embed_flatten)
         memory_02 = self.encoder(src_flatten_02, spatial_shapes, level_start_index, lvl_pos_embed_flatten)
         # memory = torch.cat((memory_01, memory_02), 1)
+
+        print(memory_01.size())
 
         # prepare input for decoder
         # reference_points = self.reference_points(query_embed).sigmoid()
@@ -156,9 +160,13 @@ class DeformableTransformer(nn.Module):
 
         tgt_embed = self.tgt_embed(memory_01)
 
+        print(tgt_embed.size())
+
         # decoder
         hs, inter_references = self.decoder(tgt_embed, reference_points, memory_02,
                                             spatial_shapes, level_start_index, lvl_pos_embed_flatten)
+
+        print(hs[0].size())
 
         inter_references_out = inter_references
         return hs, init_reference_out, inter_references_out

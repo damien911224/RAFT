@@ -43,7 +43,6 @@ class DeformableTransformer(nn.Module):
                                                           num_feature_levels, nhead, dec_n_points)
         self.decoder = DeformableTransformerDecoder(decoder_layer, num_decoder_layers, return_intermediate_dec)
 
-        self.time_embed = nn.Parameter(torch.Tensor(2, d_model))
         self.level_embed = nn.Parameter(torch.Tensor(num_feature_levels, d_model))
 
         # self.reference_points = nn.Linear(d_model, 2)
@@ -62,7 +61,6 @@ class DeformableTransformer(nn.Module):
         # if not self.two_stage:
         #     xavier_uniform_(self.reference_points.weight.data, gain=1.0)
         #     constant_(self.reference_points.bias.data, 0.)
-        normal_(self.time_embed)
         normal_(self.level_embed)
 
     def get_proposal_pos_embed(self, proposals):
@@ -135,9 +133,9 @@ class DeformableTransformer(nn.Module):
             src_01 = src_01.flatten(2).transpose(1, 2)
             src_02 = src_02.flatten(2).transpose(1, 2)
             pos_embed = pos_embed.flatten(2).transpose(1, 2)
-            lvl_pos_embed_01 = pos_embed + self.level_embed[lvl].view(1, 1, -1) + self.time_embed[0].view(1, 1, -1)
+            lvl_pos_embed_01 = pos_embed + self.level_embed[lvl].view(1, 1, -1)
             lvl_pos_embed_flatten_01.append(lvl_pos_embed_01)
-            lvl_pos_embed_02 = pos_embed + self.level_embed[lvl].view(1, 1, -1) + self.time_embed[1].view(1, 1, -1)
+            lvl_pos_embed_02 = pos_embed + self.level_embed[lvl].view(1, 1, -1)
             lvl_pos_embed_flatten_02.append(lvl_pos_embed_02)
             src_flatten_01.append(src_01)
             src_flatten_02.append(src_02)

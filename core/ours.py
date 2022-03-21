@@ -178,6 +178,7 @@ class RAFT(nn.Module):
             this_flow = torch.stack(this_flow, dim=0).mean(dim=0)
             flow_raws.append(this_pred)
             flow_predictions.append(this_flow)
+            prev_idx += this_len
 
         if test_mode:
             return flow_raws[-1], flow_predictions[-1]

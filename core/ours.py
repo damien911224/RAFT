@@ -44,8 +44,8 @@ class RAFT(nn.Module):
         self.row_pos_embed = nn.ModuleList([nn.Embedding(w // (2 ** i), d_model // 2) for i in range(1, 4)])
         self.col_pos_embed = nn.ModuleList([nn.Embedding(h // (2 ** i), d_model // 2) for i in range(1, 4)])
 
-        self.row_query_embed = nn.Embedding(w // 8, d_model // 2)
-        self.col_query_embed = nn.Embedding(h // 8, d_model // 2)
+        self.row_query_embed = nn.ModuleList([nn.Embedding(w // (2 ** i), d_model // 2) for i in range(1, 4)])
+        self.col_query_embed = nn.ModuleList([nn.Embedding(h // (2 ** i), d_model // 2) for i in range(1, 4)])
 
         # self.row_tgt_embed = nn.Embedding(w // 8, d_model // 2)
         # self.col_tgt_embed = nn.Embedding(h // 8, d_model // 2)
@@ -147,7 +147,8 @@ class RAFT(nn.Module):
 
         pos_embeds = [self.get_embedding(feat, col_embed, row_embed)
                       for feat, col_embed, row_embed in zip(features_01, self.col_pos_embed, self.row_pos_embed)]
-        query_embed = self.get_embedding(features_01[-1], self.col_query_embed, self.row_query_embed)
+        query_embed = [self.get_embedding(feat, col_embed, row_embed)
+                      for feat, col_embed, row_embed in zip(features_01, self.col_query_embed, self.row_query_embed)]
 
         hs, init_reference, inter_references = \
             self.transformer(features_01, features_02, pos_embeds, query_embed)

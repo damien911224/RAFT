@@ -127,8 +127,9 @@ class DeformableTransformer(nn.Module):
         src_flatten_02 = []
         lvl_pos_embed_flatten_01 = []
         lvl_pos_embed_flatten_02 = []
+        lvl_query_embed_flatten = []
         spatial_shapes = []
-        for lvl, (src_01, src_02, pos_embed) in enumerate(zip(srcs_01, srcs_02, pos_embeds)):
+        for lvl, (src_01, src_02, pos_embed, query_embed) in enumerate(zip(srcs_01, srcs_02, pos_embeds, query_embed)):
             bs, c, h, w = src_01.shape
             spatial_shape = (h, w)
             spatial_shapes.append(spatial_shape)
@@ -139,12 +140,15 @@ class DeformableTransformer(nn.Module):
             lvl_pos_embed_flatten_01.append(lvl_pos_embed_01)
             lvl_pos_embed_02 = pos_embed + self.level_embed[lvl].view(1, 1, -1)
             lvl_pos_embed_flatten_02.append(lvl_pos_embed_02)
+            lvl_query_embed = query_embed + self.level_embed[lvl].view(1, 1, -1)
+            lvl_query_embed_flatten.append(lvl_query_embed)
             src_flatten_01.append(src_01)
             src_flatten_02.append(src_02)
         src_flatten_01 = torch.cat(src_flatten_01, 1)
         src_flatten_02 = torch.cat(src_flatten_02, 1)
         lvl_pos_embed_flatten_01 = torch.cat(lvl_pos_embed_flatten_01, 1)
         lvl_pos_embed_flatten_02 = torch.cat(lvl_pos_embed_flatten_02, 1)
+        lvl_query_embed_flatten = torch.cat(lvl_query_embed_flatten, 1)
         spatial_shapes = torch.as_tensor(spatial_shapes, dtype=torch.long, device=src_flatten_01.device)
         level_start_index = torch.cat((spatial_shapes.new_zeros((1, )), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
@@ -162,7 +166,7 @@ class DeformableTransformer(nn.Module):
 
         # decoder
         hs, inter_references = self.decoder(tgt_embed, reference_points, memory_02,
-                                            spatial_shapes, level_start_index, query_embed)
+                                            spatial_shapes, level_start_index, lvl_query_embed_flatten)
 
         inter_references_out = inter_references
         return hs, init_reference_out, inter_references_out

@@ -39,7 +39,7 @@ class RAFT(nn.Module):
         # feature network, context network, and update block
         self.fnet = BasicEncoder(output_dim=128, norm_fn="batch", dropout=args.dropout)
 
-        d_model = 16
+        d_model = 64
         h, w = args.image_size[0], args.image_size[1]
         self.row_pos_embed = nn.ModuleList([nn.Embedding(w // (2 ** i), d_model // 2) for i in range(1, 4)])
         self.col_pos_embed = nn.ModuleList([nn.Embedding(h // (2 ** i), d_model // 2) for i in range(1, 4)])
@@ -154,7 +154,6 @@ class RAFT(nn.Module):
         i_h, i_w = self.args.image_size[0], self.args.image_size[1]
         flow_raws = list()
         flow_predictions = list()
-        prev_idx = 0
         for lid in range(hs.shape[0]):
             this_flow = list()
             this_pred = list()
@@ -163,6 +162,7 @@ class RAFT(nn.Module):
                 reference = init_reference
             else:
                 reference = inter_references[lid - 1]
+            prev_idx = 0
             for lvl in range(len(features_01)):
                 bs, c, h, w = features_01[lvl].shape
                 this_len = h * w
@@ -174,11 +174,11 @@ class RAFT(nn.Module):
                 flow *= torch.tensor((i_h, i_w), dtype=torch.float32).view(1, 1, 1, 2)
                 flow = F.interpolate(flow, size=(i_h, i_w), mode="bilinear", align_corners=True)
                 this_flow.append(flow)
+                prev_idx += this_len
             this_pred = torch.stack(this_pred, dim=0).mean(dim=0)
             this_flow = torch.stack(this_flow, dim=0).mean(dim=0)
             flow_raws.append(this_pred)
             flow_predictions.append(this_flow)
-            prev_idx += this_len
 
         if test_mode:
             return flow_raws[-1], flow_predictions[-1]

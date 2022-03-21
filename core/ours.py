@@ -39,7 +39,7 @@ class RAFT(nn.Module):
         # feature network, context network, and update block
         self.fnet = BasicEncoder(output_dim=128, norm_fn="batch", dropout=args.dropout)
 
-        d_model = 64
+        d_model = 16
         h, w = args.image_size[0], args.image_size[1]
         self.row_pos_embed = nn.ModuleList([nn.Embedding(w // (2 ** i), d_model // 2) for i in range(1, 4)])
         self.col_pos_embed = nn.ModuleList([nn.Embedding(h // (2 ** i), d_model // 2) for i in range(1, 4)])
@@ -63,7 +63,7 @@ class RAFT(nn.Module):
         for in_channels in (64, 96, 128):
             input_proj_list.append(nn.Sequential(
                 nn.Conv2d(in_channels, d_model, kernel_size=1),
-                nn.GroupNorm(32, d_model)))
+                nn.GroupNorm(d_model // 2, d_model)))
         self.input_proj = nn.ModuleList(input_proj_list)
 
         for proj in self.input_proj:

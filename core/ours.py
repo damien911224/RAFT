@@ -50,7 +50,7 @@ class RAFT(nn.Module):
         self.reset_parameters()
 
         self.transformer = DeformableTransformer(d_model=128, nhead=8,
-                                                 num_encoder_layers=6, num_decoder_layers=6,
+                                                 num_encoder_layers=3, num_decoder_layers=3,
                                                  dim_feedforward=128 * 4, dropout=0.1,
                                                  activation="relu", return_intermediate_dec=True,
                                                  num_feature_levels=3, dec_n_points=4, enc_n_points=4)
@@ -135,7 +135,7 @@ class RAFT(nn.Module):
         tgt_embed = self.get_embedding(features_01[-1], self.col_tgt_embed, self.row_tgt_embed)
 
         hs, init_reference, inter_references = \
-            self.decoder(features_01, features_02, pos_embeds, query_embed, tgt_embed)
+            self.transformer(features_01, features_02, pos_embeds, query_embed, tgt_embed)
 
         flow_predictions = [upflow8(flow) for flow in inter_references]
 

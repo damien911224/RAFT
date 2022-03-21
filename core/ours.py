@@ -39,10 +39,14 @@ class RAFT(nn.Module):
         # feature network, context network, and update block
         self.fnet = BasicEncoder(output_dim=128, norm_fn="batch", dropout=args.dropout)
 
-        d_model = 16
+        d_model = 32
+        num_feature_levels = 1
+        self.num_feature_levels = num_feature_levels
         h, w = args.image_size[0], args.image_size[1]
-        self.row_pos_embed = nn.ModuleList([nn.Embedding(w // (2 ** i), d_model // 2) for i in range(1, 4)])
-        self.col_pos_embed = nn.ModuleList([nn.Embedding(h // (2 ** i), d_model // 2) for i in range(1, 4)])
+        self.row_pos_embed = nn.ModuleList([nn.Embedding(w // (2 ** i), d_model // 2)
+                                            for i in range(3 - self.num_feature_levels + 1, 4)])
+        self.col_pos_embed = nn.ModuleList([nn.Embedding(h // (2 ** i), d_model // 2)
+                                            for i in range(3 - self.num_feature_levels + 1, 4)])
 
         # self.row_query_embed = nn.ModuleList([nn.Embedding(w // (2 ** i), d_model // 2) for i in range(1, 4)])
         # self.col_query_embed = nn.ModuleList([nn.Embedding(h // (2 ** i), d_model // 2) for i in range(1, 4)])
@@ -53,14 +57,15 @@ class RAFT(nn.Module):
         self.reset_parameters()
 
         self.transformer = DeformableTransformer(d_model=d_model, nhead=8,
-                                                 num_encoder_layers=1, num_decoder_layers=1,
+                                                 num_encoder_layers=3, num_decoder_layers=3,
                                                  dim_feedforward=d_model * 4, dropout=0.1,
                                                  activation="relu", return_intermediate_dec=True,
-                                                 num_feature_levels=3, dec_n_points=4, enc_n_points=4)
+                                                 num_feature_levels=num_feature_levels, dec_n_points=4, enc_n_points=4)
 
         self.flow_embed = MLP(d_model, d_model, 2, 3)
         input_proj_list = []
-        for in_channels in (64, 96, 128):
+        for l_i in range(3 - num_feature_levels, 3):
+            in_channels = (64, 96, 128)[l_i]
             input_proj_list.append(nn.Sequential(
                 nn.Conv2d(in_channels, d_model, kernel_size=1),
                 nn.GroupNorm(d_model // 2, d_model)))
@@ -139,8 +144,8 @@ class RAFT(nn.Module):
         image1 = image1.contiguous()
         image2 = image2.contiguous()
 
-        features_01 = self.fnet(image1)
-        features_02 = self.fnet(image2)
+        features_01 = self.fnet(image1)[3 - self.num_feature_levels:]
+        features_02 = self.fnet(image2)[3 - self.num_feature_levels:]
 
         features_01 = [self.input_proj[l](feat) for l, feat in enumerate(features_01)]
         features_02 = [self.input_proj[l](feat) for l, feat in enumerate(features_02)]

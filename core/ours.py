@@ -39,8 +39,8 @@ class RAFT(nn.Module):
         # feature network, context network, and update block
         self.fnet = BasicEncoder(output_dim=128, norm_fn="batch", dropout=args.dropout)
 
-        d_model = 64
-        num_feature_levels = 3
+        d_model = 32
+        num_feature_levels = 1
         self.num_feature_levels = num_feature_levels
         h, w = args.image_size[0], args.image_size[1]
         self.row_pos_embed = nn.ModuleList([nn.Embedding(w // (2 ** i), d_model // 2)

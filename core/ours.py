@@ -121,6 +121,8 @@ class RAFT(nn.Module):
         p_h, _ = col_embed.weight.size()
         p_w, _ = row_embed.weight.size()
 
+        print(f_h, f_w, p_h, p_w)
+
         this_embed = torch.cat((col_embed.weight.unsqueeze(1).repeat(1, p_w, 1),
                                 row_embed.weight.unsqueeze(0).repeat(p_h, 1, 1)), dim=-1)
         this_embed = this_embed.permute(2, 0, 1).unsqueeze(0).repeat(f_n, 1, 1, 1)

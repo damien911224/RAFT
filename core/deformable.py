@@ -153,12 +153,9 @@ class DeformableTransformer(nn.Module):
         # reference_points = self.reference_points(query_embed).sigmoid()
         reference_points = self.encoder.get_reference_points(spatial_shapes, device=memory_01.device)
         init_reference_out = reference_points
-
-        print(memory_01.size())
+        print(reference_points.size())
 
         tgt_embed = self.tgt_embed(memory_01)
-
-        print(tgt_embed.size())
 
         # decoder
         hs, inter_references = self.decoder(tgt_embed, reference_points, memory_02,
@@ -314,6 +311,7 @@ class DeformableTransformerDecoder(nn.Module):
             else:
                 assert reference_points.shape[-1] == 2
                 reference_points_input = reference_points[:, :, None]
+            print(reference_points.size())
             output = layer(output, query_pos, reference_points_input, src, src_spatial_shapes, src_level_start_index)
 
             # hack implementation for iterative bounding box refinement

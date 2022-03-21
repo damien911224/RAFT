@@ -59,9 +59,9 @@ class DeformableTransformer(nn.Module):
         for m in self.modules():
             if isinstance(m, MSDeformAttn):
                 m._reset_parameters()
-        if not self.two_stage:
-            xavier_uniform_(self.reference_points.weight.data, gain=1.0)
-            constant_(self.reference_points.bias.data, 0.)
+        # if not self.two_stage:
+        #     xavier_uniform_(self.reference_points.weight.data, gain=1.0)
+        #     constant_(self.reference_points.bias.data, 0.)
         normal_(self.time_embed)
         normal_(self.level_embed)
 

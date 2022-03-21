@@ -296,8 +296,7 @@ class DeformableTransformerDecoder(nn.Module):
         self.num_layers = num_layers
         self.return_intermediate = return_intermediate
         # hack implementation for iterative bounding box refinement and two-stage Deformable DETR
-        self.bbox_embed = None
-        self.class_embed = None
+        self.flow_embed = None
 
     def forward(self, tgt, reference_points, src, src_spatial_shapes, src_level_start_index, src_valid_ratios,
                 query_pos=None):
@@ -315,8 +314,8 @@ class DeformableTransformerDecoder(nn.Module):
             output = layer(output, query_pos, reference_points_input, src, src_spatial_shapes, src_level_start_index)
 
             # hack implementation for iterative bounding box refinement
-            if self.bbox_embed is not None:
-                tmp = self.bbox_embed[lid](output)
+            if self.flow_embed is not None:
+                tmp = self.flow_embed[lid](output)
                 if reference_points.shape[-1] == 4:
                     new_reference_points = tmp + inverse_sigmoid(reference_points)
                     new_reference_points = new_reference_points.sigmoid()

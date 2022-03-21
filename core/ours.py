@@ -61,7 +61,7 @@ class RAFT(nn.Module):
         self.flow_embed = self._get_clones(self.flow_embed, num_pred)
         # nn.init.constant_(self.flow_embed[0].layers[-1].bias.data[2:], -2.0)
         # hack implementation for iterative bounding box refinement
-        self.transformer.decoder.bbox_embed = self.bbox_embed
+        self.transformer.decoder.flow_embed = self.flow_embed
 
     def reset_parameters(self):
         for embed in self.row_pos_embed:

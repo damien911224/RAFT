@@ -10,7 +10,9 @@ from utils.utils import bilinear_sampler, coords_grid, upflow8
 from update import Decoder, PositionEmbedding
 
 from deformable import DeformableTransformer
+from utils.misc import inverse_sigmoid
 import copy
+
 
 try:
     autocast = torch.cuda.amp.autocast
@@ -45,8 +47,8 @@ class RAFT(nn.Module):
         self.row_query_embed = nn.Embedding(w // 8, d_model // 2)
         self.col_query_embed = nn.Embedding(h // 8, d_model // 2)
 
-        self.row_tgt_embed = nn.Embedding(w // 8, d_model // 2)
-        self.col_tgt_embed = nn.Embedding(h // 8, d_model // 2)
+        # self.row_tgt_embed = nn.Embedding(w // 8, d_model // 2)
+        # self.col_tgt_embed = nn.Embedding(h // 8, d_model // 2)
 
         self.reset_parameters()
 
@@ -61,8 +63,7 @@ class RAFT(nn.Module):
         for in_channels in (64, 96, 128):
             input_proj_list.append(nn.Sequential(
                 nn.Conv2d(in_channels, d_model, kernel_size=1),
-                nn.GroupNorm(32, d_model),
-            ))
+                nn.GroupNorm(32, d_model)))
         self.input_proj = nn.ModuleList(input_proj_list)
 
         for proj in self.input_proj:
@@ -82,8 +83,8 @@ class RAFT(nn.Module):
             nn.init.uniform_(embed.weight)
         nn.init.xavier_uniform_(self.row_query_embed.weight)
         nn.init.xavier_uniform_(self.col_query_embed.weight)
-        nn.init.xavier_uniform_(self.row_tgt_embed.weight)
-        nn.init.xavier_uniform_(self.col_tgt_embed.weight)
+        # nn.init.xavier_uniform_(self.row_tgt_embed.weight)
+        # nn.init.xavier_uniform_(self.col_tgt_embed.weight)
 
     def _get_clones(self, module, N):
         return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
@@ -147,15 +148,40 @@ class RAFT(nn.Module):
         pos_embeds = [self.get_embedding(feat, col_embed, row_embed)
                       for feat, col_embed, row_embed in zip(features_01, self.col_pos_embed, self.row_pos_embed)]
         query_embed = self.get_embedding(features_01[-1], self.col_query_embed, self.row_query_embed)
-        tgt_embed = self.get_embedding(features_01[-1], self.col_tgt_embed, self.row_tgt_embed)
 
         hs, init_reference, inter_references = \
-            self.transformer(features_01, features_02, pos_embeds, query_embed, tgt_embed)
+            self.transformer(features_01, features_02, pos_embeds, query_embed)
 
-        flow_predictions = [upflow8(flow) for flow in inter_references]
+        i_h, i_w = self.args.image_size[0], self.args.image_size[1]
+        flow_raws = list()
+        flow_predictions = list()
+        prev_idx = 0
+        for lid in range(hs.shape[0]):
+            this_flow = list()
+            this_pred = list()
+            tmp = self.flow_embed[lid](hs[lid])
+            if lid == 0:
+                reference = init_reference
+            else:
+                reference = inter_references[lid - 1]
+            for lvl in range(len(features_01)):
+                bs, c, h, w = features_01[lvl].shape
+                this_len = h * w
+                reference = inverse_sigmoid(reference[prev_idx:prev_idx + this_len])
+                flow = tmp[prev_idx:prev_idx + this_len] + reference
+                flow = init_reference[prev_idx:prev_idx + this_len] - flow.sigmoid()
+                flow = flow.view(bs, h, w, 2).permute(0, 3, 1, 2)
+                this_pred.append(flow)
+                flow *= torch.tensor((i_h, i_w), dtype=torch.float32).view(1, 1, 1, 2)
+                flow = F.interpolate(flow, size=(i_h, i_w), mode="bilinear", align_corners=True)
+                this_flow.append(flow)
+            this_pred = torch.stack(this_pred, dim=0).mean(dim=0)
+            this_flow = torch.stack(this_flow, dim=0).mean(dim=0)
+            flow_raws.append(this_pred)
+            flow_predictions.append(this_flow)
 
         if test_mode:
-            return inter_references[-1], flow_predictions[-1]
+            return flow_raws[-1], flow_predictions[-1]
         else:
             return flow_predictions
 

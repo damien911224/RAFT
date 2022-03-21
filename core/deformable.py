@@ -46,7 +46,9 @@ class DeformableTransformer(nn.Module):
         self.time_embed = nn.Parameter(torch.Tensor(2, d_model))
         self.level_embed = nn.Parameter(torch.Tensor(num_feature_levels, d_model))
 
-        self.reference_points = nn.Linear(d_model, 2)
+        # self.reference_points = nn.Linear(d_model, 2)
+
+        self.tgt_embed = nn.Linear(d_model, d_model)
 
         self._reset_parameters()
 
@@ -119,7 +121,7 @@ class DeformableTransformer(nn.Module):
         valid_ratio = torch.stack([valid_ratio_w, valid_ratio_h], -1)
         return valid_ratio
 
-    def forward(self, srcs_01, srcs_02, pos_embeds, query_embed, tgt_embed):
+    def forward(self, srcs_01, srcs_02, pos_embeds, query_embed):
         # prepare input for encoder
         src_flatten_01 = []
         src_flatten_02 = []
@@ -128,7 +130,6 @@ class DeformableTransformer(nn.Module):
         spatial_shapes = []
         for lvl, (src_01, src_02, pos_embed) in enumerate(zip(srcs_01, srcs_02, pos_embeds)):
             bs, c, h, w = src_01.shape
-            print(bs, c, h, w)
             spatial_shape = (h, w)
             spatial_shapes.append(spatial_shape)
             src_01 = src_01.flatten(2).transpose(1, 2)
@@ -150,14 +151,17 @@ class DeformableTransformer(nn.Module):
         # encoder
         memory_01 = self.encoder(src_flatten_01, spatial_shapes, level_start_index, lvl_pos_embed_flatten_01)
         memory_02 = self.encoder(src_flatten_02, spatial_shapes, level_start_index, lvl_pos_embed_flatten_02)
-        memory = torch.cat((memory_01, memory_02), 1)
+        # memory = torch.cat((memory_01, memory_02), 1)
 
         # prepare input for decoder
-        reference_points = self.reference_points(query_embed).sigmoid()
+        # reference_points = self.reference_points(query_embed).sigmoid()
+        reference_points = self.encoder.get_reference_points(spatial_shapes, device=memory_01.device)
         init_reference_out = reference_points
 
+        tgt_embed = self.reference_points(memory_01).sigmoid()
+
         # decoder
-        hs, inter_references = self.decoder(tgt_embed, reference_points, memory,
+        hs, inter_references = self.decoder(tgt_embed, reference_points, memory_02,
                                             spatial_shapes, level_start_index, query_embed)
 
         inter_references_out = inter_references

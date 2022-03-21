@@ -61,6 +61,8 @@ class DeformableTransformer(nn.Module):
         # if not self.two_stage:
         #     xavier_uniform_(self.reference_points.weight.data, gain=1.0)
         #     constant_(self.reference_points.bias.data, 0.)
+        xavier_uniform_(self.tgt_embed.weight.data, gain=1.0)
+        constant_(self.tgt_embed.bias.data, 0.)
         normal_(self.level_embed)
 
     def get_proposal_pos_embed(self, proposals):
@@ -156,7 +158,7 @@ class DeformableTransformer(nn.Module):
         reference_points = self.encoder.get_reference_points(spatial_shapes, device=memory_01.device)
         init_reference_out = reference_points
 
-        tgt_embed = self.reference_points(memory_01).sigmoid()
+        tgt_embed = self.tgt_embed(memory_01)
 
         # decoder
         hs, inter_references = self.decoder(tgt_embed, reference_points, memory_02,

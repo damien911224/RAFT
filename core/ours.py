@@ -73,7 +73,7 @@ class RAFT(nn.Module):
         nn.init.xavier_uniform_(self.row_tgt_embed.weight)
         nn.init.xavier_uniform_(self.col_tgt_embed.weight)
 
-    def _get_clones(module, N):
+    def _get_clones(self, module, N):
         return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
 
     def freeze_bn(self):

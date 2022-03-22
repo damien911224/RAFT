@@ -164,9 +164,7 @@ class RAFT(nn.Module):
         for lid in range(len(hs)):
             this_flow = list()
             this_pred = list()
-            print(hs[lid].size())
             tmp = self.flow_embed[lid](hs[lid])
-            print(tmp.size())
             if lid == 0:
                 reference = init_reference
             else:
@@ -185,7 +183,7 @@ class RAFT(nn.Module):
                 # flow = F.interpolate(flow, size=(i_h, i_w), mode="bilinear", align_corners=True)
                 # this_flow.append(flow)
                 split = 0
-                flow = tmp[prev_idx:prev_idx + this_len]
+                flow = tmp[:, prev_idx:prev_idx + this_len]
                 flow = flow.view(bs, h, w, 2).permute(0, 3, 1, 2)
                 this_pred.append(flow)
                 flow = F.interpolate(flow, size=(i_h, i_w), mode="bilinear", align_corners=True)

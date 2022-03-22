@@ -62,7 +62,7 @@ class RAFT(nn.Module):
                                                  activation="relu", return_intermediate_dec=True,
                                                  num_feature_levels=num_feature_levels, dec_n_points=4, enc_n_points=4)
 
-        self.flow_embed = MLP(d_model, d_model, 128, 3)
+        self.flow_embed = MLP(d_model, d_model, d_model, 3)
         input_proj_list = []
         for l_i in range(num_feature_levels):
             in_channels = (128, 192, 256)[l_i]
@@ -183,6 +183,7 @@ class RAFT(nn.Module):
                 flow = tmp[:, prev_idx:prev_idx + this_len]
                 flow = flow.view(bs, h, w, 128).permute(0, 3, 1, 2)
                 corr = torch.inner(flow, features_02[lvl])
+                print(corr.size())
                 corr = F.softmax(corr.view(bs, h, w, h * w), dim=-1).view(bs, h, w, h, w)
                 coords0 = coords_grid(bs, h, w, device=flow.device)
                 coords1 = coords_grid(bs, h, w, device=flow.device)

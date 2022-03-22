@@ -164,7 +164,9 @@ class RAFT(nn.Module):
         for lid in range(len(hs)):
             this_flow = list()
             this_pred = list()
+            print(hs[lid].size())
             tmp = self.flow_embed[lid](hs[lid])
+            print(tmp.size())
             if lid == 0:
                 reference = init_reference
             else:

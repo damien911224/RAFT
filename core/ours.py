@@ -40,7 +40,7 @@ class RAFT(nn.Module):
         self.fnet = BasicEncoder(output_dim=128, norm_fn="batch", dropout=args.dropout)
 
         d_model = 64
-        num_feature_levels = 1
+        num_feature_levels = 3
         self.num_feature_levels = num_feature_levels
         h, w = args.image_size[0], args.image_size[1]
         self.row_pos_embed = nn.ModuleList([nn.Embedding(w // (2 ** i), d_model // 2)
@@ -76,10 +76,12 @@ class RAFT(nn.Module):
             nn.init.constant_(proj[0].bias, 0)
 
         num_pred = self.transformer.decoder.num_layers
-        self.flow_embed = self._get_clones(self.flow_embed, num_pred)
-        # nn.init.constant_(self.flow_embed[0].layers[-1].bias.data[2:], -2.0)
-        # hack implementation for iterative bounding box refinement
-        self.transformer.decoder.flow_embed = self.flow_embed
+        split = 0
+        # self.flow_embed = self._get_clones(self.flow_embed, num_pred)
+        # self.transformer.decoder.flow_embed = self.flow_embed
+        split = 0
+        self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(num_pred)])
+        self.transformer.decoder.flow_embed = None
 
     def reset_parameters(self):
         for embed in self.row_pos_embed:
@@ -171,14 +173,23 @@ class RAFT(nn.Module):
             for lvl in range(len(features_01)):
                 bs, c, h, w = features_01[lvl].shape
                 this_len = h * w
-                reference = inverse_sigmoid(reference[prev_idx:prev_idx + this_len])
-                flow = tmp[prev_idx:prev_idx + this_len] + reference
-                flow = init_reference[prev_idx:prev_idx + this_len] - flow.sigmoid()
+                split = 0
+                # reference = inverse_sigmoid(reference[prev_idx:prev_idx + this_len])
+                # flow = tmp[prev_idx:prev_idx + this_len] + reference
+                # flow = init_reference[prev_idx:prev_idx + this_len] - flow.sigmoid()
+                # flow = flow.view(bs, h, w, 2).permute(0, 3, 1, 2)
+                # this_pred.append(flow)
+                # flow *= torch.tensor((i_h, i_w), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
+                # flow = F.interpolate(flow, size=(i_h, i_w), mode="bilinear", align_corners=True)
+                # this_flow.append(flow)
+                split = 0
+                flow = tmp[prev_idx:prev_idx + this_len]
                 flow = flow.view(bs, h, w, 2).permute(0, 3, 1, 2)
                 this_pred.append(flow)
-                flow *= torch.tensor((i_h, i_w), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
                 flow = F.interpolate(flow, size=(i_h, i_w), mode="bilinear", align_corners=True)
+                flow *= torch.tensor((i_h / h, i_w / w), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
                 this_flow.append(flow)
+                split = 0
                 prev_idx += this_len
             this_pred = torch.stack(this_pred, dim=0).mean(dim=0)
             this_flow = torch.stack(this_flow, dim=0).mean(dim=0)
@@ -203,3 +214,41 @@ class MLP(nn.Module):
         for i, layer in enumerate(self.layers):
             x = F.relu(layer(x)) if i < self.num_layers - 1 else layer(x)
         return x
+
+if __name__ == "__main__":
+
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--name', default='raft', help="name your experiment")
+    parser.add_argument('--stage', help="determines which dataset to use for training")
+    parser.add_argument('--restore_ckpt', help="restore checkpoint")
+    parser.add_argument('--small', action='store_true', help='use small model')
+    parser.add_argument('--validation', type=str, nargs='+')
+
+    parser.add_argument('--lr', type=float, default=0.00002)
+    parser.add_argument('--num_steps', type=int, default=100000)
+    parser.add_argument('--batch_size', type=int, default=2)
+    parser.add_argument('--image_size', type=int, nargs='+', default=[368, 496])
+    parser.add_argument('--gpus', type=int, nargs='+', default=[0, 1])
+    parser.add_argument('--mixed_precision', action='store_true', help='use mixed precision')
+
+    parser.add_argument('--iters', type=int, default=3)
+    parser.add_argument('--wdecay', type=float, default=.00005)
+    parser.add_argument('--epsilon', type=float, default=1e-8)
+    parser.add_argument('--clip', type=float, default=1.0)
+    parser.add_argument('--dropout', type=float, default=0.0)
+    parser.add_argument('--gamma', type=float, default=0.8, help='exponential weighting')
+    parser.add_argument('--add_noise', action='store_true')
+
+    args = parser.parse_args()
+
+    dummy_image_01 = torch.zeros(size=(2, 3, 368, 496), dtype=torch.uint8)
+    dummy_image_02 = torch.zeros(size=(2, 3, 368, 496), dtype=torch.uint8)
+
+    model = RAFT(args)
+
+    # model.cuda()
+    model.train()
+
+    flow_predictions = model(dummy_image_01, dummy_image_02)

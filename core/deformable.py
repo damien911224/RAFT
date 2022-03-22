@@ -311,7 +311,6 @@ class DeformableTransformerDecoder(nn.Module):
                 assert reference_points.shape[-1] == 2
                 reference_points_input = reference_points[:, :, None]
             print(reference_points_input.size())
-            exit()
             output = layer(output, query_pos, reference_points_input, src, src_spatial_shapes, src_level_start_index)
 
             # hack implementation for iterative bounding box refinement
@@ -330,6 +329,8 @@ class DeformableTransformerDecoder(nn.Module):
             if self.return_intermediate:
                 intermediate.append(output)
                 intermediate_reference_points.append(reference_points)
+
+        exit()
 
         if self.return_intermediate:
             return intermediate, intermediate_reference_points

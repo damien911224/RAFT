@@ -13,7 +13,6 @@ from deformable import DeformableTransformer
 from utils.misc import inverse_sigmoid
 import copy
 
-
 try:
     autocast = torch.cuda.amp.autocast
 except:
@@ -21,8 +20,10 @@ except:
     class autocast:
         def __init__(self, enabled):
             pass
+
         def __enter__(self):
             pass
+
         def __exit__(self, *args):
             pass
 
@@ -104,8 +105,8 @@ class RAFT(nn.Module):
     def initialize_flow(self, img):
         """ Flow is represented as difference between two coordinate grids flow = coords1 - coords0"""
         N, C, H, W = img.shape
-        coords0 = coords_grid(N, H//8, W//8, device=img.device)
-        coords1 = coords_grid(N, H//8, W//8, device=img.device)
+        coords0 = coords_grid(N, H // 8, W // 8, device=img.device)
+        coords1 = coords_grid(N, H // 8, W // 8, device=img.device)
 
         # optical flow computed as difference: flow = coords1 - coords0
         return coords0, coords1
@@ -116,12 +117,12 @@ class RAFT(nn.Module):
         mask = mask.view(N, 1, 9, 8, 8, H, W)
         mask = torch.softmax(mask, dim=2)
 
-        up_flow = F.unfold(8 * flow, [3,3], padding=1)
+        up_flow = F.unfold(8 * flow, [3, 3], padding=1)
         up_flow = up_flow.view(N, 2, 9, 1, 1, H, W)
 
         up_flow = torch.sum(mask * up_flow, dim=2)
         up_flow = up_flow.permute(0, 1, 4, 2, 5, 3)
-        return up_flow.reshape(N, 2, 8*H, 8*W)
+        return up_flow.reshape(N, 2, 8 * H, 8 * W)
 
     def get_embedding(self, target_feat, col_embed, row_embed):
         f_n, _, f_h, f_w = target_feat.size()
@@ -202,6 +203,7 @@ class RAFT(nn.Module):
         else:
             return flow_predictions
 
+
 class MLP(nn.Module):
     """ Very simple multi-layer perceptron (also called FFN)"""
 
@@ -216,8 +218,8 @@ class MLP(nn.Module):
             x = F.relu(layer(x)) if i < self.num_layers - 1 else layer(x)
         return x
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()

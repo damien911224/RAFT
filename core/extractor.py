@@ -178,9 +178,9 @@ class BasicEncoder(nn.Module):
 
         L1 = self.layer1(x)
         L2 = self.layer2(L1)
-        L3 = self.layer3(L2)
-        L4 = self.layer4(L3)
-        x = self.layer5(L4)
+        x = self.layer3(L2)
+        # L4 = self.layer4(L3)
+        # x = self.layer5(L4)
 
         # x = self.conv2(x)
 
@@ -190,7 +190,7 @@ class BasicEncoder(nn.Module):
         if is_list:
             x = torch.split(x, [batch_dim, batch_dim], dim=0)
 
-        return L3, L4, x
+        return x
 
 
 class SmallEncoder(nn.Module):

@@ -191,6 +191,7 @@ class RAFT(nn.Module):
                 print(coords0.size())
                 flow = coords0 - torch.sum(corr * coords1, dim=(-2, -3))
                 print(flow.size())
+                flow = flow.permute(0, 2, 3, 1)
                 flow = F.interpolate(flow, size=(i_h, i_w), mode="bilinear", align_corners=True)
                 flow *= torch.tensor((i_h / h, i_w / w), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
                 this_flow.append(flow)

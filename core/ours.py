@@ -157,7 +157,8 @@ class RAFT(nn.Module):
 
         hs, init_reference, inter_references = self.transformer(features_01, features_02, pos_embeds)
 
-        i_h, i_w = self.args.image_size[0], self.args.image_size[1]
+        _, _, h, w = features_01[0].shape
+        i_h, i_w = h * 8, w * 8
         flow_predictions = list()
         for lid in range(len(hs)):
             this_flow = list()

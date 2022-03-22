@@ -141,7 +141,7 @@ class BasicEncoder(nn.Module):
         self.layer5 = self._make_layer(256, stride=2)
 
         # output convolution
-        # self.conv2 = nn.Conv2d(128, output_dim, kernel_size=1)
+        self.conv2 = nn.Conv2d(128, output_dim, kernel_size=1)
 
         self.dropout = None
         if dropout > 0:

@@ -182,7 +182,7 @@ class RAFT(nn.Module):
                 split = 0
                 flow = tmp[:, prev_idx:prev_idx + this_len]
                 flow = flow.view(bs, h, w, c).permute(0, 3, 1, 2)
-                corr = torch.inner(flow, features_02[lvl].permute(0, 2, 3, 1))
+                corr = torch.matmul(flow, features_02[lvl].permute(0, 2, 3, 1))
                 print(corr.size())
                 corr = F.softmax(corr.view(bs, h, w, h * w), dim=-1).view(bs, h, w, h, w).unsqueeze(-1)
                 print(corr.size())

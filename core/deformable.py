@@ -45,7 +45,7 @@ class DeformableTransformer(nn.Module):
 
         self.level_embed = nn.Parameter(torch.Tensor(num_feature_levels, d_model))
 
-        # self.reference_points = nn.Linear(d_model, 2)
+        self.reference_points = nn.Linear(d_model, 2)
 
         self.tgt_embed = nn.Linear(d_model, d_model)
 
@@ -150,11 +150,12 @@ class DeformableTransformer(nn.Module):
         # memory = torch.cat((memory_01, memory_02), 1)
 
         # prepare input for decoder
-        # reference_points = self.reference_points(query_embed).sigmoid()
-        reference_points = self.encoder.get_reference_points(spatial_shapes, device=memory_01.device).squeeze(dim=2)
-        init_reference_out = reference_points
+        # reference_points = self.encoder.get_reference_points(spatial_shapes, device=memory_01.device).squeeze(dim=2)
+        # reference_points = reference_points.sigmoid()
 
         tgt_embed = self.tgt_embed(memory_01)
+        reference_points = self.reference_points(tgt_embed).sigmoid()
+        init_reference_out = reference_points
 
         # decoder
         hs, inter_references = self.decoder(tgt_embed, reference_points, memory_02,

@@ -63,7 +63,7 @@ class RAFT(nn.Module):
                                                  activation="relu", return_intermediate_dec=True,
                                                  num_feature_levels=num_feature_levels, dec_n_points=4, enc_n_points=4)
 
-        self.flow_embed = MLP(d_model, d_model, d_model, 3)
+        self.flow_embed = MLP(d_model, d_model, 2, 3)
         input_proj_list = []
         for l_i in range(num_feature_levels):
             in_channels = (128, 192, 256)[l_i]
@@ -78,11 +78,12 @@ class RAFT(nn.Module):
 
         num_pred = self.transformer.decoder.num_layers
         split = 0
-        # self.flow_embed = self._get_clones(self.flow_embed, num_pred)
-        # self.transformer.decoder.flow_embed = self.flow_embed
+        self.flow_embed = self._get_clones(self.flow_embed, num_pred)
+        self.transformer.decoder.flow_embed = self.flow_embed
         split = 0
-        self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(num_pred)])
-        self.transformer.decoder.flow_embed = None
+        # self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(num_pred)])
+        # self.transformer.decoder.flow_embed = None
+        split = 0
 
     def reset_parameters(self):
         for embed in self.row_pos_embed:
@@ -173,26 +174,25 @@ class RAFT(nn.Module):
                 bs, c, h, w = features_01[lvl].shape
                 this_len = h * w
                 split = 0
-                # reference = inverse_sigmoid(reference[prev_idx:prev_idx + this_len])
-                # flow = tmp[prev_idx:prev_idx + this_len] + reference
-                # flow = init_reference[prev_idx:prev_idx + this_len] - flow.sigmoid()
-                # flow = flow.view(bs, h, w, 2).permute(0, 3, 1, 2)
-                # this_pred.append(flow)
-                # flow *= torch.tensor((i_h, i_w), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
-                # flow = F.interpolate(flow, size=(i_h, i_w), mode="bilinear", align_corners=True)
-                # this_flow.append(flow)
-                split = 0
-                flow = tmp[:, prev_idx:prev_idx + this_len]
-                flow = flow.view(bs, h * w, c)
-                corr = torch.bmm(flow, features_02[lvl].view(bs, c, h * w)).view(bs, h, w, h, w)
-                corr = F.softmax(corr.view(bs, h, w, h * w), dim=-1).view(bs, h, w, h, w).unsqueeze(-1)
-                coords0 = coords_grid(bs, h, w, device=flow.device).permute(0, 2, 3, 1)
-                coords1 = coords_grid(bs, h, w, device=flow.device).permute(0, 2, 3, 1).view(bs, 1, 1, h, w, 2)
-                flow = coords0 - torch.sum(corr * coords1, dim=(-2, -3))
-                flow = flow.permute(0, 3, 1, 2)
+                reference = inverse_sigmoid(reference[prev_idx:prev_idx + this_len])
+                flow = tmp[prev_idx:prev_idx + this_len] + reference
+                flow = init_reference[prev_idx:prev_idx + this_len] - flow.sigmoid()
+                flow = flow.view(bs, h, w, 2).permute(0, 3, 1, 2)
+                flow *= torch.tensor((i_h, i_w), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
                 flow = F.interpolate(flow, size=(i_h, i_w), mode="bilinear", align_corners=True)
-                flow *= torch.tensor((i_h / h, i_w / w), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
                 this_flow.append(flow)
+                split = 0
+                # flow = tmp[:, prev_idx:prev_idx + this_len]
+                # flow = flow.view(bs, h * w, c)
+                # corr = torch.bmm(flow, features_02[lvl].view(bs, c, h * w)).view(bs, h, w, h, w)
+                # corr = F.softmax(corr.view(bs, h, w, h * w), dim=-1).view(bs, h, w, h, w).unsqueeze(-1)
+                # coords0 = coords_grid(bs, h, w, device=flow.device).permute(0, 2, 3, 1)
+                # coords1 = coords_grid(bs, h, w, device=flow.device).permute(0, 2, 3, 1).view(bs, 1, 1, h, w, 2)
+                # flow = coords0 - torch.sum(corr * coords1, dim=(-2, -3))
+                # flow = flow.permute(0, 3, 1, 2)
+                # flow = F.interpolate(flow, size=(i_h, i_w), mode="bilinear", align_corners=True)
+                # flow *= torch.tensor((i_h / h, i_w / w), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
+                # this_flow.append(flow)
                 split = 0
                 prev_idx += this_len
             this_flow = torch.stack(this_flow, dim=0).mean(dim=0)

@@ -178,6 +178,7 @@ class RAFT(nn.Module):
                 print(reference.shape)
                 print(init_reference[prev_idx:prev_idx + this_len].shape)
                 print(tmp[prev_idx:prev_idx + this_len].shape)
+                print(this_len)
                 flow = tmp[prev_idx:prev_idx + this_len] + reference
                 flow = init_reference[prev_idx:prev_idx + this_len] - flow.sigmoid()
                 flow = flow.view(bs, h, w, 2).permute(0, 3, 1, 2)

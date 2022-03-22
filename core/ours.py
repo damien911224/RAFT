@@ -40,13 +40,13 @@ class RAFT(nn.Module):
         self.fnet = BasicEncoder(output_dim=128, norm_fn="batch", dropout=args.dropout)
 
         d_model = 64
-        num_feature_levels = 3
+        num_feature_levels = 1
         self.num_feature_levels = num_feature_levels
         h, w = args.image_size[0], args.image_size[1]
         self.row_pos_embed = nn.ModuleList([nn.Embedding(w // (2 ** i), d_model // 2)
-                                            for i in range(3 - self.num_feature_levels + 1, 4)])
+                                            for i in range(3, self.num_feature_levels + 3)])
         self.col_pos_embed = nn.ModuleList([nn.Embedding(h // (2 ** i), d_model // 2)
-                                            for i in range(3 - self.num_feature_levels + 1, 4)])
+                                            for i in range(3, self.num_feature_levels + 3)])
 
         # self.row_query_embed = nn.ModuleList([nn.Embedding(w // (2 ** i), d_model // 2) for i in range(1, 4)])
         # self.col_query_embed = nn.ModuleList([nn.Embedding(h // (2 ** i), d_model // 2) for i in range(1, 4)])
@@ -64,7 +64,7 @@ class RAFT(nn.Module):
 
         self.flow_embed = MLP(d_model, d_model, 2, 3)
         input_proj_list = []
-        for l_i in range(3 - num_feature_levels, 3):
+        for l_i in range(num_feature_levels):
             in_channels = (128, 192, 256)[l_i]
             input_proj_list.append(nn.Sequential(
                 nn.Conv2d(in_channels, d_model, kernel_size=1),
@@ -146,8 +146,8 @@ class RAFT(nn.Module):
         image1 = image1.contiguous()
         image2 = image2.contiguous()
 
-        features_01 = self.fnet(image1)[3 - self.num_feature_levels:]
-        features_02 = self.fnet(image2)[3 - self.num_feature_levels:]
+        features_01 = self.fnet(image1)[:self.num_feature_levels]
+        features_02 = self.fnet(image2)[:self.num_feature_levels]
 
         features_01 = [self.input_proj[l](feat) for l, feat in enumerate(features_01)]
         features_02 = [self.input_proj[l](feat) for l, feat in enumerate(features_02)]
@@ -155,8 +155,7 @@ class RAFT(nn.Module):
         pos_embeds = [self.get_embedding(feat, col_embed, row_embed)
                       for feat, col_embed, row_embed in zip(features_01, self.col_pos_embed, self.row_pos_embed)]
 
-        hs, init_reference, inter_references = \
-            self.transformer(features_01, features_02, pos_embeds)
+        hs, init_reference, inter_references = self.transformer(features_01, features_02, pos_embeds)
 
         i_h, i_w = self.args.image_size[0], self.args.image_size[1]
         flow_raws = list()

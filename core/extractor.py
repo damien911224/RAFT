@@ -141,7 +141,7 @@ class BasicEncoder(nn.Module):
         self.layer5 = self._make_layer(256, stride=2)
 
         # output convolution
-        self.conv2 = nn.Conv2d(128, output_dim, kernel_size=1)
+        # self.conv2 = nn.Conv2d(128, output_dim, kernel_size=1)
 
         self.dropout = None
         if dropout > 0:
@@ -178,11 +178,14 @@ class BasicEncoder(nn.Module):
 
         L1 = self.layer1(x)
         L2 = self.layer2(L1)
-        x = self.layer3(L2)
-        # L4 = self.layer4(L3)
-        # x = self.layer5(L4)
 
-        x = self.conv2(x)
+        # x = self.layer3(L2)
+
+        L3 = self.layer3(L2)
+        L4 = self.layer4(L3)
+        x = self.layer5(L4)
+
+        # x = self.conv2(x)
 
         if self.training and self.dropout is not None:
             x = self.dropout(x)
@@ -190,7 +193,8 @@ class BasicEncoder(nn.Module):
         if is_list:
             x = torch.split(x, [batch_dim, batch_dim], dim=0)
 
-        return x
+        # return x
+        return L3, L4, x
 
 
 class SmallEncoder(nn.Module):

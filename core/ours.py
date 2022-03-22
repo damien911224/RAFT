@@ -78,11 +78,11 @@ class RAFT(nn.Module):
 
         num_pred = self.transformer.decoder.num_layers
         split = 0
-        self.flow_embed = self._get_clones(self.flow_embed, num_pred)
-        self.transformer.decoder.flow_embed = self.flow_embed
+        # self.flow_embed = self._get_clones(self.flow_embed, num_pred)
+        # self.transformer.decoder.flow_embed = self.flow_embed
         split = 0
-        # self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(num_pred)])
-        # self.transformer.decoder.flow_embed = None
+        self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(num_pred)])
+        self.transformer.decoder.flow_embed = None
         split = 0
 
     def reset_parameters(self):

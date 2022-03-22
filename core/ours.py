@@ -65,7 +65,7 @@ class RAFT(nn.Module):
         self.flow_embed = MLP(d_model, d_model, 2, 3)
         input_proj_list = []
         for l_i in range(3 - num_feature_levels, 3):
-            in_channels = (64, 96, 128)[l_i]
+            in_channels = (128, 192, 256)[l_i]
             input_proj_list.append(nn.Sequential(
                 nn.Conv2d(in_channels, d_model, kernel_size=1),
                 nn.GroupNorm(d_model // 2, d_model)))

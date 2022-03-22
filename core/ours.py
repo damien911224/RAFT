@@ -185,7 +185,9 @@ class RAFT(nn.Module):
                 split = 0
                 flow = tmp[:, prev_idx:prev_idx + this_len]
                 flow = flow.view(bs, h, w, 2).permute(0, 3, 1, 2)
-                this_pred.append(flow)
+                pred = F.interpolate(flow, size=(i_h // 8, i_w // 8), mode="bilinear", align_corners=True)
+                pred *= torch.tensor((i_h / 8, i_w / 8), dtype=torch.float32).view(1, 2, 1, 1).to(pred.device)
+                this_pred.append(pred)
                 flow = F.interpolate(flow, size=(i_h, i_w), mode="bilinear", align_corners=True)
                 flow *= torch.tensor((i_h / h, i_w / w), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
                 this_flow.append(flow)

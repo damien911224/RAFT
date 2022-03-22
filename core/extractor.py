@@ -180,7 +180,7 @@ class BasicEncoder(nn.Module):
         L2 = self.layer2(L1)
         L3 = self.layer3(L2)
         L4 = self.layer4(L3)
-        x = self.layer4(L4)
+        x = self.layer5(L4)
 
         # x = self.conv2(x)
 

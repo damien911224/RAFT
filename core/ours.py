@@ -182,7 +182,7 @@ class RAFT(nn.Module):
                 split = 0
                 flow = tmp[:, prev_idx:prev_idx + this_len]
                 flow = flow.view(bs, h, w, 128).permute(0, 3, 1, 2)
-                corr = torch.inner(flow, features_02[lvl].permute(0, 2, 3, 1))
+                corr = torch.inner(flow, features_02[lvl])
                 corr = F.softmax(corr.view(bs, h, w, h * w), dim=-1).view(bs, h, w, h, w)
                 coords0 = coords_grid(bs, h, w, device=flow.device)
                 coords1 = coords_grid(bs, h, w, device=flow.device)

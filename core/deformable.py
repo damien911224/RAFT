@@ -330,8 +330,6 @@ class DeformableTransformerDecoder(nn.Module):
                 intermediate.append(output)
                 intermediate_reference_points.append(reference_points)
 
-        exit()
-
         if self.return_intermediate:
             return intermediate, intermediate_reference_points
 

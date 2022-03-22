@@ -45,7 +45,7 @@ class DeformableTransformer(nn.Module):
 
         self.level_embed = nn.Parameter(torch.Tensor(num_feature_levels, d_model))
 
-        self.reference_points = nn.Linear(d_model, 2)
+        # self.reference_points = nn.Linear(d_model, 2)
 
         self.tgt_embed = nn.Linear(d_model, d_model)
 
@@ -150,11 +150,11 @@ class DeformableTransformer(nn.Module):
         # memory = torch.cat((memory_01, memory_02), 1)
 
         # prepare input for decoder
-        # reference_points = self.encoder.get_reference_points(spatial_shapes, device=memory_01.device).squeeze(dim=2)
+        reference_points = self.decoder.get_reference_points(spatial_shapes, device=memory_01.device).squeeze(dim=2)
         # reference_points = reference_points.sigmoid()
 
         tgt_embed = self.tgt_embed(memory_01)
-        reference_points = self.reference_points(tgt_embed).sigmoid()
+        # reference_points = self.reference_points(tgt_embed).sigmoid()
         init_reference_out = reference_points
 
         # decoder
@@ -300,6 +300,20 @@ class DeformableTransformerDecoder(nn.Module):
         self.return_intermediate = return_intermediate
         # hack implementation for iterative bounding box refinement and two-stage Deformable DETR
         self.flow_embed = None
+
+    @staticmethod
+    def get_reference_points(spatial_shapes, device):
+        reference_points_list = []
+        for lvl, (H_, W_) in enumerate(spatial_shapes):
+            ref_y, ref_x = torch.meshgrid(torch.linspace(0.5, H_ - 0.5, H_, dtype=torch.float32, device=device) / H_,
+                                          torch.linspace(0.5, W_ - 0.5, W_, dtype=torch.float32, device=device) / W_)
+            ref_y = ref_y.reshape(-1)[None]
+            ref_x = ref_x.reshape(-1)[None]
+            ref = torch.stack((ref_x, ref_y), -1)
+            reference_points_list.append(ref)
+        reference_points = torch.cat(reference_points_list, 1)
+        reference_points = reference_points[:, :, None]
+        return reference_points
 
     def forward(self, tgt, reference_points, src, src_spatial_shapes, src_level_start_index, query_pos=None):
         output = tgt

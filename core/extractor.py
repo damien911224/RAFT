@@ -190,7 +190,7 @@ class BasicEncoder(nn.Module):
         if is_list:
             x = torch.split(x, [batch_dim, batch_dim], dim=0)
 
-        return L1, L2, L3, L4, x
+        return L3, L4, x
 
 
 class SmallEncoder(nn.Module):

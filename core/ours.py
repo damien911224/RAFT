@@ -174,13 +174,9 @@ class RAFT(nn.Module):
                 bs, c, h, w = features_01[lvl].shape
                 this_len = h * w
                 split = 0
-                reference = inverse_sigmoid(reference[prev_idx:prev_idx + this_len])
-                print(reference.shape)
-                print(init_reference[prev_idx:prev_idx + this_len].shape)
-                print(tmp[prev_idx:prev_idx + this_len].shape)
-                print(this_len)
-                flow = tmp[prev_idx:prev_idx + this_len] + reference
-                flow = init_reference[prev_idx:prev_idx + this_len] - flow.sigmoid()
+                reference = inverse_sigmoid(reference[:, prev_idx:prev_idx + this_len])
+                flow = tmp[:, prev_idx:prev_idx + this_len] + reference
+                flow = init_reference[:, prev_idx:prev_idx + this_len] - flow.sigmoid()
                 flow = flow.view(bs, h, w, 2).permute(0, 3, 1, 2)
                 flow *= torch.tensor((i_h, i_w), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
                 flow = F.interpolate(flow, size=(i_h, i_w), mode="bilinear", align_corners=True)

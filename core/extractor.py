@@ -182,7 +182,7 @@ class BasicEncoder(nn.Module):
         # L4 = self.layer4(L3)
         # x = self.layer5(L4)
 
-        # x = self.conv2(x)
+        x = self.conv2(x)
 
         if self.training and self.dropout is not None:
             x = self.dropout(x)

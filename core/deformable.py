@@ -231,7 +231,6 @@ class DeformableTransformerEncoder(nn.Module):
         output = src
         reference_points = self.get_reference_points(spatial_shapes, device=src.device)
         for _, layer in enumerate(self.layers):
-            print(reference_points.size())
             output = layer(output, pos, reference_points, spatial_shapes, level_start_index)
 
         return output

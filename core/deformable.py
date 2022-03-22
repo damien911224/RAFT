@@ -196,7 +196,8 @@ class DeformableTransformerEncoderLayer(nn.Module):
 
     def forward(self, src, pos, reference_points, spatial_shapes, level_start_index):
         # self attention
-        src2 = self.self_attn(self.with_pos_embed(src, pos), reference_points, src, spatial_shapes, level_start_index)
+        src2, scores = \
+            self.self_attn(self.with_pos_embed(src, pos), reference_points, src, spatial_shapes, level_start_index)
         src = src + self.dropout1(src2)
         src = self.norm1(src)
 
@@ -278,16 +279,16 @@ class DeformableTransformerDecoderLayer(nn.Module):
         tgt = self.norm2(tgt)
 
         # cross attention
-        tgt2 = self.cross_attn(self.with_pos_embed(tgt, query_pos),
-                               reference_points,
-                               src, src_spatial_shapes, level_start_index)
+        tgt2, scores = self.cross_attn(self.with_pos_embed(tgt, query_pos),
+                                       reference_points,
+                                       src, src_spatial_shapes, level_start_index)
         tgt = tgt + self.dropout1(tgt2)
         tgt = self.norm1(tgt)
 
         # ffn
         tgt = self.forward_ffn(tgt)
 
-        return tgt
+        return tgt, scores
 
 
 class DeformableTransformerDecoder(nn.Module):
@@ -303,6 +304,7 @@ class DeformableTransformerDecoder(nn.Module):
         output = tgt
 
         intermediate = []
+        intermediate_scores = []
         intermediate_reference_points = []
         for lid, layer in enumerate(self.layers):
             if reference_points.shape[-1] == 4:
@@ -310,7 +312,8 @@ class DeformableTransformerDecoder(nn.Module):
             else:
                 assert reference_points.shape[-1] == 2
                 reference_points_input = reference_points[:, :, None]
-            output = layer(output, query_pos, reference_points_input, src, src_spatial_shapes, src_level_start_index)
+            output, scores = \
+                layer(output, query_pos, reference_points_input, src, src_spatial_shapes, src_level_start_index)
 
             # hack implementation for iterative bounding box refinement
             if self.flow_embed is not None:
@@ -327,6 +330,7 @@ class DeformableTransformerDecoder(nn.Module):
 
             if self.return_intermediate:
                 intermediate.append(output)
+                intermediate_scores.append(scores)
                 intermediate_reference_points.append(reference_points)
 
         if self.return_intermediate:

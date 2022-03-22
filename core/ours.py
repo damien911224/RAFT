@@ -62,7 +62,7 @@ class RAFT(nn.Module):
                                                  activation="relu", return_intermediate_dec=True,
                                                  num_feature_levels=num_feature_levels, dec_n_points=4, enc_n_points=4)
 
-        self.flow_embed = MLP(d_model, d_model, 2, 3)
+        self.flow_embed = MLP(d_model, d_model, 128, 3)
         input_proj_list = []
         for l_i in range(num_feature_levels):
             in_channels = (128, 192, 256)[l_i]
@@ -158,11 +158,9 @@ class RAFT(nn.Module):
         hs, init_reference, inter_references = self.transformer(features_01, features_02, pos_embeds)
 
         i_h, i_w = self.args.image_size[0], self.args.image_size[1]
-        flow_raws = list()
         flow_predictions = list()
         for lid in range(len(hs)):
             this_flow = list()
-            this_pred = list()
             tmp = self.flow_embed[lid](hs[lid])
             if lid == 0:
                 reference = init_reference
@@ -183,22 +181,22 @@ class RAFT(nn.Module):
                 # this_flow.append(flow)
                 split = 0
                 flow = tmp[:, prev_idx:prev_idx + this_len]
-                flow = flow.view(bs, h, w, 2).permute(0, 3, 1, 2)
-                pred = F.interpolate(flow, size=(i_h // 8, i_w // 8), mode="bilinear", align_corners=True)
-                pred *= torch.tensor((i_h / 8, i_w / 8), dtype=torch.float32).view(1, 2, 1, 1).to(pred.device)
-                this_pred.append(pred)
+                flow = flow.view(bs, h, w, 128).permute(0, 3, 1, 2)
+                corr = torch.inner(flow, features_02[lvl].permute(0, 2, 3, 1))
+                corr = F.softmax(corr.view(bs, h, w, h * w), dim=-1).view(bs, h, w, h, w)
+                coords0 = coords_grid(bs, h, w, device=flow.device)
+                coords1 = coords_grid(bs, h, w, device=flow.device)
+                flow = coords0 - torch.sum(corr * coords1, dim=(-1, -2))
                 flow = F.interpolate(flow, size=(i_h, i_w), mode="bilinear", align_corners=True)
                 flow *= torch.tensor((i_h / h, i_w / w), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
                 this_flow.append(flow)
                 split = 0
                 prev_idx += this_len
-            this_pred = torch.stack(this_pred, dim=0).mean(dim=0)
             this_flow = torch.stack(this_flow, dim=0).mean(dim=0)
-            flow_raws.append(this_pred)
             flow_predictions.append(this_flow)
 
         if test_mode:
-            return flow_raws[-1], flow_predictions[-1]
+            return flow_predictions[-1], flow_predictions[-1]
         else:
             return flow_predictions
 

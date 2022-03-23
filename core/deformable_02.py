@@ -154,7 +154,6 @@ class DeformableTransformer(nn.Module):
         # reference_points = reference_points.sigmoid()
 
         tgt_embed = self.tgt_embed(query_embeds.permute(1, 0, 2), memory_01.permute(1, 0, 2)).permute(1, 0, 2)
-        print(tgt_embed.shape)
         # tgt_embed = query_embeds
         # query_embeds = self.tgt_embed(query_embeds, memory_01).permute(1, 0, 2)
         reference_points = self.reference_points(query_embeds).sigmoid()

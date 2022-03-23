@@ -58,7 +58,7 @@ class RAFT(nn.Module):
         self.reset_parameters()
 
         self.transformer = DeformableTransformer(d_model=d_model, nhead=8,
-                                                 num_encoder_layers=3, num_decoder_layers=3,
+                                                 num_encoder_layers=3, num_decoder_layers=6,
                                                  dim_feedforward=d_model * 4, dropout=0.1,
                                                  activation="relu", return_intermediate_dec=True,
                                                  num_feature_levels=num_feature_levels, dec_n_points=4, enc_n_points=4)
@@ -139,69 +139,69 @@ class RAFT(nn.Module):
 
         return this_embed
 
-    def forward(self, image1, image2, iters=12, flow_init=None, upsample=True, test_mode=False):
+    def forward(self, image1, image2, test_mode=False):
         """ Estimate optical flow between pair of frames """
+        with autocast(enabled=self.args.mixed_precision):
+            image1 = 2 * (image1 / 255.0) - 1.0
+            image2 = 2 * (image2 / 255.0) - 1.0
 
-        image1 = 2 * (image1 / 255.0) - 1.0
-        image2 = 2 * (image2 / 255.0) - 1.0
+            image1 = image1.contiguous()
+            image2 = image2.contiguous()
 
-        image1 = image1.contiguous()
-        image2 = image2.contiguous()
+            features_01 = self.fnet(image1)[:self.num_feature_levels]
+            features_02 = self.fnet(image2)[:self.num_feature_levels]
 
-        features_01 = self.fnet(image1)[:self.num_feature_levels]
-        features_02 = self.fnet(image2)[:self.num_feature_levels]
+            features_01 = [self.input_proj[l](feat) for l, feat in enumerate(features_01)]
+            features_02 = [self.input_proj[l](feat) for l, feat in enumerate(features_02)]
 
-        features_01 = [self.input_proj[l](feat) for l, feat in enumerate(features_01)]
-        features_02 = [self.input_proj[l](feat) for l, feat in enumerate(features_02)]
+            pos_embeds = [self.get_embedding(feat, col_embed, row_embed)
+                          for feat, col_embed, row_embed in zip(features_01, self.col_pos_embed, self.row_pos_embed)]
 
-        pos_embeds = [self.get_embedding(feat, col_embed, row_embed)
-                      for feat, col_embed, row_embed in zip(features_01, self.col_pos_embed, self.row_pos_embed)]
+            hs, init_reference, inter_references = self.transformer(features_01, features_02, pos_embeds)
 
-        hs, init_reference, inter_references = self.transformer(features_01, features_02, pos_embeds)
+            _, _, h, w = features_01[0].shape
+            i_h, i_w = h * 8, w * 8
+            flow_predictions = list()
+            for lid in range(len(hs)):
+                this_flow = list()
+                tmp = self.flow_embed[lid](hs[lid])
+                if lid == 0:
+                    reference = init_reference
+                else:
+                    reference = inter_references[lid - 1]
+                prev_idx = 0
+                for lvl in range(len(features_01)):
+                    bs, c, h, w = features_01[lvl].shape
+                    this_len = h * w
+                    split = 0
+                    this_reference = inverse_sigmoid(reference[:, prev_idx:prev_idx + this_len])
+                    flow = tmp[:, prev_idx:prev_idx + this_len] + this_reference
+                    flow = init_reference[:, prev_idx:prev_idx + this_len] - flow.sigmoid()
+                    flow = flow.view(bs, h, w, 2).permute(0, 3, 1, 2)
+                    flow *= torch.tensor((i_h, i_w), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
+                    flow = F.interpolate(flow, size=(i_h, i_w), mode="bilinear", align_corners=True)
+                    this_flow.append(flow)
+                    split = 0
+                    # flow = tmp[:, prev_idx:prev_idx + this_len]
+                    # flow = flow.view(bs, h * w, c)
+                    # corr = torch.bmm(flow, features_02[lvl].view(bs, c, h * w)).view(bs, h, w, h, w)
+                    # corr = F.softmax(corr.view(bs, h, w, h * w), dim=-1).view(bs, h, w, h, w).unsqueeze(-1)
+                    # coords0 = coords_grid(bs, h, w, device=flow.device).permute(0, 2, 3, 1)
+                    # coords1 = coords_grid(bs, h, w, device=flow.device).permute(0, 2, 3, 1).view(bs, 1, 1, h, w, 2)
+                    # flow = coords0 - torch.sum(corr * coords1, dim=(-2, -3))
+                    # flow = flow.permute(0, 3, 1, 2)
+                    # flow = F.interpolate(flow, size=(i_h, i_w), mode="bilinear", align_corners=True)
+                    # flow *= torch.tensor((i_h / h, i_w / w), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
+                    # this_flow.append(flow)
+                    split = 0
+                    prev_idx += this_len
+                this_flow = torch.stack(this_flow, dim=0).mean(dim=0)
+                flow_predictions.append(this_flow)
 
-        _, _, h, w = features_01[0].shape
-        i_h, i_w = h * 8, w * 8
-        flow_predictions = list()
-        for lid in range(len(hs)):
-            this_flow = list()
-            tmp = self.flow_embed[lid](hs[lid])
-            if lid == 0:
-                reference = init_reference
+            if test_mode:
+                return flow_predictions[-1], flow_predictions[-1]
             else:
-                reference = inter_references[lid - 1]
-            prev_idx = 0
-            for lvl in range(len(features_01)):
-                bs, c, h, w = features_01[lvl].shape
-                this_len = h * w
-                split = 0
-                this_reference = inverse_sigmoid(reference[:, prev_idx:prev_idx + this_len])
-                flow = tmp[:, prev_idx:prev_idx + this_len] + this_reference
-                flow = init_reference[:, prev_idx:prev_idx + this_len] - flow.sigmoid()
-                flow = flow.view(bs, h, w, 2).permute(0, 3, 1, 2)
-                flow *= torch.tensor((i_h, i_w), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
-                flow = F.interpolate(flow, size=(i_h, i_w), mode="bilinear", align_corners=True)
-                this_flow.append(flow)
-                split = 0
-                # flow = tmp[:, prev_idx:prev_idx + this_len]
-                # flow = flow.view(bs, h * w, c)
-                # corr = torch.bmm(flow, features_02[lvl].view(bs, c, h * w)).view(bs, h, w, h, w)
-                # corr = F.softmax(corr.view(bs, h, w, h * w), dim=-1).view(bs, h, w, h, w).unsqueeze(-1)
-                # coords0 = coords_grid(bs, h, w, device=flow.device).permute(0, 2, 3, 1)
-                # coords1 = coords_grid(bs, h, w, device=flow.device).permute(0, 2, 3, 1).view(bs, 1, 1, h, w, 2)
-                # flow = coords0 - torch.sum(corr * coords1, dim=(-2, -3))
-                # flow = flow.permute(0, 3, 1, 2)
-                # flow = F.interpolate(flow, size=(i_h, i_w), mode="bilinear", align_corners=True)
-                # flow *= torch.tensor((i_h / h, i_w / w), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
-                # this_flow.append(flow)
-                split = 0
-                prev_idx += this_len
-            this_flow = torch.stack(this_flow, dim=0).mean(dim=0)
-            flow_predictions.append(this_flow)
-
-        if test_mode:
-            return flow_predictions[-1], flow_predictions[-1]
-        else:
-            return flow_predictions
+                return flow_predictions
 
 
 class MLP(nn.Module):

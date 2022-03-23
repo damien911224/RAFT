@@ -82,10 +82,12 @@ def count_parameters(model):
 
 def fetch_optimizer(args, model):
     """ Create the optimizer and learning rate scheduler """
-    optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.wdecay, eps=args.epsilon)
+    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.wdecay)
+    # optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.wdecay, eps=args.epsilon)
 
-    scheduler = optim.lr_scheduler.OneCycleLR(optimizer, args.lr, args.num_steps+100,
-        pct_start=0.05, cycle_momentum=False, anneal_strategy='linear')
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, round(args.num_steps * 0.8))
+    # scheduler = optim.lr_scheduler.OneCycleLR(optimizer, args.lr, args.num_steps+100,
+    #     pct_start=0.05, cycle_momentum=False, anneal_strategy='linear')
 
     return optimizer, scheduler
     
@@ -191,7 +193,6 @@ def train(args):
 
     should_keep_training = True
     while should_keep_training:
-
         for i_batch, data_blob in enumerate(train_loader):
             optimizer.zero_grad()
             image1, image2, flow, valid = [x.cuda() for x in data_blob]
@@ -206,7 +207,7 @@ def train(args):
             loss, metrics = sequence_loss(flow_predictions, flow, valid, args.gamma)
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)                
-            # torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
             
             scaler.step(optimizer)
             scheduler.step()
@@ -256,7 +257,7 @@ if __name__ == '__main__':
     parser.add_argument('--small', action='store_true', help='use small model')
     parser.add_argument('--validation', type=str, nargs='+')
 
-    parser.add_argument('--lr', type=float, default=0.00002)
+    parser.add_argument('--lr', type=float, default=0.0002)
     parser.add_argument('--num_steps', type=int, default=100000)
     parser.add_argument('--batch_size', type=int, default=6)
     parser.add_argument('--image_size', type=int, nargs='+', default=[384, 512])
@@ -266,14 +267,14 @@ if __name__ == '__main__':
     parser.add_argument('--iters', type=int, default=3)
     parser.add_argument('--wdecay', type=float, default=.00005)
     parser.add_argument('--epsilon', type=float, default=1e-8)
-    parser.add_argument('--clip', type=float, default=1.0)
+    parser.add_argument('--clip', type=float, default=0.1)
     parser.add_argument('--dropout', type=float, default=0.0)
     parser.add_argument('--gamma', type=float, default=0.8, help='exponential weighting')
     parser.add_argument('--add_noise', action='store_true')
     args = parser.parse_args()
 
-    torch.manual_seed(1234)
-    np.random.seed(1234)
+    torch.manual_seed(2022)
+    np.random.seed(2022)
 
     if not os.path.isdir('checkpoints'):
         os.mkdir('checkpoints')

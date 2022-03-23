@@ -47,7 +47,7 @@ class DeformableTransformer(nn.Module):
 
         self.reference_points = nn.Linear(d_model, 2)
 
-        self.tgt_embed = nn.TransformerDecoderLayer(d_model=d_model, nhead=8)
+        self.tgt_embed = nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
 
         self._reset_parameters()
 
@@ -154,7 +154,7 @@ class DeformableTransformer(nn.Module):
         # reference_points = reference_points.sigmoid()
 
         print(query_embeds.shape, memory_01.shape)
-        tgt_embed = self.tgt_embed(query_embeds, memory_01).permute(1, 0, 2)
+        tgt_embed = self.tgt_embed(query_embeds.permute(1, 0, 2), memory_01.permute(1, 0, 2)).permute(1, 0, 2)
         # tgt_embed = query_embeds
         # query_embeds = self.tgt_embed(query_embeds, memory_01).permute(1, 0, 2)
         reference_points = self.reference_points(query_embeds).sigmoid()

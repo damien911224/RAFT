@@ -61,7 +61,8 @@ class RAFT(nn.Module):
                                                  num_encoder_layers=3, num_decoder_layers=6,
                                                  dim_feedforward=d_model * 4, dropout=0.1,
                                                  activation="relu", return_intermediate_dec=True,
-                                                 num_feature_levels=num_feature_levels, dec_n_points=4, enc_n_points=4)
+                                                 num_feature_levels=num_feature_levels,
+                                                 dec_n_points=4, enc_n_points=4)
 
         self.flow_embed = MLP(d_model, d_model, 2, 3)
         input_proj_list = []

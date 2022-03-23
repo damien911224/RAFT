@@ -82,8 +82,8 @@ def count_parameters(model):
 
 def fetch_optimizer(args, model):
     """ Create the optimizer and learning rate scheduler """
-    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.wdecay)
-    # optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.wdecay, eps=args.epsilon)
+    # optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.wdecay)
+    optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.wdecay, eps=args.epsilon)
 
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, round(args.num_steps * 0.8))
     # scheduler = optim.lr_scheduler.OneCycleLR(optimizer, args.lr, args.num_steps+100,
@@ -267,7 +267,7 @@ if __name__ == '__main__':
     parser.add_argument('--iters', type=int, default=3)
     parser.add_argument('--wdecay', type=float, default=.00005)
     parser.add_argument('--epsilon', type=float, default=1e-8)
-    parser.add_argument('--clip', type=float, default=0.1)
+    parser.add_argument('--clip', type=float, default=1.0)
     parser.add_argument('--dropout', type=float, default=0.0)
     parser.add_argument('--gamma', type=float, default=0.8, help='exponential weighting')
     parser.add_argument('--add_noise', action='store_true')

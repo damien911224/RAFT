@@ -45,9 +45,9 @@ class DeformableTransformer(nn.Module):
 
         self.level_embed = nn.Parameter(torch.Tensor(num_feature_levels, d_model))
 
-        # self.reference_points = nn.Linear(d_model, 2)
+        self.reference_points = nn.Linear(d_model, 2)
 
-        self.tgt_embed = nn.Linear(d_model, d_model)
+        self.tgt_embed = nn.TransformerDecoderLayer(d_model=d_model, nhead=8)
 
         self._reset_parameters()
 
@@ -58,11 +58,11 @@ class DeformableTransformer(nn.Module):
         for m in self.modules():
             if isinstance(m, MSDeformAttn):
                 m._reset_parameters()
-        # if not self.two_stage:
-        #     xavier_uniform_(self.reference_points.weight.data, gain=1.0)
-        #     constant_(self.reference_points.bias.data, 0.)
-        xavier_uniform_(self.tgt_embed.weight.data, gain=1.0)
-        constant_(self.tgt_embed.bias.data, 0.)
+        if not self.two_stage:
+            xavier_uniform_(self.reference_points.weight.data, gain=1.0)
+            constant_(self.reference_points.bias.data, 0.)
+        # xavier_uniform_(self.tgt_embed.weight.data, gain=1.0)
+        # constant_(self.tgt_embed.bias.data, 0.)
         normal_(self.level_embed)
 
     def get_proposal_pos_embed(self, proposals):
@@ -121,7 +121,7 @@ class DeformableTransformer(nn.Module):
         valid_ratio = torch.stack([valid_ratio_w, valid_ratio_h], -1)
         return valid_ratio
 
-    def forward(self, srcs_01, srcs_02, pos_embeds):
+    def forward(self, srcs_01, srcs_02, pos_embeds, query_embeds):
         # prepare input for encoder
         src_flatten_01 = []
         src_flatten_02 = []
@@ -150,16 +150,18 @@ class DeformableTransformer(nn.Module):
         # memory = torch.cat((memory_01, memory_02), 1)
 
         # prepare input for decoder
-        reference_points = self.decoder.get_reference_points(spatial_shapes, device=memory_01.device).squeeze(dim=2)
+        # reference_points = self.decoder.get_reference_points(spatial_shapes, device=memory_01.device).squeeze(dim=2)
         # reference_points = reference_points.sigmoid()
 
-        tgt_embed = self.tgt_embed(memory_01)
-        # reference_points = self.reference_points(tgt_embed).sigmoid()
+        tgt_embed = self.tgt_embed(query_embeds, memory_01).permute(1, 0, 2)
+        # tgt_embed = query_embeds
+        # query_embeds = self.tgt_embed(query_embeds, memory_01).permute(1, 0, 2)
+        reference_points = self.reference_points(query_embeds).sigmoid()
         init_reference_out = reference_points
 
         # decoder
         hs, inter_references = self.decoder(tgt_embed, reference_points, memory_02,
-                                            spatial_shapes, level_start_index, lvl_pos_embed_flatten)
+                                            spatial_shapes, level_start_index, query_embeds)
 
         inter_references_out = inter_references
         return hs, init_reference_out, inter_references_out

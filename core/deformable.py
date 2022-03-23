@@ -295,7 +295,8 @@ class DeformableTransformerDecoderLayer(nn.Module):
 class DeformableTransformerDecoder(nn.Module):
     def __init__(self, decoder_layer, num_layers, return_intermediate=True):
         super().__init__()
-        self.layers = _get_clones(decoder_layer, num_layers)
+        # self.layers = _get_clones(decoder_layer, num_layers)
+        self.layers = nn.ModuleList([decoder_layer for _ in range(num_layers)])
         self.num_layers = num_layers
         self.return_intermediate = return_intermediate
         # hack implementation for iterative bounding box refinement and two-stage Deformable DETR

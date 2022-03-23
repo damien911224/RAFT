@@ -140,7 +140,7 @@ class RAFT(nn.Module):
 
         return this_embed
 
-    def forward(self, image1, image2, test_mode=False):
+    def forward(self, image1, image2, iters=6, test_mode=False):
         """ Estimate optical flow between pair of frames """
         with autocast(enabled=self.args.mixed_precision):
             image1 = 2 * (image1 / 255.0) - 1.0

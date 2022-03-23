@@ -176,6 +176,8 @@ class RAFT(nn.Module):
                 # bs, n, c
                 corr_embed = self.corr_embed[lid](hs[lid]).permute(0, 2, 1)
                 _, n, c = corr_embed.shape
+                print(corr_embed.shape)
+                print(features_01[0].shape)
                 # bs, n, h * w
                 corr = torch.bmm(corr_embed, features_01[0].view(bs, c, h * w))
                 # bs, 2, n

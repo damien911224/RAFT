@@ -164,11 +164,11 @@ class RAFT(nn.Module):
 
             pos_embeds = [self.get_embedding(feat, col_embed, row_embed)
                           for feat, col_embed, row_embed in zip(features_01, self.col_pos_embed, self.row_pos_embed)]
-            query_embeds = self.query_embed.weight.unsqueeze(0)
+            bs, c, h, w = features_01[0].shape
+            query_embeds = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
 
             hs, init_reference, inter_references = self.transformer(features_01, features_02, pos_embeds, query_embeds)
 
-            bs, c, h, w = features_01[0].shape
             i_h, i_w = h * 8, w * 8
             flow_predictions = list()
             for lid in range(len(hs)):

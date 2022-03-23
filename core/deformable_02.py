@@ -149,7 +149,7 @@ class DeformableTransformer(nn.Module):
         memory_02 = self.encoder(src_flatten_02, spatial_shapes, level_start_index, lvl_pos_embed_flatten)
 
         split = 0
-        tgt_embed = self.tgt_embed(query_embeds.permute(1, 0, 2), memory_02.permute(1, 0, 2)).permute(1, 0, 2)
+        tgt_embed = self.tgt_embed(query_embeds.permute(1, 0, 2), memory_01.permute(1, 0, 2)).permute(1, 0, 2)
         split = 0
         # tgt_embed = query_embeds
         # query_embeds = self.tgt_embed(query_embeds.permute(1, 0, 2), memory_01.permute(1, 0, 2)).permute(1, 0, 2)
@@ -158,7 +158,7 @@ class DeformableTransformer(nn.Module):
         init_reference_out = reference_points
 
         # decoder
-        hs, inter_references = self.decoder(tgt_embed, reference_points, memory_01,
+        hs, inter_references = self.decoder(tgt_embed, reference_points, memory_02,
                                             spatial_shapes, level_start_index, query_embeds)
 
         inter_references_out = inter_references

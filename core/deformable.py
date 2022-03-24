@@ -167,7 +167,9 @@ class DeformableTransformer(nn.Module):
 
         # prop decoder
         bs, _, _ = memory_01.shape
+        # bs, n, c
         prop_tgt_query = self.prop_tgt_query.weight.unsqueeze(0).repeat(bs, 1, 1)
+        # bs, n, c
         prop_tgt_embed = self.prop_tgt_decoder(prop_tgt_query.permute(1, 0, 2),
                                                memory_01.permute(1, 0, 2)).permute(1, 0, 2)
         prop_hs, prop_inter_references = self.prop_decoder(prop_tgt_embed, reference_points, memory_02,

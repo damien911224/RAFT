@@ -59,6 +59,14 @@ class RAFT(nn.Module):
 
         self.query_embed = nn.Embedding(num_queries, d_model)
 
+        input_proj_list = []
+        for l_i in range(num_feature_levels):
+            in_channels = (128, 192, 256)[l_i]
+            input_proj_list.append(nn.Sequential(
+                nn.Conv2d(in_channels, d_model, kernel_size=1),
+                nn.GroupNorm(d_model // 2, d_model)))
+        self.input_proj = nn.ModuleList(input_proj_list)
+
         self.transformer = DeformableTransformer(d_model=d_model, nhead=8,
                                                  num_encoder_layers=3, num_decoder_layers=1,
                                                  dim_feedforward=d_model * 4, dropout=0.1,

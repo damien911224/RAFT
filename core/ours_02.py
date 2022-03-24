@@ -68,7 +68,9 @@ class RAFT(nn.Module):
 
         self.flow_embed = MLP(d_model, d_model, 2, 3)
         self.corr_embed = MLP(d_model, d_model, d_model, 3)
-        self.context_embed = MLP(d_model, d_model, d_model, 3)
+        self.context_embed = nn.Sequential(
+                nn.Conv2d(128, d_model, kernel_size=1),
+                nn.GroupNorm(d_model // 2, d_model))
         input_proj_list = []
         for l_i in range(num_feature_levels):
             in_channels = (128, 192, 256)[l_i]
@@ -84,7 +86,6 @@ class RAFT(nn.Module):
         split = 0
         self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(num_pred)])
         self.corr_embed = nn.ModuleList([self.corr_embed for _ in range(num_pred)])
-        self.context_embed = nn.ModuleList([self.corr_embed for _ in range(num_pred)])
         self.transformer.decoder.flow_embed = None
         split = 0
 
@@ -100,6 +101,9 @@ class RAFT(nn.Module):
         for proj in self.input_proj:
             nn.init.xavier_uniform_(proj[0].weight, gain=1)
             nn.init.constant_(proj[0].bias, 0)
+
+        nn.init.xavier_uniform_(self.context_embed[0].weight, gain=1)
+        nn.init.constant_(self.context_embed[0].bias, 0)
 
         # for p in self.flow_embed:
         #     nn.init.xavier_uniform_(p.weight, gain=1)

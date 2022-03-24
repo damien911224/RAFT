@@ -79,9 +79,7 @@ class RAFT(nn.Module):
         # self.context_embed = nn.Sequential(
         #         nn.Conv2d(d_model, d_model, kernel_size=1),
         #         nn.GroupNorm(d_model // 2, d_model))
-        self.context_embed = nn.Sequential(
-                nn.Conv2d(d_model, d_model, kernel_size=1),
-                nn.GroupNorm(d_model // 2, d_model))
+        self.context_embed = MLP(d_model, d_model, d_model, 3)
 
         num_pred = self.transformer.decoder.num_layers
         split = 0

@@ -172,9 +172,12 @@ class DeformableTransformer(nn.Module):
         # bs, n, c
         prop_tgt_query = self.prop_tgt_query.weight.unsqueeze(0).repeat(bs, 1, 1)
         prop_tgt_query_pos = self.prop_tgt_query_pos.weight.unsqueeze(0).repeat(bs, 1, 1)
+        print(prop_tgt_query.shape)
+        print(prop_tgt_query_pos.shape)
         # bs, n, c
         prop_tgt_embed = self.prop_tgt_decoder(prop_tgt_query.permute(1, 0, 2),
                                                memory_01.permute(1, 0, 2)).permute(1, 0, 2)
+        print(prop_tgt_embed.shape)
         prop_hs, prop_inter_references = self.prop_decoder(prop_tgt_embed, reference_points, memory_02,
                                                            spatial_shapes, level_start_index, prop_tgt_query_pos)
 

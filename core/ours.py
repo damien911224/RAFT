@@ -134,10 +134,8 @@ class RAFT(nn.Module):
             pos_embeds = self.get_embedding(D1, self.col_pos_embed, self.row_pos_embed)
             # hw, bs, C
             D1, D2 = torch.split(
-                torch.flatten(self.extractor_projection(torch.cat((D1, D2), dim=0)) + pos_embeds, 2).permute(1, 0, 2),
+                torch.flatten(self.extractor_projection(torch.cat((D1, D2), dim=0)) + pos_embeds, 2).permute(2, 0, 1),
                 bs, dim=1)
-            print(D1.shape)
-            exit()
 
             I_H, I_W = H * 8, W * 8
             flow_predictions = list()

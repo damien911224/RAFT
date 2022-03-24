@@ -58,7 +58,7 @@ class RAFT(nn.Module):
         self.context_correlation_embed = MLP(d_model, d_model, d_model, 3)
         self.context_extractor_embed = MLP(d_model, d_model, d_model * 2, 3)
         self.correlation_context_embed = MLP(d_model, d_model, d_model, 3)
-        self.correlation_flow_embed = MLP(d_model, d_model, d_model * 2, 3)
+        self.correlation_flow_embed = MLP(d_model, d_model, 2, 3)
 
         iterations = 6
         self.context_correlation_embed = nn.ModuleList([self.context_correlation_embed for _ in range(iterations)])

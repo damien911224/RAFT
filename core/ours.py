@@ -55,8 +55,6 @@ class RAFT(nn.Module):
         # self.row_tgt_embed = nn.Embedding(w // 8, d_model // 2)
         # self.col_tgt_embed = nn.Embedding(h // 8, d_model // 2)
 
-        self.reset_parameters()
-
         self.transformer = DeformableTransformer(d_model=d_model, nhead=8,
                                                  num_encoder_layers=3, num_decoder_layers=6,
                                                  dim_feedforward=d_model * 4, dropout=0.1,
@@ -73,10 +71,6 @@ class RAFT(nn.Module):
                 nn.GroupNorm(d_model // 2, d_model)))
         self.input_proj = nn.ModuleList(input_proj_list)
 
-        for proj in self.input_proj:
-            nn.init.xavier_uniform_(proj[0].weight, gain=1)
-            nn.init.constant_(proj[0].bias, 0)
-
         num_pred = self.transformer.decoder.num_layers
         split = 0
         # self.flow_embed = self._get_clones(self.flow_embed, num_pred)
@@ -86,7 +80,13 @@ class RAFT(nn.Module):
         self.transformer.decoder.flow_embed = None
         split = 0
 
+        self.reset_parameters()
+
     def reset_parameters(self):
+        for p in self.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
+
         for embed in self.row_pos_embed:
             nn.init.uniform_(embed.weight)
         for embed in self.col_pos_embed:
@@ -95,6 +95,11 @@ class RAFT(nn.Module):
         # nn.init.xavier_uniform_(self.col_query_embed.weight)
         # nn.init.xavier_uniform_(self.row_tgt_embed.weight)
         # nn.init.xavier_uniform_(self.col_tgt_embed.weight)
+
+
+        for proj in self.input_proj:
+            nn.init.xavier_uniform_(proj[0].weight, gain=1)
+            nn.init.constant_(proj[0].bias, 0)
 
     def _get_clones(self, module, N):
         return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
@@ -213,10 +218,11 @@ class MLP(nn.Module):
         self.num_layers = num_layers
         h = [hidden_dim] * (num_layers - 1)
         self.layers = nn.ModuleList(nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
+        self.norms = nn.ModuleList([nn.GroupNorm(c // 2, c) for c in [input_dim] + h + [hidden_dim]])
 
     def forward(self, x):
-        for i, layer in enumerate(self.layers):
-            x = F.relu(layer(x)) if i < self.num_layers - 1 else layer(x)
+        for i, layer, norm in enumerate(zip(self.layers, self.norms)):
+            x = F.relu(norm(layer(x))) if i < self.num_layers - 1 else norm(layer(x))
         return x
 
 

@@ -207,7 +207,7 @@ class RAFT(nn.Module):
                     flow *= torch.tensor((i_h, i_w), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
                     flow = F.interpolate(flow, size=(i_h, i_w), mode="bilinear", align_corners=True)
 
-                    this_flow.append((flow + corr_flow) / 2.0)
+                    this_flow.append(tf.stack((flow, corr_flow), axis=-1))
                     split = 0
                     # flow = tmp[:, prev_idx:prev_idx + this_len]
                     # flow = flow.view(bs, h * w, c)
@@ -226,7 +226,7 @@ class RAFT(nn.Module):
                 flow_predictions.append(this_flow)
 
             if test_mode:
-                return flow_predictions[-1], flow_predictions[-1]
+                return flow_predictions[-1][..., -1], flow_predictions[-1][..., -1]
             else:
                 return flow_predictions
 

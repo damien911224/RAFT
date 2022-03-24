@@ -189,7 +189,7 @@ class RAFT(nn.Module):
 
             hs, init_reference, inter_references, memory_01 = \
                 self.transformer(features_01, features_02, pos_embeds, query_embeds)
-            memory_01 = memory_01[:, :h * w].view(bs, h, w, c).permute(0, 3, 1, 2)
+            # memory_01 = memory_01[:, :h * w].view(bs, h, w, c).permute(0, 3, 1, 2)
 
             i_h, i_w = h * 8, w * 8
             flow_predictions = list()
@@ -198,7 +198,7 @@ class RAFT(nn.Module):
                 corr_embed = self.corr_embed[lid](hs[lid].permute(0, 2, 1)).permute(0, 2, 1)
                 _, n, c = corr_embed.shape
                 # bs, c, h * w
-                context_embed = self.context_embed(memory_01).view(bs, c, h * w)
+                context_embed = self.context_embed(memory_01.permute(0, 2, 1)).view(bs, c, h * w)
                 # bs, n, h * w
                 corr = torch.bmm(corr_embed, context_embed)
                 # bs, 2, n

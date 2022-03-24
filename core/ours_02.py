@@ -55,7 +55,7 @@ class RAFT(nn.Module):
             nn.TransformerDecoder(nn.TransformerDecoderLayer(d_model=d_model, nhead=8,
                                                              dim_feedforward=d_model * 4,
                                                              dropout=0.1),
-                                  num_layers=6)
+                                  num_layers=1)
         self.corr_decoder = \
             nn.TransformerDecoder(nn.TransformerDecoderLayer(d_model=d_model, nhead=8,
                                                              dim_feedforward=d_model * 4,

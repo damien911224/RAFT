@@ -59,16 +59,10 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
     for i in range(n_predictions):
         # i_weight = gamma ** (n_predictions - i - 1)
         i_weight = 1.0
-        i_loss = (flow_preds[i][..., 0] - flow_gt).abs()
+        i_loss = (flow_preds[i] - flow_gt).abs()
         flow_loss += i_weight * (valid[:, None] * i_loss).mean()
 
-    for i in range(n_predictions):
-        # i_weight = gamma ** (n_predictions - i - 1)
-        i_weight = 1.0
-        i_loss = (flow_preds[i][..., 1] - flow_gt).abs()
-        flow_loss += i_weight * (valid[:, None] * i_loss).mean()
-
-    epe = torch.sum((flow_preds[-1][..., -1] - flow_gt)**2, dim=1).sqrt()
+    epe = torch.sum((flow_preds[-1] - flow_gt)**2, dim=1).sqrt()
     epe = epe.view(-1)[valid.view(-1)]
 
     metrics = {
@@ -157,7 +151,7 @@ class Logger:
             target_img = flow_vis.flow_to_color(targets[n_i], convert_to_bgr=False)
             pred_img = list()
             for p_i in range(len(preds)):
-                this_pred = preds[p_i][..., -1].detach().cpu().numpy()[n_i]
+                this_pred = preds[p_i].detach().cpu().numpy()[n_i]
                 this_pred = np.transpose(this_pred, (1, 2, 0))
                 pred_img.append(flow_vis.flow_to_color(this_pred, convert_to_bgr=False))
             pred_img = np.concatenate(pred_img, axis=1)

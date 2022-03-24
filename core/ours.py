@@ -79,8 +79,8 @@ class RAFT(nn.Module):
         # self.transformer.decoder.flow_embed = self.flow_embed
         split = 0
         self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(num_pred)])
-        self.prop_hs_embed = nn.ModuleList([self.prop_hs_embed for _ in range(num_pred)])
-        self.prop_n_embed = nn.ModuleList([self.prop_n_embed for _ in range(num_pred)])
+        self.prop_hs_embed = nn.ModuleList([self.prop_hs_embed for _ in range(1)])
+        self.prop_n_embed = nn.ModuleList([self.prop_n_embed for _ in range(1)])
         self.transformer.decoder.flow_embed = None
         split = 0
 
@@ -172,11 +172,13 @@ class RAFT(nn.Module):
             _, _, h, w = features_01[0].shape
             i_h, i_w = h * 8, w * 8
             flow_predictions = list()
+            prop_hs_embed = self.prop_hs_embed[0](hs[0].permute(0, 2, 1))
+            prop_n_embed = self.prop_n_embed[0](prop_hs[0].permute(0, 2, 1)).permute(0, 2, 1)
             for lid in range(len(hs)):
                 this_flow = list()
                 tmp = self.flow_embed[lid](hs[lid].permute(0, 2, 1)).permute(0, 2, 1)
-                prop_hs_embed = self.prop_hs_embed[lid](hs[lid].permute(0, 2, 1))
-                prop_n_embed = self.prop_n_embed[lid](prop_hs[lid].permute(0, 2, 1)).permute(0, 2, 1)
+                # prop_hs_embed = self.prop_hs_embed[lid](hs[lid].permute(0, 2, 1))
+                # prop_n_embed = self.prop_n_embed[lid](prop_hs[lid].permute(0, 2, 1)).permute(0, 2, 1)
                 if lid == 0:
                     reference = init_reference
                 else:

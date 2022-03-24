@@ -148,7 +148,7 @@ class RAFT(nn.Module):
 
             # bs, h * w, c
             context_embed = self.context_decoder(features_01.permute(1, 0, 2),
-                                                 features_02.permute(1, 0, 2)).permute(1, 0, 2)
+                                                 features_01.permute(1, 0, 2)).permute(1, 0, 2)
 
             # bs, n, c
             query_embeds = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)

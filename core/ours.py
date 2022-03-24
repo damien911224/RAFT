@@ -170,7 +170,7 @@ class RAFT(nn.Module):
             flow_predictions = list()
             for lid in range(len(hs)):
                 this_flow = list()
-                tmp = self.flow_embed[lid](hs[lid])
+                tmp = self.flow_embed[lid](hs[lid].permute(0, 2, 1)).permute(0, 2, 1)
                 if lid == 0:
                     reference = init_reference
                 else:

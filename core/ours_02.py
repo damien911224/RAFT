@@ -136,7 +136,8 @@ class RAFT(nn.Module):
             features_01 = self.fnet(image1)[0]
             features_02 = self.fnet(image2)[0]
             bs, c, h, w = features_01.shape
-            pos_embeds = self.get_embedding(features_01, self.col_embed, self.row_embed).flatten(2).permute(0, 2, 1)
+            pos_embeds = \
+                self.get_embedding(features_01, self.col_pos_embed, self.row_pos_embed).flatten(2).permute(0, 2, 1)
 
             features_01 = self.input_proj(features_01.flatten(2).permute(0, 2, 1)) + pos_embeds
             features_02 = self.input_proj(features_02.flatten(2).permute(0, 2, 1)) + pos_embeds

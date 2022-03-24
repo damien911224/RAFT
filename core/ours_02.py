@@ -145,7 +145,7 @@ class RAFT(nn.Module):
             features_02 = self.input_proj(features_02.flatten(2)).permute(0, 2, 1) + pos_embeds
             print(features_01.shape)
 
-            # bs, c, h * w
+            # bs, h * w, c
             context_embed = self.context_decoder(features_01.permute(1, 0, 2),
                                                  features_02.permute(1, 0, 2)).permute(1, 0, 2)
             print(context_embed.shape)
@@ -166,7 +166,7 @@ class RAFT(nn.Module):
                 corr_embed = self.corr_embed(corr_hs.permute(0, 2, 1)).permute(0, 2, 1)
                 _, n, c = corr_embed.shape
                 # bs, n, h * w
-                corr = torch.bmm(corr_embed, context_embed)
+                corr = torch.bmm(corr_embed, context_embed.permute(0, 2, 1))
                 # bs, 2, n
                 reg = self.flow_embed(corr_hs.permute(0, 2, 1))
                 # bs, 2, h, w

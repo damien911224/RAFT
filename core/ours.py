@@ -174,7 +174,7 @@ class RAFT(nn.Module):
                 # bs, HW, 2
                 extractor_flow = torch.bmm(extractor_flow, context_flow)
                 # bs, 2, H, W
-                flow = F.tanh(extractor_flow.permute(0, 2, 1).view(bs, 2, H, W))
+                flow = torch.tanh(extractor_flow.permute(0, 2, 1).view(bs, 2, H, W))
 
                 flow = flow * torch.tensor((I_H, I_W), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
                 if I_H != H or I_W != W:

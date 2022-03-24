@@ -223,10 +223,11 @@ class MLP(nn.Module):
         self.num_layers = num_layers
         h = [hidden_dim] * (num_layers - 1)
         self.layers = nn.ModuleList(nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
+        self.norms = nn.ModuleList([nn.GroupNorm(c // 2, c) for c in [input_dim] + h + [hidden_dim]])
 
     def forward(self, x):
-        for i, layer in enumerate(self.layers):
-            x = F.relu(layer(x)) if i < self.num_layers - 1 else layer(x)
+        for i, layer, norm in enumerate(zip(self.layers, self.norms)):
+            x = F.relu(norm(layer(x))) if i < self.num_layers - 1 else norm(layer(x))
         return x
 
 

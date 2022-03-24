@@ -138,6 +138,7 @@ class RAFT(nn.Module):
             D1, D2 = torch.split(
                 torch.flatten(self.extractor_projection(torch.cat((D1, D2), dim=0)) + pos_embeds, 2).permute(2, 0, 1),
                 bs, dim=1)
+            U1 = torch.flatten(U1, 2).permute(0, 2, 1)
 
             I_H, I_W = H * 8, W * 8
             flow_predictions = list()

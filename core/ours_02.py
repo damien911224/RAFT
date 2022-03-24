@@ -192,7 +192,7 @@ class RAFT(nn.Module):
             # memory_01 = memory_01[:, :h * w].view(bs, h, w, c).permute(0, 3, 1, 2)
 
             # bs, c, h * w
-            context_embed = self.context_embed(memory_01.permute(0, 2, 1))
+            context_embed = self.context_embed(memory_01[:, :h * w].permute(0, 2, 1))
 
             i_h, i_w = h * 8, w * 8
             flow_predictions = list()

@@ -143,11 +143,11 @@ class RAFT(nn.Module):
                 # bs, hw, c
                 context = self.context_decoder[i](D1).permute(1, 0, 2)
                 correlation = self.correlation_decoder[i](D1, D2).permute(1, 0, 2)
-                print(correlation.shape)
 
                 context_correlation = self.context_correlation_embed[i](context)
                 context_extractor = self.context_extractor_embed[i](context)
                 correlation_context = self.correlation_context_embed[i](correlation)
+                print(correlation_context.shape)
                 correlation_flow = self.correlation_flow_embed[i](correlation)
 
                 context_flow = torch.bmm(context_correlation, correlation_context.permute(0, 2, 1))

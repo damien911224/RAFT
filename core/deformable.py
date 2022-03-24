@@ -173,13 +173,12 @@ class DeformableTransformer(nn.Module):
         bs, _, _ = memory_01.shape
         # bs, n, c
         prop_tgt_N_query = self.prop_tgt_N_query.weight.unsqueeze(0).repeat(bs, 1, 1)
-        prop_tgt_N_query_pos = self.prop_tgt_N_query_pos.weight.unsqueeze(0).repeat(bs, 1, 1)
+        prop_tgt_N_query_pos = self.prop_tgt_N_query_pos.weight.unsqueeze(0)
         # bs, h * w, c
         prop_tgt_embed = self.prop_tgt_embed(memory_01)
         # bs, h * w + n, c
         prop_total_tgt_embed = torch.cat((prop_tgt_embed, prop_tgt_N_query), dim=1)
         prop_N_reference_points = self.prop_N_reference_points(prop_tgt_N_query_pos).sigmoid()
-        print(reference_points.shape, prop_N_reference_points.shape)
         prop_reference_points = torch.cat((reference_points, prop_N_reference_points), dim=1)
         prop_pos = torch.cat((lvl_pos_embed_flatten, prop_tgt_N_query_pos), dim=1)
         prop_hs, prop_inter_references = self.prop_decoder(prop_total_tgt_embed, prop_reference_points, memory_01,

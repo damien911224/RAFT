@@ -53,6 +53,7 @@ class RAFT(nn.Module):
         h, w = args.image_size[0], args.image_size[1]
         self.row_pos_embed = nn.Embedding(w // (2 ** 3), d_model // 2)
         self.col_pos_embed = nn.Embedding(h // (2 ** 3), d_model // 2)
+        self.query_embed = nn.Embedding(50, d_model)
 
         self.context_correlation_embed = MLP(d_model, d_model, d_model, 3)
         self.context_extractor_embed = MLP(d_model, d_model, d_model * 2, 3)
@@ -77,6 +78,7 @@ class RAFT(nn.Module):
 
         nn.init.uniform_(self.row_pos_embed.weight)
         nn.init.uniform_(self.col_pos_embed.weight)
+        nn.init.uniform_(self.query_embed.weight)
 
     def _get_clones(self, module, N):
         return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
@@ -132,38 +134,52 @@ class RAFT(nn.Module):
             image2 = image2.contiguous()
 
             D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
-            bs, C, H, W = D1.shape
+            bs, c, h, w = D1.shape
+            _, C, H, W = U1.shape
             pos_embeds = self.get_embedding(D1, self.col_pos_embed, self.row_pos_embed)
-            # hw, bs, C
+            # hw, bs, c
             D1, D2 = torch.split(
                 torch.flatten(self.extractor_projection(torch.cat((D1, D2), dim=0)) + pos_embeds, 2).permute(2, 0, 1),
                 bs, dim=1)
+            # bs, HW, C
             U1 = torch.flatten(U1, 2).permute(0, 2, 1)
+
+            context = self.query_embed.weight.unsqueeze(0).repeat(bs, -1, D1.shape[-1]).permute(1, 0, 2)
 
             I_H, I_W = H * 8, W * 8
             flow_predictions = list()
             for i in range(len(self.correlation_decoder)):
+                # bs, n, c
+                context = self.context_decoder[i](context, D1).permute(1, 0, 2)
                 # bs, hw, c
-                context = self.context_decoder[i](D1).permute(1, 0, 2)
                 correlation = self.correlation_decoder[i](D1, D2).permute(1, 0, 2)
 
+                # bs, n, c
                 context_correlation = self.context_correlation_embed[i](context)
+                # bs, n, C
                 context_extractor = self.context_extractor_embed[i](context)
+                # bs, hw, c
                 correlation_context = self.correlation_context_embed[i](correlation)
+                # bs, hw, 2
                 correlation_flow = self.correlation_flow_embed[i](correlation)
 
+                # bs, n, hw
                 context_flow = torch.bmm(context_correlation, correlation_context.permute(0, 2, 1))
                 print(context_flow.shape)
+                # bs, n, 2
                 context_flow = torch.bmm(context_flow, correlation_flow)
                 print(context_flow.shape)
 
+                # bs, HW, n
                 extractor_flow = torch.bmm(U1, context_extractor.permute(0, 2, 1))
                 print(extractor_flow.shape)
+                # bs, HW, 2
                 extractor_flow = torch.bmm(extractor_flow, context_flow)
                 print(extractor_flow.shape)
 
                 flow = extractor_flow.permute(0, 2, 1).tanh()
                 print(flow.shape)
+                exit()
 
                 flow *= torch.tensor((I_H, I_W), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
                 if I_H != H or I_W != W:

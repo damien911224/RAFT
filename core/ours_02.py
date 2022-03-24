@@ -59,8 +59,6 @@ class RAFT(nn.Module):
 
         self.query_embed = nn.Embedding(num_queries, d_model)
 
-        self.reset_parameters()
-
         self.transformer = DeformableTransformer(d_model=d_model, nhead=8,
                                                  num_encoder_layers=3, num_decoder_layers=1,
                                                  dim_feedforward=d_model * 4, dropout=0.1,
@@ -89,6 +87,8 @@ class RAFT(nn.Module):
         self.context_embed = nn.ModuleList([self.corr_embed for _ in range(num_pred)])
         self.transformer.decoder.flow_embed = None
         split = 0
+
+        self.reset_parameters()
 
     def reset_parameters(self):
         for embed in self.row_pos_embed:

@@ -63,8 +63,8 @@ class RAFT(nn.Module):
                                                  dec_n_points=4, enc_n_points=4)
 
         self.flow_embed = MLP(d_model, d_model, 2, 3)
-        self.hs_embed = MLP(d_model, d_model, d_model, 3)
-        self.prop_embed = MLP(d_model, d_model, d_model, 3)
+        self.prop_hs_embed = MLP(d_model, d_model, d_model, 3)
+        self.prop_n_embed = MLP(d_model, d_model, d_model, 3)
         input_proj_list = []
         for l_i in range(num_feature_levels):
             in_channels = (128, 192, 256)[l_i]
@@ -79,8 +79,8 @@ class RAFT(nn.Module):
         # self.transformer.decoder.flow_embed = self.flow_embed
         split = 0
         self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(num_pred)])
-        self.hs_embed = nn.ModuleList([self.hs_embed for _ in range(num_pred)])
-        self.prop_embed = nn.ModuleList([self.prop_embed for _ in range(num_pred)])
+        self.prop_hs_embed = nn.ModuleList([self.prop_hs_embed for _ in range(num_pred)])
+        self.prop_n_embed = nn.ModuleList([self.prop_n_embed for _ in range(num_pred)])
         self.transformer.decoder.flow_embed = None
         split = 0
 
@@ -175,8 +175,8 @@ class RAFT(nn.Module):
             for lid in range(len(hs)):
                 this_flow = list()
                 tmp = self.flow_embed[lid](hs[lid].permute(0, 2, 1)).permute(0, 2, 1)
-                hs_embed = self.hs_embed[lid](hs[lid].permute(0, 2, 1))
-                prop_embed = self.prop_embed[lid](prop_hs[lid].permute(0, 2, 1)).permute(0, 2, 1)
+                prop_hs_embed = self.prop_hs_embed[lid](hs[lid].permute(0, 2, 1))
+                prop_n_embed = self.prop_n_embed[lid](prop_hs[lid].permute(0, 2, 1)).permute(0, 2, 1)
                 if lid == 0:
                     reference = init_reference
                 else:
@@ -190,7 +190,7 @@ class RAFT(nn.Module):
                     this_reference = inverse_sigmoid(reference[:, prev_idx:prev_idx + this_len])
                     flow = tmp[:, prev_idx:prev_idx + this_len] + this_reference
                     # bs, n, h * w
-                    corr = torch.bmm(prop_embed, hs_embed[..., prev_idx:prev_idx + this_len])
+                    corr = torch.bmm(prop_n_embed, prop_hs_embed[..., prev_idx:prev_idx + this_len])
                     # bs, n, 2
                     corr_flow = torch.bmm(corr, flow)
                     # bs, h * w, 2

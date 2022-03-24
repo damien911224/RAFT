@@ -79,10 +79,6 @@ class RAFT(nn.Module):
                 nn.GroupNorm(d_model // 2, d_model)))
         self.input_proj = nn.ModuleList(input_proj_list)
 
-        for proj in self.input_proj:
-            nn.init.xavier_uniform_(proj[0].weight, gain=1)
-            nn.init.constant_(proj[0].bias, 0)
-
         num_pred = self.transformer.decoder.num_layers
         split = 0
         # self.flow_embed = self._get_clones(self.flow_embed, num_pred)
@@ -100,10 +96,22 @@ class RAFT(nn.Module):
         for embed in self.col_pos_embed:
             nn.init.uniform_(embed.weight)
         nn.init.xavier_uniform_(self.query_embed.weight)
-        # nn.init.xavier_uniform_(self.row_query_embed.weight)
-        # nn.init.xavier_uniform_(self.col_query_embed.weight)
-        # nn.init.xavier_uniform_(self.row_tgt_embed.weight)
-        # nn.init.xavier_uniform_(self.col_tgt_embed.weight)
+
+        for proj in self.input_proj:
+            nn.init.xavier_uniform_(proj[0].weight, gain=1)
+            nn.init.constant_(proj[0].bias, 0)
+
+        for p in self.flow_embed:
+            nn.init.xavier_uniform_(p.weight, gain=1)
+            nn.init.constant_(p.bias, 0)
+
+        for p in self.corr_embed:
+            nn.init.xavier_uniform_(p.weight, gain=1)
+            nn.init.constant_(p.bias, 0)
+
+        for p in self.context_embed:
+            nn.init.xavier_uniform_(p.weight, gain=1)
+            nn.init.constant_(p.bias, 0)
 
     def _get_clones(self, module, N):
         return nn.ModuleList([copy.deepcopy(module) for i in range(N)])

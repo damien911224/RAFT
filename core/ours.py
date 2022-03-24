@@ -148,7 +148,6 @@ class RAFT(nn.Module):
             context = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
 
             I_H, I_W = H * 4, W * 4
-            print(I_H, I_W)
             flow_predictions = list()
             for i in range(len(self.correlation_decoder)):
                 # bs, n, c

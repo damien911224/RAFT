@@ -101,17 +101,17 @@ class RAFT(nn.Module):
             nn.init.xavier_uniform_(proj[0].weight, gain=1)
             nn.init.constant_(proj[0].bias, 0)
 
-        for p in self.flow_embed.layers:
-            nn.init.xavier_uniform_(p.weight, gain=1)
-            nn.init.constant_(p.bias, 0)
-
-        for p in self.corr_embed.layers:
-            nn.init.xavier_uniform_(p.weight, gain=1)
-            nn.init.constant_(p.bias, 0)
-
-        for p in self.context_embed.layers:
-            nn.init.xavier_uniform_(p.weight, gain=1)
-            nn.init.constant_(p.bias, 0)
+        # for p in self.flow_embed:
+        #     nn.init.xavier_uniform_(p.weight, gain=1)
+        #     nn.init.constant_(p.bias, 0)
+        #
+        # for p in self.corr_embed.layers:
+        #     nn.init.xavier_uniform_(p.weight, gain=1)
+        #     nn.init.constant_(p.bias, 0)
+        #
+        # for p in self.context_embed.layers:
+        #     nn.init.xavier_uniform_(p.weight, gain=1)
+        #     nn.init.constant_(p.bias, 0)
 
     def _get_clones(self, module, N):
         return nn.ModuleList([copy.deepcopy(module) for i in range(N)])

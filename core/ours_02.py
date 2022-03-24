@@ -188,7 +188,6 @@ class RAFT(nn.Module):
 
             hs, init_reference, inter_references, memory_01 = \
                 self.transformer(features_01, features_02, pos_embeds, query_embeds)
-            print(memory_01.shape)
             memory_01 = memory_01[:, :h * w].view(bs, h, w, c).permute(0, 3, 1, 2)
 
             i_h, i_w = h * 8, w * 8

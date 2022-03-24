@@ -48,7 +48,8 @@ class RAFT(nn.Module):
         self.col_pos_embed = nn.Embedding(h // 8, d_model // 2)
         self.query_embed = nn.Embedding(num_queries, d_model)
 
-        self.input_proj = nn.Sequential(nn.Linear(128, d_model), nn.GroupNorm(d_model // 8, d_model), nn.ReLU())
+        self.input_proj = nn.Sequential(nn.Conv1d(128, d_model, kernel_size=1),
+                                        nn.GroupNorm(d_model // 8, d_model), nn.ReLU())
 
         self.context_decoder = \
             nn.TransformerDecoder(nn.TransformerDecoderLayer(d_model=d_model, nhead=8,
@@ -139,8 +140,8 @@ class RAFT(nn.Module):
             pos_embeds = \
                 self.get_embedding(features_01, self.col_pos_embed, self.row_pos_embed).flatten(2).permute(0, 2, 1)
 
-            features_01 = self.input_proj(features_01.flatten(2).permute(0, 2, 1)) + pos_embeds
-            features_02 = self.input_proj(features_02.flatten(2).permute(0, 2, 1)) + pos_embeds
+            features_01 = self.input_proj(features_01.flatten(2)).permute(0, 2, 1) + pos_embeds
+            features_02 = self.input_proj(features_02.flatten(2)).permute(0, 2, 1) + pos_embeds
 
             # bs, c, h * w
             context_embed = self.context_decoder(features_01, features_02).permute(0, 2, 1)

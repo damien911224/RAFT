@@ -70,6 +70,7 @@ class RAFT(nn.Module):
 
         self.flow_embed = MLP(d_model, d_model, 2, 3)
         self.corr_embed = MLP(d_model, d_model, d_model, 3)
+        self.context_embed = MLP(d_model, d_model, d_model, 3)
         input_proj_list = []
         for l_i in range(num_feature_levels):
             in_channels = (128, 192, 256)[l_i]
@@ -89,6 +90,7 @@ class RAFT(nn.Module):
         split = 0
         self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(num_pred)])
         self.corr_embed = nn.ModuleList([self.corr_embed for _ in range(num_pred)])
+        self.context_embed = nn.ModuleList([self.corr_embed for _ in range(num_pred)])
         self.transformer.decoder.flow_embed = None
         split = 0
 
@@ -176,8 +178,10 @@ class RAFT(nn.Module):
                 # bs, n, c
                 corr_embed = self.corr_embed[lid](hs[lid])
                 _, n, c = corr_embed.shape
+                # bs, c, h, w
+                context_embed = self.context_embed(features_01[0]).view(bs, c, h * w)
                 # bs, n, h * w
-                corr = torch.bmm(corr_embed, features_01[0].view(bs, c, h * w))
+                corr = torch.bmm(corr_embed, context_embed)
                 # bs, 2, n
                 reg = self.flow_embed[lid](hs[lid]).permute(0, 2, 1).tanh()
                 # bs, 2, h, w

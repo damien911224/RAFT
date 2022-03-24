@@ -71,13 +71,6 @@ class RAFT(nn.Module):
         self.context_embed = nn.Sequential(
                 nn.Conv2d(128, d_model, kernel_size=1),
                 nn.GroupNorm(d_model // 2, d_model))
-        input_proj_list = []
-        for l_i in range(num_feature_levels):
-            in_channels = (128, 192, 256)[l_i]
-            input_proj_list.append(nn.Sequential(
-                nn.Conv2d(in_channels, d_model, kernel_size=1),
-                nn.GroupNorm(d_model // 2, d_model)))
-        self.input_proj = nn.ModuleList(input_proj_list)
 
         num_pred = self.transformer.decoder.num_layers
         split = 0
@@ -92,6 +85,10 @@ class RAFT(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
+        for p in self.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
+
         for embed in self.row_pos_embed:
             nn.init.uniform_(embed.weight)
         for embed in self.col_pos_embed:

@@ -204,6 +204,7 @@ def train(args):
 
             flow_predictions = model(image1, image2, iters=args.iters)            
             print(flow.max(), flow.min())
+            exit()
             loss, metrics = sequence_loss(flow_predictions, flow, valid, args.gamma)
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)                

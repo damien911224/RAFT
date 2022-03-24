@@ -139,19 +139,25 @@ class RAFT(nn.Module):
             bs, c, h, w = features_01.shape
             pos_embeds = \
                 self.get_embedding(features_01, self.col_pos_embed, self.row_pos_embed).flatten(2).permute(0, 2, 1)
+            print(pos_embeds.shape)
 
             features_01 = self.input_proj(features_01.flatten(2)).permute(0, 2, 1) + pos_embeds
             features_02 = self.input_proj(features_02.flatten(2)).permute(0, 2, 1) + pos_embeds
+            print(features_01.shape)
 
             # bs, c, h * w
-            context_embed = self.context_decoder(features_01, features_02).permute(0, 2, 1)
+            context_embed = self.context_decoder(features_01.permute(1, 0, 2),
+                                                 features_02.permute(1, 0, 2)).permute(0, 2, 1)
+            print(context_embed.shape)
 
             # bs, n, c
             query_embeds = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
+            tgt_embeds = self.query_decoder(query_embeds.permute(1, 0, 2),
+                                            features_01.permute(1, 0, 2)).permute(1, 0, 2)
             print(query_embeds.shape)
-            print(features_01.shape)
-            tgt_embeds = self.query_decoder(query_embeds, features_01)
-            corr_hs = self.context_decoder(tgt_embeds, features_02)
+            corr_hs = self.context_decoder(tgt_embeds.permute(1, 0, 2),
+                                           features_02.permute(1, 0, 2)).permute(1, 0, 2)
+            print(corr_hs.shape)
 
             i_h, i_w = h * 8, w * 8
             flow_predictions = list()

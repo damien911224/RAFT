@@ -153,12 +153,17 @@ class RAFT(nn.Module):
                 correlation_flow = self.correlation_flow_embed[i](correlation)
 
                 context_flow = torch.bmm(context_correlation, correlation_context.permute(0, 2, 1))
+                print(context_flow.shape)
                 context_flow = torch.bmm(context_flow, correlation_flow)
+                print(context_flow.shape)
 
                 extractor_flow = torch.bmm(U1, context_extractor.permute(0, 2, 1))
+                print(extractor_flow.shape)
                 extractor_flow = torch.bmm(extractor_flow, context_flow)
+                print(extractor_flow.shape)
 
                 flow = extractor_flow.permute(0, 2, 1).tanh()
+                print(flow.shape)
 
                 flow *= torch.tensor((I_H, I_W), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
                 if I_H != H or I_W != W:

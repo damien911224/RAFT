@@ -199,10 +199,13 @@ class RAFT(nn.Module):
                     corr_flow = torch.bmm(corr.permute(0, 2, 1), corr_flow)
                     corr_flow = init_reference[:, prev_idx:prev_idx + this_len] - corr_flow.sigmoid()
                     corr_flow = corr_flow.view(bs, h, w, 2).permute(0, 3, 1, 2)
-                    corr_flow *= torch.tensor((i_h, i_w), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
+                    corr_flow *= torch.tensor((i_h, i_w), dtype=torch.float32).view(1, 2, 1, 1).to(corr_flow.device)
                     corr_flow = F.interpolate(corr_flow, size=(i_h, i_w), mode="bilinear", align_corners=True)
 
                     flow = init_reference[:, prev_idx:prev_idx + this_len] - flow.sigmoid()
+                    flow = flow.view(bs, h, w, 2).permute(0, 3, 1, 2)
+                    flow *= torch.tensor((i_h, i_w), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
+                    flow = F.interpolate(flow, size=(i_h, i_w), mode="bilinear", align_corners=True)
 
                     this_flow.append((flow + corr_flow) / 2.0)
                     split = 0

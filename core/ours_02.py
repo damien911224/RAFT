@@ -201,7 +201,7 @@ class RAFT(nn.Module):
                 # bs, n, h * w
                 corr = torch.bmm(corr_embed, context_embed)
                 # bs, 2, n
-                reg = self.flow_embed[lid](hs[lid].permute(0, 2, 1)).permute(0, 2, 1).tanh()
+                reg = self.flow_embed[lid](hs[lid].permute(0, 2, 1))
                 # bs, 2, h, w
                 flow = torch.bmm(reg, corr).view(bs, 2, h, w)
                 flow *= torch.tensor((i_h, i_w), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)

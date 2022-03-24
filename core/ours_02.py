@@ -62,7 +62,7 @@ class RAFT(nn.Module):
         self.reset_parameters()
 
         self.transformer = DeformableTransformer(d_model=d_model, nhead=8,
-                                                 num_encoder_layers=3, num_decoder_layers=6,
+                                                 num_encoder_layers=3, num_decoder_layers=1,
                                                  dim_feedforward=d_model * 4, dropout=0.1,
                                                  activation="relu", return_intermediate_dec=True,
                                                  num_feature_levels=num_feature_levels,

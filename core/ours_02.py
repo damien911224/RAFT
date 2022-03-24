@@ -197,8 +197,8 @@ class RAFT(nn.Module):
                 # bs, n, c
                 corr_embed = self.corr_embed[lid](hs[lid])
                 _, n, c = corr_embed.shape
-                # bs, c, h, w
-                context_embed = self.context_embed(memory_01)
+                # bs, c, h * w
+                context_embed = self.context_embed(memory_01).view(bs, c, h * w)
                 # bs, n, h * w
                 corr = torch.bmm(corr_embed, context_embed)
                 # bs, 2, n

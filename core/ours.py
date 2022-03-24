@@ -145,13 +145,13 @@ class RAFT(nn.Module):
             U1 = torch.flatten(U1, 2).permute(0, 2, 1)
 
             # n, bs, c
-            context = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1).permute(1, 0, 2)
+            context = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
 
             I_H, I_W = H * 8, W * 8
             flow_predictions = list()
             for i in range(len(self.correlation_decoder)):
                 # bs, n, c
-                context = self.context_decoder[i](context, D1).permute(1, 0, 2)
+                context = self.context_decoder[i](context.permute(1, 0, 2), D1).permute(1, 0, 2)
                 # bs, hw, c
                 correlation = self.correlation_decoder[i](D1, D2).permute(1, 0, 2)
 

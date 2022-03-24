@@ -162,7 +162,7 @@ class DeformableTransformer(nn.Module):
                                             spatial_shapes, level_start_index, query_embeds)
 
         inter_references_out = inter_references
-        return hs, init_reference_out, inter_references_out
+        return hs, init_reference_out, inter_references_out, memory_01
 
 
 class DeformableTransformerEncoderLayer(nn.Module):

@@ -143,6 +143,7 @@ class RAFT(nn.Module):
                 # bs, hw, c
                 context = self.context_decoder[i](D1).permute(1, 0, 2)
                 correlation = self.correlation_decoder[i](D1, D2).permute(1, 0, 2)
+                print(correlation.shape)
 
                 context_correlation = self.context_correlation_embed[i](context)
                 context_extractor = self.context_extractor_embed[i](context)

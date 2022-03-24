@@ -130,12 +130,12 @@ class RAFT(nn.Module):
             image2 = image2.contiguous()
 
             D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
+            bs, C, H, W = D1.shape
             pos_embeds = self.get_embedding(D1, self.col_pos_embed, self.row_pos_embed)
             # hw, bs, C
             D1, D2 = torch.split(
-                torch.flatten(self.input_proj(torch.cat((D1, D2), dim=0)) + pos_embeds, 2).permute(1, 0, 2), 2, dim=1)
+                torch.flatten(self.input_proj(torch.cat((D1, D2), dim=0)) + pos_embeds, 2).permute(1, 0, 2), bs, dim=1)
 
-            bs, C, H, W = D1.shape
             I_H, I_W = H * 8, W * 8
             flow_predictions = list()
             for i in range(len(self.correlation_decoder)):

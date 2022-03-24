@@ -41,55 +41,33 @@ class RAFT(nn.Module):
         self.fnet = BasicEncoder(output_dim=128, norm_fn="batch", dropout=args.dropout)
 
         d_model = 64
-        num_feature_levels = 3
         num_queries = 100
 
-        self.num_feature_levels = num_feature_levels
         h, w = args.image_size[0], args.image_size[1]
-        self.row_pos_embed = nn.ModuleList([nn.Embedding(w // (2 ** i), d_model // 2)
-                                            for i in range(3, self.num_feature_levels + 3)])
-        self.col_pos_embed = nn.ModuleList([nn.Embedding(h // (2 ** i), d_model // 2)
-                                            for i in range(3, self.num_feature_levels + 3)])
-
-        # self.row_query_embed = nn.ModuleList([nn.Embedding(w // (2 ** i), d_model // 2) for i in range(1, 4)])
-        # self.col_query_embed = nn.ModuleList([nn.Embedding(h // (2 ** i), d_model // 2) for i in range(1, 4)])
-
-        # self.row_tgt_embed = nn.Embedding(w // 8, d_model // 2)
-        # self.col_tgt_embed = nn.Embedding(h // 8, d_model // 2)
-
+        self.row_pos_embed = nn.Embedding(w // 8, d_model // 2)
+        self.col_pos_embed = nn.Embedding(h // 8, d_model // 2)
         self.query_embed = nn.Embedding(num_queries, d_model)
 
-        input_proj_list = []
-        for l_i in range(num_feature_levels):
-            in_channels = (128, 192, 256)[l_i]
-            input_proj_list.append(nn.Sequential(
-                nn.Conv2d(in_channels, d_model, kernel_size=1),
-                nn.GroupNorm(d_model // 2, d_model)))
-        self.input_proj = nn.ModuleList(input_proj_list)
+        self.input_proj = nn.Sequential(nn.Linear(128, d_model), nn.GroupNorm(d_model // 8, d_model), nn.ReLU())
 
-        self.transformer = DeformableTransformer(d_model=d_model, nhead=8,
-                                                 num_encoder_layers=3, num_decoder_layers=6,
-                                                 dim_feedforward=d_model * 4, dropout=0.1,
-                                                 activation="relu", return_intermediate_dec=True,
-                                                 num_feature_levels=num_feature_levels,
-                                                 dec_n_points=4, enc_n_points=4)
+        self.context_decoder = \
+            nn.TransformerDecoder(nn.TransformerDecoderLayer(d_model=d_model, nhead=8,
+                                                             dim_feedforward=d_model * 4,
+                                                             dropout=0.1),
+                                  num_layers=6)
+        self.corr_decoder = \
+            nn.TransformerDecoder(nn.TransformerDecoderLayer(d_model=d_model, nhead=8,
+                                                             dim_feedforward=d_model * 4,
+                                                             dropout=0.1),
+                                  num_layers=6)
+        self.query_decoder = \
+            nn.TransformerDecoder(nn.TransformerDecoderLayer(d_model=d_model, nhead=8,
+                                                             dim_feedforward=d_model * 4,
+                                                             dropout=0.1),
+                                  num_layers=1)
 
         self.flow_embed = MLP(d_model, d_model, 2, 3)
         self.corr_embed = MLP(d_model, d_model, d_model, 3)
-        # self.context_embed = nn.Sequential(
-        #         nn.Conv2d(d_model, d_model, kernel_size=1),
-        #         nn.GroupNorm(d_model // 2, d_model))
-        self.context_embed = MLP(d_model, d_model, d_model, 3)
-
-        num_pred = self.transformer.decoder.num_layers
-        split = 0
-        # self.flow_embed = self._get_clones(self.flow_embed, num_pred)
-        # self.transformer.decoder.flow_embed = self.flow_embed
-        split = 0
-        self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(num_pred)])
-        self.corr_embed = nn.ModuleList([self.corr_embed for _ in range(num_pred)])
-        self.transformer.decoder.flow_embed = None
-        split = 0
 
         self.reset_parameters()
 
@@ -98,30 +76,9 @@ class RAFT(nn.Module):
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
 
-        for embed in self.row_pos_embed:
-            nn.init.uniform_(embed.weight)
-        for embed in self.col_pos_embed:
-            nn.init.uniform_(embed.weight)
+        nn.init.uniform_(self.row_pos_embed.weight)
+        nn.init.uniform_(self.col_pos_embed.weight)
         nn.init.xavier_uniform_(self.query_embed.weight)
-
-        for proj in self.input_proj:
-            nn.init.xavier_uniform_(proj[0].weight, gain=1)
-            nn.init.constant_(proj[0].bias, 0)
-
-        # nn.init.xavier_uniform_(self.context_embed[0].weight, gain=1)
-        # nn.init.constant_(self.context_embed[0].bias, 0)
-
-        # for p in self.flow_embed:
-        #     nn.init.xavier_uniform_(p.weight, gain=1)
-        #     nn.init.constant_(p.bias, 0)
-        #
-        # for p in self.corr_embed.layers:
-        #     nn.init.xavier_uniform_(p.weight, gain=1)
-        #     nn.init.constant_(p.bias, 0)
-        #
-        # for p in self.context_embed.layers:
-        #     nn.init.xavier_uniform_(p.weight, gain=1)
-        #     nn.init.constant_(p.bias, 0)
 
     def _get_clones(self, module, N):
         return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
@@ -176,34 +133,32 @@ class RAFT(nn.Module):
             image1 = image1.contiguous()
             image2 = image2.contiguous()
 
-            features_01 = self.fnet(image1)[:self.num_feature_levels]
-            features_02 = self.fnet(image2)[:self.num_feature_levels]
+            features_01 = self.fnet(image1)[0]
+            features_02 = self.fnet(image2)[0]
+            bs, c, h, w = features_01.shape
+            pos_embeds = self.get_embedding(features_01, self.col_embed, self.row_embed).flatten(2).permute(0, 2, 1)
 
-            features_01 = [self.input_proj[l](feat) for l, feat in enumerate(features_01)]
-            features_02 = [self.input_proj[l](feat) for l, feat in enumerate(features_02)]
-
-            pos_embeds = [self.get_embedding(feat, col_embed, row_embed)
-                          for feat, col_embed, row_embed in zip(features_01, self.col_pos_embed, self.row_pos_embed)]
-            bs, c, h, w = features_01[0].shape
-            query_embeds = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
-
-            hs, init_reference, inter_references, memory_01 = \
-                self.transformer(features_01, features_02, pos_embeds, query_embeds)
-            # memory_01 = memory_01[:, :h * w].view(bs, h, w, c).permute(0, 3, 1, 2)
+            features_01 = self.input_proj(features_01.flatten(2).permute(0, 2, 1)) + pos_embeds
+            features_02 = self.input_proj(features_02.flatten(2).permute(0, 2, 1)) + pos_embeds
 
             # bs, c, h * w
-            context_embed = self.context_embed(memory_01[:, :h * w].permute(0, 2, 1))
+            context_embed = self.context_decoder(features_01, features_02).permute(0, 2, 1)
+
+            # bs, c, n
+            query_embeds = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
+            tgt_embeds = self.query_decoder(query_embeds, features_01)
+            corr_hs = self.context_decoder(tgt_embeds, features_02)
 
             i_h, i_w = h * 8, w * 8
             flow_predictions = list()
-            for lid in range(len(hs)):
+            for lid in range(1):
                 # bs, n, c
-                corr_embed = self.corr_embed[lid](hs[lid].permute(0, 2, 1)).permute(0, 2, 1)
+                corr_embed = self.corr_embed(corr_hs.permute(0, 2, 1)).permute(0, 2, 1)
                 _, n, c = corr_embed.shape
                 # bs, n, h * w
                 corr = torch.bmm(corr_embed, context_embed)
                 # bs, 2, n
-                reg = self.flow_embed[lid](hs[lid].permute(0, 2, 1))
+                reg = self.flow_embed(corr_hs.permute(0, 2, 1))
                 # bs, 2, h, w
                 flow = torch.bmm(reg, corr).view(bs, 2, h, w)
                 # flow *= torch.tensor((i_h, i_w), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)

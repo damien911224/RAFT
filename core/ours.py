@@ -144,7 +144,7 @@ class RAFT(nn.Module):
             # bs, HW, C
             U1 = torch.flatten(U1, 2).permute(0, 2, 1)
 
-            context = self.query_embed.weight.unsqueeze(0).repeat(bs, 50, D1.shape[-1]).permute(1, 0, 2)
+            context = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, D1.shape[-1]).permute(1, 0, 2)
 
             I_H, I_W = H * 8, W * 8
             flow_predictions = list()

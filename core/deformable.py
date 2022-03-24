@@ -175,7 +175,7 @@ class DeformableTransformer(nn.Module):
         # bs, n, c
         prop_tgt_embed = self.prop_tgt_decoder(prop_tgt_query.permute(1, 0, 2),
                                                memory_01.permute(1, 0, 2)).permute(1, 0, 2)
-        prop_reference_points = self.prop_reference_points(prop_tgt_query_pos).sigmoid()
+        prop_reference_points = self.prop_reference_points(prop_tgt_embed).sigmoid()
         prop_hs, prop_inter_references = self.prop_decoder(prop_tgt_embed, prop_reference_points, memory_02,
                                                            spatial_shapes, level_start_index, prop_tgt_query_pos)
 

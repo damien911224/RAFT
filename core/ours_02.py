@@ -193,16 +193,15 @@ class RAFT(nn.Module):
             i_h, i_w = h * 8, w * 8
             flow_predictions = list()
             for lid in range(len(hs)):
-                this_flow = list()
                 # bs, n, c
-                corr_embed = self.corr_embed[lid](hs[lid])
+                corr_embed = self.corr_embed[lid](hs[lid].permute(0, 2, 1)).permute(0, 2, 1)
                 _, n, c = corr_embed.shape
                 # bs, c, h * w
                 context_embed = self.context_embed(memory_01).view(bs, c, h * w)
                 # bs, n, h * w
                 corr = torch.bmm(corr_embed, context_embed)
                 # bs, 2, n
-                reg = self.flow_embed[lid](hs[lid]).permute(0, 2, 1).tanh()
+                reg = self.flow_embed[lid](hs[lid].permute(0, 2, 1)).permute(0, 2, 1).tanh()
                 # bs, 2, h, w
                 flow = torch.bmm(reg, corr).view(bs, 2, h, w)
                 flow *= torch.tensor((i_h, i_w), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
@@ -222,12 +221,14 @@ class MLP(nn.Module):
         super().__init__()
         self.num_layers = num_layers
         h = [hidden_dim] * (num_layers - 1)
-        self.layers = nn.ModuleList(nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
-        self.norms = nn.ModuleList([nn.GroupNorm(c // 2, c) for c in [input_dim] + h + [hidden_dim]])
+        # self.layers = nn.ModuleList(nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
+        self.layers = nn.ModuleList(nn.Conv1d(n, k, kernel_size=1) for n, k in zip([input_dim] + h, h + [output_dim]))
+        self.norms = nn.ModuleList([nn.GroupNorm(c // 2, c) if c is not None else None
+                                    for c in [input_dim] + h + [None]])
 
     def forward(self, x):
-        for i, layer, norm in enumerate(zip(self.layers, self.norms)):
-            x = F.relu(norm(layer(x))) if i < self.num_layers - 1 else norm(layer(x))
+        for i, (layer, norm) in enumerate(zip(self.layers, self.norms)):
+            x = F.relu(norm(layer(x))) if i < self.num_layers - 1 else layer(x)
         return x
 
 

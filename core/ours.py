@@ -44,9 +44,11 @@ class RAFT(nn.Module):
             nn.GroupNorm(d_model // 2, d_model))
 
         self.context_decoder = \
-            nn.ModuleList((nn.TransformerEncoderLayer(d_model=d_model, nhead=8) for _ in range(6)))
+            nn.ModuleList((nn.TransformerEncoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
+                           for _ in range(6)))
         self.correlation_decoder = \
-            nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, nhead=8) for _ in range(6)))
+            nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
+                           for _ in range(6)))
 
         h, w = args.image_size[0], args.image_size[1]
         self.row_pos_embed = nn.Embedding(w // (2 ** 3), d_model // 2)
@@ -60,8 +62,8 @@ class RAFT(nn.Module):
         iterations = 6
         self.context_correlation_embed = nn.ModuleList([self.context_correlation_embed for _ in range(iterations)])
         self.context_extractor_embed = nn.ModuleList([self.context_extractor_embed for _ in range(iterations)])
-        self.correlation_context_embed = nn.ModuleList([self.context_extractor_embed for _ in range(iterations)])
-        self.correlation_flow_embed = nn.ModuleList([self.context_extractor_embed for _ in range(iterations)])
+        self.correlation_context_embed = nn.ModuleList([self.correlation_context_embed for _ in range(iterations)])
+        self.correlation_flow_embed = nn.ModuleList([self.correlation_flow_embed for _ in range(iterations)])
 
         self.reset_parameters()
 
@@ -143,8 +145,6 @@ class RAFT(nn.Module):
                 # bs, hw, c
                 context = self.context_decoder[i](D1).permute(1, 0, 2)
                 correlation = self.correlation_decoder[i](D1, D2).permute(1, 0, 2)
-                print(len(correlation))
-                exit()
 
                 context_correlation = self.context_correlation_embed[i](context)
                 context_extractor = self.context_extractor_embed[i](context)

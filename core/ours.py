@@ -151,6 +151,7 @@ class RAFT(nn.Module):
             flow_predictions = list()
             for i in range(len(self.correlation_decoder)):
                 # bs, n, c
+                context = context.permute(1, 0, 2)
                 context = self.context_decoder[i](context.permute(1, 0, 2), D1).permute(1, 0, 2)
                 # bs, hw, c
                 correlation = self.correlation_decoder[i](D1, D2).permute(1, 0, 2)

@@ -53,7 +53,8 @@ class RAFT(nn.Module):
         h, w = args.image_size[0], args.image_size[1]
         self.row_pos_embed = nn.Embedding(w // (2 ** 3), d_model // 2)
         self.col_pos_embed = nn.Embedding(h // (2 ** 3), d_model // 2)
-        self.query_embed = nn.Embedding(50, d_model)
+        self.context_query_embed = nn.Embedding(50, d_model)
+        self.correlation_query_embed = nn.Linear(d_model, d_model)
 
         self.context_correlation_embed = MLP(d_model, d_model, d_model, 3)
         self.context_extractor_embed = MLP(d_model, d_model, d_model * 2, 3)
@@ -78,7 +79,10 @@ class RAFT(nn.Module):
 
         nn.init.uniform_(self.row_pos_embed.weight)
         nn.init.uniform_(self.col_pos_embed.weight)
-        nn.init.uniform_(self.query_embed.weight)
+
+        nn.init.uniform_(self.context_query_embed.weight)
+        nn.init.xavier_uniform_(self.correlation_query_embed.weight.data, gain=1.0)
+        nn.init.constant_(self.correlation_query_embed.bias.data, 0.)
 
     def _get_clones(self, module, N):
         return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
@@ -145,8 +149,8 @@ class RAFT(nn.Module):
             U1 = torch.flatten(U1, 2).permute(0, 2, 1)
 
             # n, bs, c
-            context = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
-            correlation = D1.permute(1, 0, 2)
+            context = self.context_query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
+            correlation = self.correlation_query_embed(D1.permute(1, 0, 2))
 
             I_H, I_W = H * 4, W * 4
             flow_predictions = list()

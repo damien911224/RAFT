@@ -56,11 +56,14 @@ class RAFT(nn.Module):
                                                              dim_feedforward=d_model * 4,
                                                              dropout=0.1),
                                   num_layers=1)
-        self.corr_decoder = \
-            nn.TransformerDecoder(nn.TransformerDecoderLayer(d_model=d_model, nhead=8,
-                                                             dim_feedforward=d_model * 4,
-                                                             dropout=0.1),
-                                  num_layers=6)
+        # self.corr_decoder = \
+        #     nn.TransformerDecoder(nn.TransformerDecoderLayer(d_model=d_model, nhead=8,
+        #                                                      dim_feedforward=d_model * 4,
+        #                                                      dropout=0.1),
+        #                           num_layers=6)
+        self.corr_decoder = nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, nhead=8,
+                                                                      dim_feedforward=d_model * 4,
+                                                                      dropout=0.1) for _ in range(6)))
         self.query_decoder = \
             nn.TransformerDecoder(nn.TransformerDecoderLayer(d_model=d_model, nhead=8,
                                                              dim_feedforward=d_model * 4,
@@ -151,12 +154,12 @@ class RAFT(nn.Module):
             query_embeds = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
             tgt_embeds = self.query_decoder(query_embeds.permute(1, 0, 2),
                                             features_01.permute(1, 0, 2)).permute(1, 0, 2)
-            corr_hs = self.context_decoder(tgt_embeds.permute(1, 0, 2),
-                                           features_02.permute(1, 0, 2)).permute(1, 0, 2)
 
             i_h, i_w = h * 8, w * 8
             flow_predictions = list()
-            for lid in range(1):
+            for lid in range(len(self.corr_decoder)):
+                corr_hs = self.corr_decoder[lid](tgt_embeds.permute(1, 0, 2),
+                                                 features_02.permute(1, 0, 2)).permute(1, 0, 2)
                 # bs, n, c
                 corr_embed = self.corr_embed(corr_hs.permute(0, 2, 1)).permute(0, 2, 1)
                 _, n, c = corr_embed.shape

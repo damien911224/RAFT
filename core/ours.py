@@ -141,14 +141,11 @@ class RAFT(nn.Module):
             D1, D2 = torch.split(
                 torch.flatten(self.extractor_projection(torch.cat((D1, D2), dim=0)) + pos_embeds, 2).permute(2, 0, 1),
                 bs, dim=1)
-            print(D1.shape)
             # bs, HW, C
             U1 = torch.flatten(U1, 2).permute(0, 2, 1)
-            print(U1.shape)
 
             # n, bs, c
             context = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1).permute(1, 0, 2)
-            print(context.shape)
 
             I_H, I_W = H * 8, W * 8
             flow_predictions = list()
@@ -169,21 +166,15 @@ class RAFT(nn.Module):
 
                 # bs, n, hw
                 context_flow = torch.bmm(context_correlation, correlation_context.permute(0, 2, 1))
-                print(context_flow.shape)
                 # bs, n, 2
                 context_flow = torch.bmm(context_flow, correlation_flow)
-                print(context_flow.shape)
 
                 # bs, HW, n
                 extractor_flow = torch.bmm(U1, context_extractor.permute(0, 2, 1))
-                print(extractor_flow.shape)
                 # bs, HW, 2
                 extractor_flow = torch.bmm(extractor_flow, context_flow)
-                print(extractor_flow.shape)
 
                 flow = extractor_flow.permute(0, 2, 1).tanh()
-                print(flow.shape)
-                exit()
 
                 flow *= torch.tensor((I_H, I_W), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
                 if I_H != H or I_W != W:

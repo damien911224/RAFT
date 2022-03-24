@@ -44,7 +44,7 @@ class RAFT(nn.Module):
             nn.GroupNorm(d_model // 2, d_model))
 
         self.context_decoder = \
-            nn.ModuleList((nn.TransformerEncoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
+            nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
                            for _ in range(6)))
         self.correlation_decoder = \
             nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)

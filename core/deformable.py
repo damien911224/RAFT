@@ -42,12 +42,15 @@ class DeformableTransformer(nn.Module):
                                                           dropout, activation,
                                                           num_feature_levels, nhead, dec_n_points)
         self.decoder = DeformableTransformerDecoder(decoder_layer, num_decoder_layers, return_intermediate_dec)
+        self.prop_decoder = DeformableTransformerDecoder(decoder_layer, num_decoder_layers, return_intermediate_dec)
 
         self.level_embed = nn.Parameter(torch.Tensor(num_feature_levels, d_model))
 
         # self.reference_points = nn.Linear(d_model, 2)
 
         self.tgt_embed = nn.Linear(d_model, d_model)
+        self.prop_tgt_query = nn.Embedding(50, d_model)
+        self.prop_tgt_decoder = nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
 
         self._reset_parameters()
 
@@ -63,6 +66,7 @@ class DeformableTransformer(nn.Module):
         #     constant_(self.reference_points.bias.data, 0.)
         xavier_uniform_(self.tgt_embed.weight.data, gain=1.0)
         constant_(self.tgt_embed.bias.data, 0.)
+        nn.init.uniform_(self.prop_tgt_query.weight)
         normal_(self.level_embed)
 
     def get_proposal_pos_embed(self, proposals):
@@ -161,8 +165,16 @@ class DeformableTransformer(nn.Module):
         hs, inter_references = self.decoder(tgt_embed, reference_points, memory_02,
                                             spatial_shapes, level_start_index, lvl_pos_embed_flatten)
 
+        # prop decoder
+        bs, _, _ = memory_01.shape
+        prop_tgt_query = self.prop_tgt_query.weight.unsqueeze(0).repeat(bs, 1, 1)
+        prop_tgt_embed = self.prop_tgt_decoder(prop_tgt_query.permute(1, 0, 2),
+                                               memory_01.permute(1, 0, 2)).permute(1, 0, 2)
+        prop_hs, prop_inter_references = self.prop_decoder(prop_tgt_embed, reference_points, memory_02,
+                                                           spatial_shapes, level_start_index, lvl_pos_embed_flatten)
+
         inter_references_out = inter_references
-        return hs, init_reference_out, inter_references_out
+        return hs, init_reference_out, inter_references_out, prop_hs
 
 
 class DeformableTransformerEncoderLayer(nn.Module):

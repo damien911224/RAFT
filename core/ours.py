@@ -63,6 +63,8 @@ class RAFT(nn.Module):
                                                  dec_n_points=4, enc_n_points=4)
 
         self.flow_embed = MLP(d_model, d_model, 2, 3)
+        self.hs_embed = MLP(d_model, d_model, d_model, 3)
+        self.prop_embed = MLP(d_model, d_model, d_model, 3)
         input_proj_list = []
         for l_i in range(num_feature_levels):
             in_channels = (128, 192, 256)[l_i]
@@ -77,6 +79,8 @@ class RAFT(nn.Module):
         # self.transformer.decoder.flow_embed = self.flow_embed
         split = 0
         self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(num_pred)])
+        self.hs_embed = nn.ModuleList([self.hs_embed for _ in range(num_pred)])
+        self.prop_embed = nn.ModuleList([self.prop_embed for _ in range(num_pred)])
         self.transformer.decoder.flow_embed = None
         split = 0
 
@@ -163,7 +167,7 @@ class RAFT(nn.Module):
             pos_embeds = [self.get_embedding(feat, col_embed, row_embed)
                           for feat, col_embed, row_embed in zip(features_01, self.col_pos_embed, self.row_pos_embed)]
 
-            hs, init_reference, inter_references = self.transformer(features_01, features_02, pos_embeds)
+            hs, init_reference, inter_references, prop_hs = self.transformer(features_01, features_02, pos_embeds)
 
             _, _, h, w = features_01[0].shape
             i_h, i_w = h * 8, w * 8
@@ -171,6 +175,8 @@ class RAFT(nn.Module):
             for lid in range(len(hs)):
                 this_flow = list()
                 tmp = self.flow_embed[lid](hs[lid].permute(0, 2, 1)).permute(0, 2, 1)
+                hs_embed = self.hs_embed[lid](hs[lid].permute(0, 2, 1)).permute(0, 2, 1)
+                prop_embed = self.prop_embed[lid](prop_hs[lid].permute(0, 2, 1))
                 if lid == 0:
                     reference = init_reference
                 else:
@@ -180,8 +186,15 @@ class RAFT(nn.Module):
                     bs, c, h, w = features_01[lvl].shape
                     this_len = h * w
                     split = 0
+                    # bs, h * w, 2
                     this_reference = inverse_sigmoid(reference[:, prev_idx:prev_idx + this_len])
                     flow = tmp[:, prev_idx:prev_idx + this_len] + this_reference
+                    # bs, n, h * w
+                    corr = torch.bmm(hs_embed, prop_embed[..., prev_idx:prev_idx + this_len])
+                    # bs, n, 2
+                    corr_flow = torch.bmm(corr, flow)
+                    # bs, h * w, 2
+                    flow = torch.bmm(corr.permute(0, 2, 1), corr_flow)
                     flow = init_reference[:, prev_idx:prev_idx + this_len] - flow.sigmoid()
                     flow = flow.view(bs, h, w, 2).permute(0, 3, 1, 2)
                     flow *= torch.tensor((i_h, i_w), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)

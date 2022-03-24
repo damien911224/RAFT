@@ -141,8 +141,10 @@ class RAFT(nn.Module):
             D1, D2 = torch.split(
                 torch.flatten(self.extractor_projection(torch.cat((D1, D2), dim=0)) + pos_embeds, 2).permute(2, 0, 1),
                 bs, dim=1)
+            print(D1.shape)
             # bs, HW, C
             U1 = torch.flatten(U1, 2).permute(0, 2, 1)
+            print(U1.shape)
 
             context = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, D1.shape[-1]).permute(1, 0, 2)
 

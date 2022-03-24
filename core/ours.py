@@ -175,8 +175,8 @@ class RAFT(nn.Module):
             for lid in range(len(hs)):
                 this_flow = list()
                 tmp = self.flow_embed[lid](hs[lid].permute(0, 2, 1)).permute(0, 2, 1)
-                hs_embed = self.hs_embed[lid](hs[lid].permute(0, 2, 1)).permute(0, 2, 1)
-                prop_embed = self.prop_embed[lid](prop_hs[lid].permute(0, 2, 1))
+                hs_embed = self.hs_embed[lid](hs[lid].permute(0, 2, 1))
+                prop_embed = self.prop_embed[lid](prop_hs[lid].permute(0, 2, 1)).permute(0, 2, 1)
                 if lid == 0:
                     reference = init_reference
                 else:
@@ -190,7 +190,7 @@ class RAFT(nn.Module):
                     this_reference = inverse_sigmoid(reference[:, prev_idx:prev_idx + this_len])
                     flow = tmp[:, prev_idx:prev_idx + this_len] + this_reference
                     # bs, n, h * w
-                    corr = torch.bmm(hs_embed, prop_embed[..., prev_idx:prev_idx + this_len])
+                    corr = torch.bmm(prop_embed, hs_embed[..., prev_idx:prev_idx + this_len])
                     # bs, n, 2
                     corr_flow = torch.bmm(corr, flow)
                     # bs, h * w, 2

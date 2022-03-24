@@ -221,7 +221,7 @@ class MLP(nn.Module):
         self.norms = nn.ModuleList([nn.GroupNorm(c // 2, c) for c in [input_dim] + h + [hidden_dim]])
 
     def forward(self, x):
-        for i, layer, norm in enumerate(zip(self.layers, self.norms)):
+        for i, (layer, norm) in enumerate(zip(self.layers, self.norms)):
             x = F.relu(norm(layer(x))) if i < self.num_layers - 1 else norm(layer(x))
         return x
 

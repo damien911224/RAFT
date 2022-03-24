@@ -50,6 +50,7 @@ class DeformableTransformer(nn.Module):
 
         self.tgt_embed = nn.Linear(d_model, d_model)
         self.prop_tgt_query = nn.Embedding(50, d_model)
+        self.prop_tgt_query_pos = nn.Embedding(50, d_model)
         self.prop_tgt_decoder = nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
 
         self._reset_parameters()
@@ -67,6 +68,7 @@ class DeformableTransformer(nn.Module):
         xavier_uniform_(self.tgt_embed.weight.data, gain=1.0)
         constant_(self.tgt_embed.bias.data, 0.)
         nn.init.uniform_(self.prop_tgt_query.weight)
+        nn.init.uniform_(self.prop_tgt_query_pos.weight)
         normal_(self.level_embed)
 
     def get_proposal_pos_embed(self, proposals):
@@ -169,11 +171,12 @@ class DeformableTransformer(nn.Module):
         bs, _, _ = memory_01.shape
         # bs, n, c
         prop_tgt_query = self.prop_tgt_query.weight.unsqueeze(0).repeat(bs, 1, 1)
+        prop_tgt_query_pos = self.prop_tgt_query_pos.weight.unsqueeze(0).repeat(bs, 1, 1)
         # bs, n, c
         prop_tgt_embed = self.prop_tgt_decoder(prop_tgt_query.permute(1, 0, 2),
                                                memory_01.permute(1, 0, 2)).permute(1, 0, 2)
         prop_hs, prop_inter_references = self.prop_decoder(prop_tgt_embed, reference_points, memory_02,
-                                                           spatial_shapes, level_start_index, lvl_pos_embed_flatten)
+                                                           spatial_shapes, level_start_index, prop_tgt_query_pos)
 
         inter_references_out = inter_references
         return hs, init_reference_out, inter_references_out, prop_hs

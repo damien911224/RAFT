@@ -217,7 +217,7 @@ class RAFT(nn.Module):
                     corr_flow * torch.tensor((I_W - 1, I_H - 1),
                                              dtype=torch.float32).view(1, 2, 1, 1).to(extractor_flow.device)
                 if I_H != H or I_W != W:
-                    corr_flow = F.interpolate(corr_flow, size=(I_H - 1, I_W - 1), mode="bilinear", align_corners=True)
+                    corr_flow = F.interpolate(corr_flow, size=(I_H, I_W), mode="bilinear", align_corners=True)
                 corr_flow = coord_0 - corr_flow
 
                 flow_predictions.append(flow)

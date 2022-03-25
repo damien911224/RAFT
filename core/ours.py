@@ -188,6 +188,8 @@ class RAFT(nn.Module):
                 context_flow = torch.bmm(context_flow, correlation_flow)
 
                 # bs, HW, n
+                print(U1.shape)
+                print(context_extractor.shape)
                 extractor_flow = torch.bmm(U1, context_extractor.permute(0, 2, 1))
                 # bs, HW, 2
                 extractor_flow = torch.bmm(extractor_flow, context_flow)

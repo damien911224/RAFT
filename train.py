@@ -66,7 +66,7 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
         i_loss = (flow_preds[1][i] - flow_gt).abs()
         corr_loss += i_weight * (valid[:, None] * i_loss).mean()
 
-    loss = flow_loss * 0.0 + corr_loss
+    loss = flow_loss + corr_loss
 
     epe = torch.sum((flow_preds[0][-1] - flow_gt)**2, dim=1).sqrt()
     epe = epe.view(-1)[valid.view(-1)]

@@ -172,6 +172,7 @@ class RAFT(nn.Module):
                 # bs, hw, c
                 correlation = correlation.permute(1, 0, 2)
                 correlation = self.correlation_decoder[i](correlation, D2).permute(1, 0, 2)
+                print(correlation.shape)
 
                 # bs, n, c
                 # context_correlation = self.context_correlation_embed[i](context)
@@ -183,6 +184,8 @@ class RAFT(nn.Module):
                 correlation_flow = self.correlation_flow_embed[i](correlation)
 
                 # bs, n, hw
+                print(context_correlation.shape)
+                print(correlation_context.shape)
                 context_flow = torch.bmm(context_correlation, correlation_context.permute(0, 2, 1))
                 # bs, n, 2
                 context_flow = torch.bmm(context_flow, correlation_flow)

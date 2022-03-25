@@ -59,7 +59,7 @@ class RAFT(nn.Module):
         self.correlation_query_embed = nn.Linear(d_model, d_model)
 
         self.context_correlation_embed = MLP(d_model, d_model, d_model, 3)
-        self.context_extractor_embed = MLP(d_model, d_model, round(base_channel * 2 * 1.5), 3)
+        self.context_extractor_embed = MLP(d_model, d_model, round(d_model * 2 * 1.5), 3)
         self.correlation_context_embed = MLP(d_model, d_model, d_model, 3)
         self.correlation_flow_embed = MLP(d_model, d_model, 2, 3)
 

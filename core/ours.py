@@ -43,9 +43,7 @@ class RAFT(nn.Module):
             nn.Sequential(nn.Conv2d(d_model * 2 * 2, d_model, kernel_size=1),
             nn.GroupNorm(d_model // 2, d_model))
 
-        self.encoder = \
-            nn.ModuleList((nn.TransformerEncoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
-                           for _ in range(6)))
+        self.encoder = nn.TransformerEncoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
 
         # self.context_decoder = \
         #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)

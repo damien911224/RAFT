@@ -101,7 +101,7 @@ class RAFT(nn.Module):
     def initialize_flow(self, img):
         """ Flow is represented as difference between two coordinate grids flow = coords1 - coords0"""
         N, C, H, W = img.shape
-        coords0 = coords_grid(N, H // 8, W // 8, device=img.device)
+        coords0 = coords_grid(N, H, W, device=img.device)
         # coords1 = coords_grid(N, H // 8, W // 8, device=img.device)
 
         # optical flow computed as difference: flow = coords1 - coords0
@@ -206,18 +206,20 @@ class RAFT(nn.Module):
                 # bs, HW, 2
                 extractor_flow = torch.bmm(extractor_flow, context_flow)
                 # bs, 2, H, W
-                flow = torch.tanh(extractor_flow.permute(0, 2, 1).view(bs, 2, H, W))
+                flow = torch.sigmoid(extractor_flow.permute(0, 2, 1).view(bs, 2, H, W))
 
                 flow = flow * torch.tensor((I_H, I_W), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
                 if I_H != H or I_W != W:
                     flow = F.interpolate(flow, size=(I_H, I_W), mode="bilinear", align_corners=True)
+                flow = coord_0 - flow
 
                 # bs, 2, H, W
-                corr_flow = torch.tanh(correlation_flow.permute(0, 2, 1).view(bs, 2, h, w))
+                corr_flow = torch.sigmoid(correlation_flow.permute(0, 2, 1).view(bs, 2, h, w))
                 corr_flow = \
                     corr_flow * torch.tensor((I_H, I_W), dtype=torch.float32).view(1, 2, 1, 1).to(extractor_flow.device)
                 if I_H != H or I_W != W:
                     corr_flow = F.interpolate(corr_flow, size=(I_H, I_W), mode="bilinear", align_corners=True)
+                corr_flow = coord_0 - corr_flow
 
                 flow_predictions.append(flow)
                 corr_predictions.append(corr_flow)

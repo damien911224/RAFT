@@ -9,7 +9,7 @@ from corr import CorrBlock, AlternateCorrBlock
 from utils.utils import bilinear_sampler, coords_grid, upflow8
 from update import Decoder, PositionEmbedding
 
-from deformable import DeformableTransformer
+from deformable import DeformableTransformerDecoderLayer
 from utils.misc import inverse_sigmoid
 import copy
 
@@ -102,10 +102,10 @@ class RAFT(nn.Module):
         """ Flow is represented as difference between two coordinate grids flow = coords1 - coords0"""
         N, C, H, W = img.shape
         coords0 = coords_grid(N, H // 8, W // 8, device=img.device)
-        coords1 = coords_grid(N, H // 8, W // 8, device=img.device)
+        # coords1 = coords_grid(N, H // 8, W // 8, device=img.device)
 
         # optical flow computed as difference: flow = coords1 - coords0
-        return coords0, coords1
+        return coords0
 
     def upsample_flow(self, flow, mask):
         """ Upsample flow field [H/8, W/8, 2] -> [H, W, 2] using convex combination """
@@ -164,6 +164,10 @@ class RAFT(nn.Module):
             context = self.context_query_embed(D1.permute(1, 0, 2))
             correlation = self.correlation_query_embed(D1.permute(1, 0, 2))
 
+            coord_0 = self.initialize_flow(image1)
+            print(coord_0.shape)
+            exit()
+
             flow_predictions = list()
             corr_predictions = list()
             # bs, n, c
@@ -186,16 +190,16 @@ class RAFT(nn.Module):
                 # context_extractor = self.context_extractor_embed[i](context)
                 # bs, hw, c
                 # correlation_context = self.correlation_context_embed[i](correlation)
-                correlation_context = correlation
-                # correlation_context = correlation.detach()
+                # correlation_context = correlation
+                correlation_context = correlation.detach()
                 # bs, hw, 2
                 correlation_flow = self.correlation_flow_embed[i](correlation)
 
                 # bs, n, hw
                 context_flow = torch.bmm(context_correlation, correlation_context.permute(0, 2, 1))
                 # bs, n, 2
-                context_flow = torch.bmm(context_flow, correlation_flow)
-                # context_flow = torch.bmm(context_flow, correlation_flow.detach())
+                # context_flow = torch.bmm(context_flow, correlation_flow)
+                context_flow = torch.bmm(context_flow, correlation_flow.detach())
 
                 # bs, HW, n
                 extractor_flow = torch.bmm(U1, context_extractor.permute(0, 2, 1))

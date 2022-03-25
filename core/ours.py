@@ -43,9 +43,10 @@ class RAFT(nn.Module):
             nn.Sequential(nn.Conv2d(d_model * 2 * 2, d_model, kernel_size=1),
             nn.GroupNorm(d_model // 2, d_model))
 
-        self.context_decoder = \
-            nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
-                           for _ in range(6)))
+        # self.context_decoder = \
+        #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
+        #                    for _ in range(6)))
+        self.context_decoder = nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
         self.correlation_decoder = \
             nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
                            for _ in range(6)))
@@ -63,8 +64,8 @@ class RAFT(nn.Module):
         self.correlation_flow_embed = MLP(d_model, d_model, 2, 3)
 
         iterations = 6
-        self.context_correlation_embed = nn.ModuleList([self.context_correlation_embed for _ in range(iterations)])
-        self.context_extractor_embed = nn.ModuleList([self.context_extractor_embed for _ in range(iterations)])
+        # self.context_correlation_embed = nn.ModuleList([self.context_correlation_embed for _ in range(iterations)])
+        # self.context_extractor_embed = nn.ModuleList([self.context_extractor_embed for _ in range(iterations)])
         self.correlation_context_embed = nn.ModuleList([self.correlation_context_embed for _ in range(iterations)])
         self.correlation_flow_embed = nn.ModuleList([self.correlation_flow_embed for _ in range(iterations)])
 
@@ -158,18 +159,24 @@ class RAFT(nn.Module):
 
             I_H, I_W = H * 4, W * 4
             flow_predictions = list()
+            # bs, n, c
+            context = self.context_decoder(context, D1).permute(1, 0, 2)
+            # bs, n, c
+            context_correlation = self.context_correlation_embed(context)
+            # bs, n, C
+            context_extractor = self.context_extractor_embed(context)
             for i in range(len(self.correlation_decoder)):
                 # bs, n, c
-                context = context.permute(1, 0, 2)
-                context = self.context_decoder[i](context, D1).permute(1, 0, 2)
+                # context = context.permute(1, 0, 2)
+                # context = self.context_decoder[i](context, D1).permute(1, 0, 2)
                 # bs, hw, c
                 correlation = correlation.permute(1, 0, 2)
                 correlation = self.correlation_decoder[i](correlation, D2).permute(1, 0, 2)
 
                 # bs, n, c
-                context_correlation = self.context_correlation_embed[i](context)
+                # context_correlation = self.context_correlation_embed[i](context)
                 # bs, n, C
-                context_extractor = self.context_extractor_embed[i](context)
+                # context_extractor = self.context_extractor_embed[i](context)
                 # bs, hw, c
                 correlation_context = self.correlation_context_embed[i](correlation)
                 # bs, hw, 2

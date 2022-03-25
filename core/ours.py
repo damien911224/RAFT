@@ -40,10 +40,10 @@ class RAFT(nn.Module):
         d_model = 64
         self.extractor = BasicEncoder(base_channel=d_model, norm_fn="batch")
         self.extractor_projection = \
-            nn.Sequential(nn.Conv2d(d_model * 2 * 2, d_model, kernel_size=1),
+            nn.Sequential(nn.Conv2d(self.extractor.down_dim, d_model, kernel_size=1),
             nn.GroupNorm(d_model // 2, d_model))
 
-        self.encoder = nn.TransformerEncoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
+        # self.encoder = nn.TransformerEncoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
 
         # self.context_decoder = \
         #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
@@ -61,7 +61,7 @@ class RAFT(nn.Module):
         self.correlation_query_embed = nn.Linear(d_model, d_model)
 
         self.context_correlation_embed = MLP(d_model, d_model, d_model, 3)
-        self.context_extractor_embed = MLP(d_model, d_model, round(d_model * 2 * 1.5), 3)
+        self.context_extractor_embed = MLP(d_model, d_model, self.extractor.up_dim, 3)
         # self.correlation_context_embed = MLP(d_model, d_model, d_model, 3)
         self.correlation_flow_embed = MLP(d_model, d_model, 2, 3)
 
@@ -154,7 +154,7 @@ class RAFT(nn.Module):
                 bs, dim=1)
 
             # hw, bs, c
-            D1, D2 = self.encoder(torch.cat((D1, D2), dim=1)).split(bs, dim=1)
+            # D1, D2 = self.encoder(torch.cat((D1, D2), dim=1)).split(bs, dim=1)
 
             # bs, HW, C
             U1 = torch.flatten(U1, 2).permute(0, 2, 1)

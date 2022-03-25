@@ -135,9 +135,11 @@ class BasicEncoder(nn.Module):
         self.down_layer2 = self._make_down_layer(round(base_channel * 1.5), stride=2)
         self.down_layer3 = self._make_down_layer(base_channel * 2, stride=2)
         self.down_layer4 = self._make_down_layer(round(base_channel * 2 * 1.5), stride=2)
-        self.down_layer5 = self._make_down_layer(base_channel * 2 * 2, stride=2)
+        self.down_dim = self.in_planes
+        # self.down_layer5 = self._make_down_layer(base_channel * 2 * 2, stride=2)
         self.up_layer1 = self._make_up_layer(base_channel * 2 * 2, scale=2.0)
         self.up_layer2 = self._make_up_layer(round(base_channel * 2 * 1.5), scale=2.0)
+        self.up_dim = self.in_planes
         # self.up_layer3 = self._make_up_layer(base_channel * 2, scale=2.0)
 
         for m in self.modules():
@@ -183,7 +185,7 @@ class BasicEncoder(nn.Module):
         x = self.down_layer2(x)
         x = self.down_layer3(x)
         x = self.down_layer4(x)
-        x = self.down_layer5(x)
+        # x = self.down_layer5(x)
 
         D1, D2 = torch.split(x, x.shape[0] // 2, dim=0)
 

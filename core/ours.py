@@ -43,6 +43,10 @@ class RAFT(nn.Module):
             nn.Sequential(nn.Conv2d(d_model * 2 * 2, d_model, kernel_size=1),
             nn.GroupNorm(d_model // 2, d_model))
 
+        self.encoder = \
+            nn.ModuleList((nn.TransformerEncoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
+                           for _ in range(6)))
+
         # self.context_decoder = \
         #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
         #                    for _ in range(6)))
@@ -150,6 +154,11 @@ class RAFT(nn.Module):
             D1, D2 = torch.split(
                 torch.flatten(self.extractor_projection(torch.cat((D1, D2), dim=0)) + pos_embeds, 2).permute(2, 0, 1),
                 bs, dim=1)
+
+            # hw, bs, c
+            E = self.encoder(torch.cat((D1, D2), dim=0))
+            D1, D2 = E.split(bs, dim=1)
+
             # bs, HW, C
             U1 = torch.flatten(U1, 2).permute(0, 2, 1)
 

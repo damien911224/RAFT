@@ -165,8 +165,6 @@ class RAFT(nn.Module):
             correlation = self.correlation_query_embed(D1.permute(1, 0, 2))
 
             coord_0 = self.initialize_flow(image1)
-            print(coord_0.shape)
-            exit()
 
             flow_predictions = list()
             corr_predictions = list()

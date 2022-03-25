@@ -155,6 +155,7 @@ class RAFT(nn.Module):
             # n, bs, c
             # context = self.context_query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
             context = self.context_query_embed(D1.permute(1, 0, 2))
+            print(context.shape)
             correlation = self.correlation_query_embed(D1.permute(1, 0, 2))
 
             I_H, I_W = H * 8, W * 8

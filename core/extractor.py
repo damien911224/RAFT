@@ -160,7 +160,7 @@ class BasicEncoder(nn.Module):
         return nn.Sequential(*layers)
 
     def _make_up_layer(self, dim, scale=2.0):
-        layer1 = nn.Upsample(scale_factor=scale, mode="bilinear")
+        layer1 = nn.Upsample(scale_factor=scale, mode="bilinear", align_corners=True)
         layer2 = nn.Conv2d(self.in_planes, dim, kernel_size=3, padding=1)
         if self.norm_fn == "group":
             layer3 = nn.GroupNorm(num_groups=dim // 8, num_channels=dim)

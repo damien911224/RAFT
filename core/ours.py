@@ -157,10 +157,10 @@ class RAFT(nn.Module):
             context = self.context_query_embed(D1.permute(1, 0, 2))
             correlation = self.correlation_query_embed(D1.permute(1, 0, 2))
 
-            I_H, I_W = H * 4, W * 4
+            I_H, I_W = H * 8, W * 8
             flow_predictions = list()
             # bs, n, c
-            context = self.context_decoder(context, D1).permute(1, 0, 2)
+            context = self.context_decoder(context.permute(0, 2, 1), D1).permute(1, 0, 2)
             # bs, n, c
             context_correlation = self.context_correlation_embed(context)
             # bs, n, C
@@ -172,7 +172,6 @@ class RAFT(nn.Module):
                 # bs, hw, c
                 correlation = correlation.permute(1, 0, 2)
                 correlation = self.correlation_decoder[i](correlation, D2).permute(1, 0, 2)
-                print(correlation.shape)
 
                 # bs, n, c
                 # context_correlation = self.context_correlation_embed[i](context)
@@ -184,8 +183,6 @@ class RAFT(nn.Module):
                 correlation_flow = self.correlation_flow_embed[i](correlation)
 
                 # bs, n, hw
-                print(context_correlation.shape)
-                print(correlation_context.shape)
                 context_flow = torch.bmm(context_correlation, correlation_context.permute(0, 2, 1))
                 # bs, n, 2
                 context_flow = torch.bmm(context_flow, correlation_flow)

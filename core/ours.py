@@ -41,7 +41,7 @@ class RAFT(nn.Module):
         self.extractor = BasicEncoder(base_channel=d_model, norm_fn="batch")
         self.extractor_projection = \
             nn.Sequential(nn.Conv2d(self.extractor.down_dim, d_model, kernel_size=1),
-            nn.GroupNorm(d_model // 2, d_model))
+            nn.GroupNorm(d_model // 8, d_model))
 
         # self.encoder = nn.TransformerEncoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
 

@@ -159,6 +159,7 @@ class RAFT(nn.Module):
 
             I_H, I_W = H * 8, W * 8
             flow_predictions = list()
+            corr_predictions = list()
             # bs, n, c
             context = self.context_decoder(context.permute(1, 0, 2), D1).permute(1, 0, 2)
             # bs, n, c
@@ -198,12 +199,20 @@ class RAFT(nn.Module):
                 if I_H != H or I_W != W:
                     flow = F.interpolate(flow, size=(I_H, I_W), mode="bilinear", align_corners=True)
 
+                # bs, 2, H, W
+                corr_flow = torch.tanh(correlation_flow.permute(0, 2, 1).view(bs, 2, H, W))
+                corr_flow = \
+                    corr_flow * torch.tensor((I_H, I_W), dtype=torch.float32).view(1, 2, 1, 1).to(extractor_flow.device)
+                if I_H != H or I_W != W:
+                    corr_flow = F.interpolate(corr_flow, size=(I_H, I_W), mode="bilinear", align_corners=True)
+
                 flow_predictions.append(flow)
+                corr_predictions.append(corr_flow)
 
             if test_mode:
                 return flow_predictions[-1], flow_predictions[-1]
             else:
-                return flow_predictions
+                return flow_predictions, corr_predictions
 
 
 class MLP(nn.Module):

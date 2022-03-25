@@ -81,7 +81,7 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
         'corr_loss': corr_loss
     }
 
-    return loss, metrics
+    return loss * 0.0, metrics
 
 
 def count_parameters(model):

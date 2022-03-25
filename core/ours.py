@@ -62,13 +62,13 @@ class RAFT(nn.Module):
 
         self.context_correlation_embed = MLP(d_model, d_model, d_model, 3)
         self.context_extractor_embed = MLP(d_model, d_model, self.extractor.up_dim, 3)
-        # self.correlation_context_embed = MLP(d_model, d_model, d_model, 3)
+        self.correlation_context_embed = MLP(d_model, d_model, d_model, 3)
         self.correlation_flow_embed = MLP(d_model, d_model, 2, 3)
 
         iterations = 6
         # self.context_correlation_embed = nn.ModuleList([self.context_correlation_embed for _ in range(iterations)])
         # self.context_extractor_embed = nn.ModuleList([self.context_extractor_embed for _ in range(iterations)])
-        # self.correlation_context_embed = nn.ModuleList([self.correlation_context_embed for _ in range(iterations)])
+        self.correlation_context_embed = nn.ModuleList([self.correlation_context_embed for _ in range(iterations)])
         self.correlation_flow_embed = nn.ModuleList([self.correlation_flow_embed for _ in range(iterations)])
 
         self.reset_parameters()
@@ -188,8 +188,9 @@ class RAFT(nn.Module):
                 # context_extractor = self.context_extractor_embed[i](context)
                 # bs, hw, c
                 # correlation_context = self.correlation_context_embed[i](correlation)
+                correlation_context = self.correlation_context_embed[i](correlation).detach()
                 # correlation_context = correlation
-                correlation_context = correlation.detach()
+                # correlation_context = correlation.detach()
                 # bs, hw, 2
                 correlation_flow = self.correlation_flow_embed[i](correlation)
 

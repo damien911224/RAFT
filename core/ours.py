@@ -59,7 +59,7 @@ class RAFT(nn.Module):
         self.correlation_query_embed = nn.Linear(d_model, d_model)
 
         self.context_correlation_embed = MLP(d_model, d_model, d_model, 3)
-        self.context_extractor_embed = MLP(d_model, d_model, d_model * 2, 3)
+        self.context_extractor_embed = MLP(d_model, d_model, round(base_channel * 2 * 1.5), 3)
         self.correlation_context_embed = MLP(d_model, d_model, d_model, 3)
         self.correlation_flow_embed = MLP(d_model, d_model, 2, 3)
 
@@ -188,8 +188,6 @@ class RAFT(nn.Module):
                 context_flow = torch.bmm(context_flow, correlation_flow)
 
                 # bs, HW, n
-                print(U1.shape)
-                print(context_extractor.shape)
                 extractor_flow = torch.bmm(U1, context_extractor.permute(0, 2, 1))
                 # bs, HW, 2
                 extractor_flow = torch.bmm(extractor_flow, context_flow)

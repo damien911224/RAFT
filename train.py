@@ -159,7 +159,10 @@ class Logger:
             target_img = flow_vis.flow_to_color(targets[n_i], convert_to_bgr=False)
             pred_img = list()
             for p_i in range(len(preds)):
-                this_pred = preds[p_i].detach().cpu().numpy()[n_i]
+                this_pred = preds[0][p_i].detach().cpu().numpy()[n_i]
+                this_pred = np.transpose(this_pred, (1, 2, 0))
+                pred_img.append(flow_vis.flow_to_color(this_pred, convert_to_bgr=False))
+                this_pred = preds[1][p_i].detach().cpu().numpy()[n_i]
                 this_pred = np.transpose(this_pred, (1, 2, 0))
                 pred_img.append(flow_vis.flow_to_color(this_pred, convert_to_bgr=False))
             pred_img = np.concatenate(pred_img, axis=1)
@@ -222,7 +225,7 @@ def train(args):
 
             logger.push(metrics)
             if total_steps % IMAGE_FREQ == IMAGE_FREQ - 1:
-                logger.write_images(image1, image2, flow, flow_predictions[0])
+                logger.write_images(image1, image2, flow, flow_predictions)
 
             if total_steps % VAL_FREQ == VAL_FREQ - 1:
                 PATH = 'checkpoints/%d_%s.pth' % (total_steps+1, args.name)

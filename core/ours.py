@@ -157,6 +157,7 @@ class RAFT(nn.Module):
             context = self.context_query_embed(D1.permute(1, 0, 2))
             print(context.shape)
             correlation = self.correlation_query_embed(D1.permute(1, 0, 2))
+            print(D1.shape)
 
             I_H, I_W = H * 8, W * 8
             flow_predictions = list()

@@ -156,8 +156,7 @@ class RAFT(nn.Module):
                 bs, dim=1)
 
             # hw, bs, c
-            E = self.encoder(torch.cat((D1, D2), dim=1))
-            D1, D2 = E.split(bs, dim=1)
+            D1, D2 = self.encoder(torch.cat((D1, D2), dim=1)).split(bs, dim=1)
 
             # bs, HW, C
             U1 = torch.flatten(U1, 2).permute(0, 2, 1)

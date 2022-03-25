@@ -158,7 +158,7 @@ class Logger:
             this_image2 = image2[n_i]
             target_img = flow_vis.flow_to_color(targets[n_i], convert_to_bgr=False)
             pred_img = list()
-            for p_i in range(len(preds)):
+            for p_i in range(len(preds[0])):
                 this_pred = preds[0][p_i].detach().cpu().numpy()[n_i]
                 this_pred = np.transpose(this_pred, (1, 2, 0))
                 pred_img.append(flow_vis.flow_to_color(this_pred, convert_to_bgr=False))

@@ -202,7 +202,7 @@ class RAFT(nn.Module):
                 # bs, hw, c
                 # correlation = correlation.permute(1, 0, 2)
                 # correlation = self.correlation_decoder[i](correlation, D2).permute(1, 0, 2)
-                correlation = self.correlation_decoder[i](correlation, pos_embeds.permute(0, 2, 1),
+                correlation, re = self.correlation_decoder[i](correlation, pos_embeds.permute(0, 2, 1),
                                                           reference_points, D2.permute(1, 0, 2),
                                                           spatial_shapes, level_start_index)
 

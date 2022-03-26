@@ -322,7 +322,7 @@ class DeformableTransformerDecoderLayer(nn.Module):
         # ffn
         tgt = self.forward_ffn(tgt)
 
-        return tgt, scores
+        return tgt
 
 
 class DeformableTransformerDecoder(nn.Module):

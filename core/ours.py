@@ -200,10 +200,11 @@ class RAFT(nn.Module):
                 # context = context.permute(1, 0, 2)
                 # context = self.context_decoder[i](context, D1).permute(1, 0, 2)
                 # bs, hw, c
-                correlation = correlation.permute(1, 0, 2)
+                # correlation = correlation.permute(1, 0, 2)
                 # correlation = self.correlation_decoder[i](correlation, D2).permute(1, 0, 2)
                 correlation = self.correlation_decoder[i](correlation, pos_embeds.permute(1, 0, 2),
-                                                          reference_points, D2, spatial_shapes, level_start_index)
+                                                          reference_points, D2.permute(1, 0, 2),
+                                                          spatial_shapes, level_start_index)
 
                 # bs, n, c
                 # context_correlation = self.context_correlation_embed[i](context)

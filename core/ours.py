@@ -183,7 +183,7 @@ class RAFT(nn.Module):
             # context = self.context_query_embed(D1.permute(1, 0, 2))
             correlation = self.correlation_query_embed(D1.permute(1, 0, 2)).permute(0, 2, 1)
             print(correlation.shape)
-            print(pos_embeds.permute(0, 2, 1))
+            print(pos_embeds.permute(0, 2, 1).shape)
             exit()
 
             spatial_shapes = torch.as_tensor([(h, w)], dtype=torch.long, device=D1.device)

@@ -177,10 +177,10 @@ class RAFT(nn.Module):
             # bs, HW, CU1
             U1 = torch.flatten(U1, 2).permute(0, 2, 1)
 
-            # n, bs, c
+            # bs, n, c
             context = self.context_query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
             # context = self.context_query_embed(D1.permute(1, 0, 2))
-            correlation = self.correlation_query_embed(D1.permute(1, 0, 2))
+            correlation = self.correlation_query_embed(D1.permute(1, 0, 2)).permute(0, 2, 1)
 
             coord_0 = self.initialize_flow(image1)
 

@@ -149,7 +149,7 @@ class RAFT(nn.Module):
             ref = torch.stack((ref_x, ref_y), -1)
             reference_points_list.append(ref)
         reference_points = torch.cat(reference_points_list, 1)
-        reference_points = reference_points[:, :, None]
+        # reference_points = reference_points[:, :, None]
         return reference_points
 
     def forward(self, image1, image2, iters=6, test_mode=False):
@@ -182,7 +182,9 @@ class RAFT(nn.Module):
             # context = self.context_query_embed(D1.permute(1, 0, 2))
             correlation = self.correlation_query_embed(D1.permute(1, 0, 2)).permute(0, 2, 1)
 
-            coord_0 = self.initialize_flow(image1)
+            spatial_shapes = torch.as_tensor([(h, w)], dtype=torch.long, device=D1.device)
+            reference_points = self.get_reference_points(spatial_shapes, device=spatial_shapes.device)
+            level_start_index = torch.cat((spatial_shapes.new_zeros((1, )), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
             flow_predictions = list()
             corr_predictions = list()
@@ -192,9 +194,6 @@ class RAFT(nn.Module):
             context_correlation = self.context_correlation_embed(context)
             # bs, n, C
             context_extractor = self.context_extractor_embed(context)
-            spatial_shapes = torch.as_tensor([(h, w)], dtype=torch.long, device=D1.device)
-            reference_points = self.get_reference_points(spatial_shapes, device=spatial_shapes.device)
-            level_start_index = torch.cat((spatial_shapes.new_zeros((1, )), spatial_shapes.prod(1).cumsum(0)[:-1]))
             for i in range(len(self.correlation_decoder)):
                 # bs, n, c
                 # context = context.permute(1, 0, 2)

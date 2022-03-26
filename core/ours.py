@@ -184,6 +184,7 @@ class RAFT(nn.Module):
             correlation = self.correlation_query_embed(D1.permute(1, 0, 2)).permute(0, 2, 1)
             print(correlation.shape)
             print(pos_embeds.permute(0, 2, 1))
+            exit()
 
             spatial_shapes = torch.as_tensor([(h, w)], dtype=torch.long, device=D1.device)
             reference_points = self.get_reference_points(spatial_shapes, device=spatial_shapes.device)

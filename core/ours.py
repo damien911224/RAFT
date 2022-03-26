@@ -149,7 +149,7 @@ class RAFT(nn.Module):
             ref = torch.stack((ref_x, ref_y), -1)
             reference_points_list.append(ref)
         reference_points = torch.cat(reference_points_list, 1)
-        # reference_points = reference_points[:, :, None]
+        reference_points = reference_points[:, :, None]
         return reference_points
 
     def forward(self, image1, image2, iters=6, test_mode=False):

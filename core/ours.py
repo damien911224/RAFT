@@ -49,15 +49,20 @@ class RAFT(nn.Module):
         #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
         #                    for _ in range(6)))
         self.context_decoder = nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
+        # self.correlation_decoder = \
+        #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
+        #                    for _ in range(6)))
         self.correlation_decoder = \
-            nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
+            nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
+                                                             dropout=0.1, activation="relu",
+                                                             n_levels=1, n_heads=8, n_points=4)
                            for _ in range(6)))
 
         h, w = args.image_size[0], args.image_size[1]
         self.row_pos_embed = nn.Embedding(w // (2 ** 3), d_model // 2)
         self.col_pos_embed = nn.Embedding(h // (2 ** 3), d_model // 2)
-        self.context_query_embed = nn.Embedding(50, d_model)
-        # self.context_query_embed = nn.Linear(d_model, d_model)
+        # self.context_query_embed = nn.Embedding(50, d_model)
+        self.context_query_embed = nn.Linear(d_model, d_model)
         self.correlation_query_embed = nn.Linear(d_model, d_model)
 
         self.context_correlation_embed = MLP(d_model, d_model, d_model, 3)
@@ -134,6 +139,19 @@ class RAFT(nn.Module):
 
         return this_embed
 
+    def get_reference_points(self, spatial_shapes, device):
+        reference_points_list = []
+        for lvl, (H_, W_) in enumerate(spatial_shapes):
+            ref_y, ref_x = torch.meshgrid(torch.linspace(0.5, H_ - 0.5, H_, dtype=torch.float32, device=device) / H_,
+                                          torch.linspace(0.5, W_ - 0.5, W_, dtype=torch.float32, device=device) / W_)
+            ref_y = ref_y.reshape(-1)[None]
+            ref_x = ref_x.reshape(-1)[None]
+            ref = torch.stack((ref_x, ref_y), -1)
+            reference_points_list.append(ref)
+        reference_points = torch.cat(reference_points_list, 1)
+        reference_points = reference_points[:, :, None]
+        return reference_points
+
     def forward(self, image1, image2, iters=6, test_mode=False):
         """ Estimate optical flow between pair of frames """
         with autocast(enabled=self.args.mixed_precision):
@@ -147,16 +165,16 @@ class RAFT(nn.Module):
             D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
             bs, c, h, w = D1.shape
             _, C, H, W = U1.shape
-            pos_embeds = self.get_embedding(D1, self.col_pos_embed, self.row_pos_embed)
+            pos_embeds = self.get_embedding(D1, self.col_pos_embed, self.row_pos_embed).flatten(2)
             # hw, bs, c
             D1, D2 = torch.split(
-                torch.flatten(self.extractor_projection(torch.cat((D1, D2), dim=0)) + pos_embeds, 2).permute(2, 0, 1),
+                torch.flatten(self.extractor_projection(torch.cat((D1, D2), dim=0)), 2).permute(2, 0, 1),
                 bs, dim=1)
 
             # hw, bs, c
             # D1, D2 = self.encoder(torch.cat((D1, D2), dim=1)).split(bs, dim=1)
 
-            # bs, HW, C
+            # bs, HW, CU1
             U1 = torch.flatten(U1, 2).permute(0, 2, 1)
 
             # n, bs, c
@@ -169,18 +187,23 @@ class RAFT(nn.Module):
             flow_predictions = list()
             corr_predictions = list()
             # bs, n, c
-            context = self.context_decoder(context.permute(1, 0, 2), D1).permute(1, 0, 2)
+            context = self.context_decoder(context.permute(1, 0, 2), D1 + pos_embeds.permute(2, 0, 1)).permute(1, 0, 2)
             # bs, n, c
             context_correlation = self.context_correlation_embed(context)
             # bs, n, C
             context_extractor = self.context_extractor_embed(context)
+            spatial_shapes = torch.as_tensor([(h, w)], dtype=torch.long, device=D1.device)
+            reference_points = self.get_reference_points(spatial_shapes, device=spatial_shapes.device)
+            level_start_index = torch.cat((spatial_shapes.new_zeros((1, )), spatial_shapes.prod(1).cumsum(0)[:-1]))
             for i in range(len(self.correlation_decoder)):
                 # bs, n, c
                 # context = context.permute(1, 0, 2)
                 # context = self.context_decoder[i](context, D1).permute(1, 0, 2)
                 # bs, hw, c
-                correlation = correlation.permute(1, 0, 2) + pos_embeds.flatten(2).permute(2, 0, 1)
-                correlation = self.correlation_decoder[i](correlation, D2).permute(1, 0, 2)
+                correlation = correlation.permute(1, 0, 2)
+                # correlation = self.correlation_decoder[i](correlation, D2).permute(1, 0, 2)
+                correlation = self.correlation_decoder[i](correlation, pos_embeds.permute(1, 0, 2),
+                                                          reference_points, D2, spatial_shapes, level_start_index)
 
                 # bs, n, c
                 # context_correlation = self.context_correlation_embed[i](context)

@@ -165,6 +165,7 @@ class RAFT(nn.Module):
             D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
             bs, c, h, w = D1.shape
             _, C, H, W = U1.shape
+            # bs, c, hw
             pos_embeds = self.get_embedding(D1, self.col_pos_embed, self.row_pos_embed).flatten(2)
             # hw, bs, c
             D1, D2 = torch.split(
@@ -181,6 +182,8 @@ class RAFT(nn.Module):
             context = self.context_query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
             # context = self.context_query_embed(D1.permute(1, 0, 2))
             correlation = self.correlation_query_embed(D1.permute(1, 0, 2)).permute(0, 2, 1)
+            print(correlation.shape)
+            print(pos_embeds.permute(0, 2, 1))
 
             spatial_shapes = torch.as_tensor([(h, w)], dtype=torch.long, device=D1.device)
             reference_points = self.get_reference_points(spatial_shapes, device=spatial_shapes.device)

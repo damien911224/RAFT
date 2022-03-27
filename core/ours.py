@@ -72,7 +72,8 @@ class RAFT(nn.Module):
 
         self.context_correlation_embed = MLP(d_model, d_model, d_model, 3)
         self.context_extractor_embed = MLP(d_model, d_model, self.extractor.up_dim, 3)
-        self.correlation_context_embed = MLP(d_model, d_model, d_model, 3)
+        # self.correlation_context_embed = MLP(d_model, d_model, d_model, 3)
+        self.correlation_context_embed = MLP(d_model, d_model, self.extractor.up_dim, 3)
         self.correlation_flow_embed = MLP(d_model, d_model, 2, 3)
 
         iterations = 6
@@ -206,8 +207,8 @@ class RAFT(nn.Module):
                 # bs, n, c
                 # context = context.permute(1, 0, 2)
                 # context = self.context_decoder[i](context, D1).permute(1, 0, 2)
-                context = self.context_decoder[i](context, pos_embeds, reference_points,
-                                                  D1, spatial_shapes, level_start_index)
+                # context = self.context_decoder[i](context, pos_embeds, reference_points,
+                #                                   D1, spatial_shapes, level_start_index)
                 # bs, hw, c
                 # correlation = correlation.permute(1, 0, 2)
                 # correlation = self.correlation_decoder[i](correlation, D2).permute(1, 0, 2)
@@ -215,9 +216,9 @@ class RAFT(nn.Module):
                                                           D2, spatial_shapes, level_start_index)
 
                 # bs, n, c
-                context_correlation = self.context_correlation_embed[i](context)
+                # context_correlation = self.context_correlation_embed[i](context)
                 # bs, n, C
-                context_extractor = self.context_extractor_embed[i](context)
+                # context_extractor = self.context_extractor_embed[i](context)
                 # bs, hw, c
                 correlation_context = self.correlation_context_embed[i](correlation)
                 # correlation_context = correlation.detach()
@@ -225,15 +226,17 @@ class RAFT(nn.Module):
                 correlation_flow = self.correlation_flow_embed[i](correlation)
 
                 # bs, n, hw
-                context_flow = torch.bmm(context_correlation, correlation_context.permute(0, 2, 1))
+                # context_flow = torch.bmm(context_correlation, correlation_context.permute(0, 2, 1))
                 # bs, n, 2
-                context_flow = torch.bmm(context_flow, correlation_flow)
+                # context_flow = torch.bmm(context_flow, correlation_flow)
                 # context_flow = torch.bmm(context_flow, correlation_flow.detach())
 
                 # bs, HW, n
-                extractor_flow = torch.bmm(U1, context_extractor.permute(0, 2, 1))
+                # extractor_flow = torch.bmm(U1, context_extractor.permute(0, 2, 1))
+                extractor_flow = torch.bmm(U1, correlation_context.permute(0, 2, 1))
                 # bs, HW, 2
-                extractor_flow = torch.bmm(extractor_flow, context_flow)
+                # extractor_flow = torch.bmm(extractor_flow, context_flow)
+                extractor_flow = torch.bmm(extractor_flow, correlation_flow)
                 # bs, 2, H, W
                 flow = torch.tanh(extractor_flow.permute(0, 2, 1).view(bs, 2, H, W))
 

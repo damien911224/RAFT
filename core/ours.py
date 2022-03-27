@@ -94,9 +94,9 @@ class RAFT(nn.Module):
         nn.init.uniform_(self.row_pos_embed.weight)
         nn.init.uniform_(self.col_pos_embed.weight)
 
-        nn.init.uniform_(self.context_query_embed.weight)
-        # nn.init.xavier_uniform_(self.context_query_embed.weight.data, gain=1.0)
-        # nn.init.constant_(self.context_query_embed.bias.data, 0.)
+        # nn.init.uniform_(self.context_query_embed.weight)
+        nn.init.xavier_uniform_(self.context_query_embed.weight.data, gain=1.0)
+        nn.init.constant_(self.context_query_embed.bias.data, 0.)
         nn.init.xavier_uniform_(self.correlation_query_embed.weight.data, gain=1.0)
         nn.init.constant_(self.correlation_query_embed.bias.data, 0.)
 
@@ -186,8 +186,8 @@ class RAFT(nn.Module):
             U1 = torch.flatten(U1, 2).permute(0, 2, 1)
 
             # bs, n, c
-            context = self.context_query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
-            # context = self.context_query_embed(D1)
+            # context = self.context_query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
+            context = self.context_query_embed(D1)
             correlation = self.correlation_query_embed(D1)
 
             spatial_shapes = torch.as_tensor([(h, w)], dtype=torch.long, device=D1.device)

@@ -180,7 +180,7 @@ class RAFT(nn.Module):
             D1, D2 = self.extractor_projection(torch.cat((D1, D2), dim=0)).flatten(2).permute(0, 2, 1).split(bs, dim=0)
 
             # hw, bs, c
-            # D1, D2 = self.encoder(torch.cat((D1, D2), dim=1)).split(bs, dim=1)
+            # D1, D2 = self.encoder(torch.cat((D1, D2), dim=1)).split(bs, dim=0)
 
             # bs, HW, CU1
             U1 = torch.flatten(U1, 2).permute(0, 2, 1)

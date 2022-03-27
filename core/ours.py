@@ -236,7 +236,7 @@ class RAFT(nn.Module):
                 extractor_flow = torch.bmm(U1, correlation_context.permute(0, 2, 1))
                 # bs, HW, 2
                 # extractor_flow = torch.bmm(extractor_flow, context_flow)
-                extractor_flow = torch.bmm(extractor_flow, correlation_flow)
+                extractor_flow = torch.bmm(extractor_flow, correlation_flow.detach())
                 # bs, 2, H, W
                 flow = torch.tanh(extractor_flow.permute(0, 2, 1).view(bs, 2, H, W))
 

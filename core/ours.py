@@ -208,7 +208,7 @@ class RAFT(nn.Module):
             spatial_shapes = torch.as_tensor([(h, w)], dtype=torch.long, device=D1.device)
             level_start_index = torch.cat((spatial_shapes.new_zeros((1, )), spatial_shapes.prod(1).cumsum(0)[:-1]))
             # reference_points = self.get_reference_points(spatial_shapes, device=spatial_shapes.device)
-            reference_points = self.reference_points(correlation_query_pos)
+            reference_points = self.reference_points(correlation_query_pos).sigmoid().unsqueeze(2)
 
             flow_predictions = list()
             corr_predictions = list()

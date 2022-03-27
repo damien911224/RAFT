@@ -197,9 +197,10 @@ class RAFT(nn.Module):
             # context = self.correlation_query.weight.unsqueeze(0).repeat(bs, 1, 1)
             # context = self.context_query_embed(D1)
             # correlation = self.correlation_query_embed(D1)
-            correlation_query = self.correlation_query.weight.unsqueeze(1).repeat(1, bs, 1)
-            correlation_query_pos = self.correlation_query_pos.weight.unsqueeze(1).repeat(1, bs, 1)
-            correlation = self.correlation_query_embed(correlation_query, D1.permute(1, 0, 2)).permute(1, 0, 2)
+            correlation_query = self.correlation_query.weight.unsqueeze(0).repeat(bs,1, 1)
+            correlation_query_pos = self.correlation_query_pos.weight.unsqueeze(0).repeat(bs, 1, 1)
+            correlation = self.correlation_query_embed(correlation_query.permute(1, 0, 2),
+                                                       D1.permute(1, 0, 2)).permute(1, 0, 2)
 
             spatial_shapes = torch.as_tensor([(h, w)], dtype=torch.long, device=D1.device)
             reference_points = self.get_reference_points(spatial_shapes, device=spatial_shapes.device)

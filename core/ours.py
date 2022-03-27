@@ -212,7 +212,7 @@ class RAFT(nn.Module):
                 # context_extractor = self.context_extractor_embed[i](context)
                 # bs, hw, c
                 # correlation_context = self.correlation_context_embed[i](correlation)
-                correlation_context = self.correlation_context_embed[i](correlation).detach()
+                correlation_context = self.correlation_context_embed[i](correlation)
                 # correlation_context = correlation
                 # correlation_context = correlation.detach()
                 # bs, hw, 2

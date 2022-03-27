@@ -73,7 +73,7 @@ class RAFT(nn.Module):
         self.correlation_query_pos = nn.Embedding(50, d_model)
         self.correlation_query_embed = \
             nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
-        self.reference_points = nn.Linear(d_model, d_model)
+        self.reference_points = nn.Linear(d_model, 2)
 
         # self.context_correlation_embed = MLP(d_model, d_model, d_model, 3)
         # self.context_extractor_embed = MLP(d_model, d_model, self.extractor.up_dim, 3)

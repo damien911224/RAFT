@@ -70,13 +70,14 @@ class RAFT(nn.Module):
         # self.context_query_embed = nn.Linear(d_model, d_model)
         # self.correlation_query_embed = nn.Linear(d_model, d_model)
         self.correlation_query = nn.Embedding(50, d_model)
+        self.correlation_query_pos = nn.Embedding(50, d_model)
         self.correlation_query_embed = \
             nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
 
         # self.context_correlation_embed = MLP(d_model, d_model, d_model, 3)
         # self.context_extractor_embed = MLP(d_model, d_model, self.extractor.up_dim, 3)
         # self.correlation_context_embed = MLP(d_model, d_model, d_model, 3)
-        self.context_query_embed = nn.Embedding(50, d_model)
+        # self.context_query_embed = nn.Embedding(50, d_model)
         self.correlation_context_embed = MLP(d_model, d_model, self.extractor.up_dim, 3)
         self.correlation_flow_embed = MLP(d_model, d_model, 2, 3)
 
@@ -105,6 +106,7 @@ class RAFT(nn.Module):
         # nn.init.xavier_uniform_(self.correlation_query_embed.weight.data, gain=1.0)
         # nn.init.constant_(self.correlation_query_embed.bias.data, 0.)
         nn.init.uniform_(self.correlation_query.weight)
+        nn.init.uniform_(self.correlation_query_pos.weight)
 
     def _get_clones(self, module, N):
         return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
@@ -196,6 +198,7 @@ class RAFT(nn.Module):
             # context = self.context_query_embed(D1)
             # correlation = self.correlation_query_embed(D1)
             correlation_query = self.correlation_query.weight.unsqueeze(1).repeat(1, bs, 1)
+            correlation_query_pos = self.correlation_query_pos.weight.unsqueeze(1).repeat(1, bs, 1)
             correlation = self.correlation_query_embed(correlation_query, D1.permute(1, 0, 2)).permute(1, 0, 2)
 
             spatial_shapes = torch.as_tensor([(h, w)], dtype=torch.long, device=D1.device)
@@ -219,8 +222,8 @@ class RAFT(nn.Module):
                 # bs, hw, c
                 # correlation = correlation.permute(1, 0, 2)
                 # correlation = self.correlation_decoder[i](correlation, D2).permute(1, 0, 2)
-                correlation = self.correlation_decoder[i](correlation, pos_embeds, reference_points,
-                                                          D2, spatial_shapes, level_start_index)
+                correlation = self.correlation_decoder[i](correlation, correlation_query_pos, reference_points,
+                                                          D2 + pos_embeds, spatial_shapes, level_start_index)
 
                 # bs, n, c
                 # context_correlation = self.context_correlation_embed[i](context)

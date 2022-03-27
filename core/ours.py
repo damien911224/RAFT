@@ -73,6 +73,7 @@ class RAFT(nn.Module):
         self.correlation_query_pos = nn.Embedding(50, d_model)
         self.correlation_query_embed = \
             nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
+        self.reference_points = nn.Linear(d_model, d_model)
 
         # self.context_correlation_embed = MLP(d_model, d_model, d_model, 3)
         # self.context_extractor_embed = MLP(d_model, d_model, self.extractor.up_dim, 3)
@@ -107,6 +108,8 @@ class RAFT(nn.Module):
         # nn.init.constant_(self.correlation_query_embed.bias.data, 0.)
         nn.init.uniform_(self.correlation_query.weight)
         nn.init.uniform_(self.correlation_query_pos.weight)
+        nn.init.xavier_uniform_(self.reference_points.weight.data, gain=1.0)
+        nn.init.constant_(self.reference_points.bias.data, 0.)
 
     def _get_clones(self, module, N):
         return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
@@ -203,8 +206,9 @@ class RAFT(nn.Module):
                                                        D1.permute(1, 0, 2)).permute(1, 0, 2)
 
             spatial_shapes = torch.as_tensor([(h, w)], dtype=torch.long, device=D1.device)
-            reference_points = self.get_reference_points(spatial_shapes, device=spatial_shapes.device)
             level_start_index = torch.cat((spatial_shapes.new_zeros((1, )), spatial_shapes.prod(1).cumsum(0)[:-1]))
+            # reference_points = self.get_reference_points(spatial_shapes, device=spatial_shapes.device)
+            reference_points = self.reference_points(correlation_query_pos)
 
             flow_predictions = list()
             corr_predictions = list()

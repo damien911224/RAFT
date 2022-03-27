@@ -49,11 +49,11 @@ class RAFT(nn.Module):
         #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
         #                    for _ in range(6)))
         # self.context_decoder = nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
-        self.context_decoder = \
-            nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
-                                                             dropout=0.1, activation="relu",
-                                                             n_levels=1, n_heads=8, n_points=4)
-                           for _ in range(6)))
+        # self.context_decoder = \
+        #     nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
+        #                                                      dropout=0.1, activation="relu",
+        #                                                      n_levels=1, n_heads=8, n_points=4)
+        #                    for _ in range(6)))
         # self.correlation_decoder = \
         #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
         #                    for _ in range(6)))
@@ -67,18 +67,22 @@ class RAFT(nn.Module):
         self.row_pos_embed = nn.Embedding(w // (2 ** 3), d_model // 2)
         self.col_pos_embed = nn.Embedding(h // (2 ** 3), d_model // 2)
         # self.context_query_embed = nn.Embedding(50, d_model)
-        self.context_query_embed = nn.Linear(d_model, d_model)
-        self.correlation_query_embed = nn.Linear(d_model, d_model)
+        # self.context_query_embed = nn.Linear(d_model, d_model)
+        # self.correlation_query_embed = nn.Linear(d_model, d_model)
+        self.correlation_query = nn.Embedding(50, d_model)
+        self.correlation_query_embed = \
+            nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
 
-        self.context_correlation_embed = MLP(d_model, d_model, d_model, 3)
-        self.context_extractor_embed = MLP(d_model, d_model, self.extractor.up_dim, 3)
+        # self.context_correlation_embed = MLP(d_model, d_model, d_model, 3)
+        # self.context_extractor_embed = MLP(d_model, d_model, self.extractor.up_dim, 3)
         # self.correlation_context_embed = MLP(d_model, d_model, d_model, 3)
+        self.context_query_embed = nn.Embedding(50, d_model)
         self.correlation_context_embed = MLP(d_model, d_model, self.extractor.up_dim, 3)
         self.correlation_flow_embed = MLP(d_model, d_model, 2, 3)
 
         iterations = 6
-        self.context_correlation_embed = nn.ModuleList([self.context_correlation_embed for _ in range(iterations)])
-        self.context_extractor_embed = nn.ModuleList([self.context_extractor_embed for _ in range(iterations)])
+        # self.context_correlation_embed = nn.ModuleList([self.context_correlation_embed for _ in range(iterations)])
+        # self.context_extractor_embed = nn.ModuleList([self.context_extractor_embed for _ in range(iterations)])
         self.correlation_context_embed = nn.ModuleList([self.correlation_context_embed for _ in range(iterations)])
         self.correlation_flow_embed = nn.ModuleList([self.correlation_flow_embed for _ in range(iterations)])
 
@@ -96,10 +100,11 @@ class RAFT(nn.Module):
         nn.init.uniform_(self.col_pos_embed.weight)
 
         # nn.init.uniform_(self.context_query_embed.weight)
-        nn.init.xavier_uniform_(self.context_query_embed.weight.data, gain=1.0)
-        nn.init.constant_(self.context_query_embed.bias.data, 0.)
-        nn.init.xavier_uniform_(self.correlation_query_embed.weight.data, gain=1.0)
-        nn.init.constant_(self.correlation_query_embed.bias.data, 0.)
+        # nn.init.xavier_uniform_(self.context_query_embed.weight.data, gain=1.0)
+        # nn.init.constant_(self.context_query_embed.bias.data, 0.)
+        # nn.init.xavier_uniform_(self.correlation_query_embed.weight.data, gain=1.0)
+        # nn.init.constant_(self.correlation_query_embed.bias.data, 0.)
+        nn.init.uniform_(self.correlation_query.weight)
 
     def _get_clones(self, module, N):
         return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
@@ -187,9 +192,11 @@ class RAFT(nn.Module):
             U1 = torch.flatten(U1, 2).permute(0, 2, 1)
 
             # bs, n, c
-            # context = self.context_query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
-            context = self.context_query_embed(D1)
-            correlation = self.correlation_query_embed(D1)
+            # context = self.correlation_query.weight.unsqueeze(0).repeat(bs, 1, 1)
+            # context = self.context_query_embed(D1)
+            # correlation = self.correlation_query_embed(D1)
+            correlation_query = self.correlation_query.weight.unsqueeze(1).repeat(1, bs, 1)
+            correlation = self.correlation_query_embed(correlation_query, D1.permute(1, 0, 2)).permute(1, 0, 2)
 
             spatial_shapes = torch.as_tensor([(h, w)], dtype=torch.long, device=D1.device)
             reference_points = self.get_reference_points(spatial_shapes, device=spatial_shapes.device)
@@ -245,15 +252,16 @@ class RAFT(nn.Module):
                     flow = F.interpolate(flow, size=(I_H, I_W), mode="bilinear", align_corners=True)
 
                 # bs, 2, H, W
-                corr_flow = torch.tanh(correlation_flow.permute(0, 2, 1).view(bs, 2, h, w))
-                corr_flow = \
-                    corr_flow * torch.tensor((I_W, I_H),
-                                             dtype=torch.float32).view(1, 2, 1, 1).to(extractor_flow.device)
-                if I_H != H or I_W != W:
-                    corr_flow = F.interpolate(corr_flow, size=(I_H, I_W), mode="bilinear", align_corners=True)
+                # corr_flow = torch.tanh(correlation_flow.permute(0, 2, 1).view(bs, 2, h, w))
+                # corr_flow = \
+                #     corr_flow * torch.tensor((I_W, I_H),
+                #                              dtype=torch.float32).view(1, 2, 1, 1).to(extractor_flow.device)
+                # if I_H != H or I_W != W:
+                #     corr_flow = F.interpolate(corr_flow, size=(I_H, I_W), mode="bilinear", align_corners=True)
 
                 flow_predictions.append(flow)
-                corr_predictions.append(corr_flow)
+                # corr_predictions.append(corr_flow)
+                corr_predictions.append(flow)
 
             if test_mode:
                 return flow_predictions[-1], flow_predictions[-1]

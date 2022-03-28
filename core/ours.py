@@ -261,7 +261,7 @@ class RAFT(nn.Module):
                 # bs, n, C
                 context_extractor = self.context_extractor_embed[i](context)
                 # bs, hw, c
-                correlation_context = self.correlation_context_embed[i](correlation)
+                # correlation_context = self.correlation_context_embed[i](correlation)
                 # correlation_context = correlation.detach()
                 # bs, hw, 2
                 correlation_flow = self.correlation_flow_embed[i](correlation)
@@ -269,7 +269,8 @@ class RAFT(nn.Module):
                 correlation_flow = coords - torch.bmm(correlation_flow, coords)
 
                 # bs, n, hw
-                context_flow = torch.bmm(context_correlation, correlation_context.permute(0, 2, 1))
+                # context_flow = torch.bmm(context_correlation, correlation_context.permute(0, 2, 1))
+                context_flow = torch.bmm(context_correlation, D1.permute(0, 2, 1))
                 # bs, n, 2
                 # context_flow = torch.bmm(context_flow, correlation_flow)
                 context_flow = torch.bmm(context_flow, correlation_flow.detach())

@@ -9,7 +9,7 @@ from corr import CorrBlock, AlternateCorrBlock
 from utils.utils import bilinear_sampler, coords_grid, upflow8
 from update import Decoder, PositionEmbedding
 
-from deformable import DeformableTransformerDecoderLayer
+from deformable import DeformableTransformerEncoderLayer, DeformableTransformerDecoderLayer
 from utils.misc import inverse_sigmoid
 import copy
 
@@ -45,31 +45,31 @@ class RAFT(nn.Module):
 
         # self.encoder = nn.TransformerEncoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
 
-        self.context_decoder = \
-            nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
-                           for _ in range(6)))
-        # self.context_decoder = nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
         # self.context_decoder = \
-        #     nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
-        #                                                      dropout=0.1, activation="relu",
-        #                                                      n_levels=1, n_heads=8, n_points=4)
+        #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
         #                    for _ in range(6)))
-        self.correlation_decoder = \
-            nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
+        # self.context_decoder = nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
+        self.context_decoder = \
+            nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
+                                                             dropout=0.1, activation="relu",
+                                                             n_levels=1, n_heads=8, n_points=4, self_deformable=True)
                            for _ in range(6)))
         # self.correlation_decoder = \
-        #     nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
-        #                                                      dropout=0.1, activation="relu",
-        #                                                      n_levels=1, n_heads=8, n_points=4)
+        #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
         #                    for _ in range(6)))
+        self.correlation_decoder = \
+            nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
+                                                             dropout=0.1, activation="relu",
+                                                             n_levels=1, n_heads=8, n_points=4, self_deformable=True)
+                           for _ in range(6)))
 
         h, w = args.image_size[0], args.image_size[1]
-        # self.row_pos_embed = nn.Embedding(w // (2 ** 3), d_model // 2)
-        # self.col_pos_embed = nn.Embedding(h // (2 ** 3), d_model // 2)
-        self.h_max_relative_position = (h // (2 ** 3)) // (2 ** 2)
-        self.w_max_relative_position = (w // (2 ** 3)) // (2 ** 2)
-        self.row_pos_embed = nn.Embedding(self.w_max_relative_position * 2 + 1, d_model // 2)
-        self.col_pos_embed = nn.Embedding(self.h_max_relative_position * 2 + 1, d_model // 2)
+        self.row_pos_embed = nn.Embedding(w // (2 ** 3), d_model // 2)
+        self.col_pos_embed = nn.Embedding(h // (2 ** 3), d_model // 2)
+        # self.h_max_relative_position = (h // (2 ** 3)) // (2 ** 2)
+        # self.w_max_relative_position = (w // (2 ** 3)) // (2 ** 2)
+        # self.row_pos_embed = nn.Embedding(self.w_max_relative_position * 2 + 1, d_model // 2)
+        # self.col_pos_embed = nn.Embedding(self.h_max_relative_position * 2 + 1, d_model // 2)
         # self.context_query_embed = nn.Embedding(50, d_model)
         self.context_query_embed = nn.Linear(d_model, d_model)
         self.correlation_query_embed = nn.Linear(d_model, d_model)
@@ -150,29 +150,29 @@ class RAFT(nn.Module):
         p_h, _ = col_embed.weight.size()
         p_w, _ = row_embed.weight.size()
 
-        # this_embed = torch.cat((col_embed.weight.unsqueeze(1).repeat(1, p_w, 1),
-        #                         row_embed.weight.unsqueeze(0).repeat(p_h, 1, 1)), dim=-1)
-        # this_embed = this_embed.permute(2, 0, 1).unsqueeze(0)
+        this_embed = torch.cat((col_embed.weight.unsqueeze(1).repeat(1, p_w, 1),
+                                row_embed.weight.unsqueeze(0).repeat(p_h, 1, 1)), dim=-1)
+        this_embed = this_embed.permute(2, 0, 1).unsqueeze(0)
+
+        if f_h != p_h:
+            this_embed = F.interpolate(this_embed, size=(f_h, f_w), mode="bilinear", align_corners=True)
+
+        # range_vec = torch.arange(f_h)
+        # distance_mat = range_vec[None, :] - range_vec[:, None]
+        # distance_mat_clipped = torch.clamp(distance_mat, -self.h_max_relative_position, self.h_max_relative_position)
+        # final_mat = distance_mat_clipped + self.h_max_relative_position
+        # final_mat = torch.LongTensor(final_mat).to(target_feat.device)
+        # h_embeddings = col_embed.weight[final_mat[]].unsqueeze(1).repeat(1, f_w, 1)
         #
-        # if f_h != p_h:
-        #     this_embed = F.interpolate(this_embed, size=(f_h, f_w), mode="bilinear", align_corners=True)
-
-        range_vec = torch.arange(f_h)
-        distance_mat = range_vec[None, :] - range_vec[:, None]
-        distance_mat_clipped = torch.clamp(distance_mat, -self.h_max_relative_position, self.h_max_relative_position)
-        final_mat = distance_mat_clipped + self.h_max_relative_position
-        final_mat = torch.LongTensor(final_mat).to(target_feat.device)
-        h_embeddings = col_embed[final_mat].unsqueeze(1).repeat(1, f_w, 1)
-
-        range_vec = torch.arange(f_w)
-        distance_mat = range_vec[None, :] - range_vec[:, None]
-        distance_mat_clipped = torch.clamp(distance_mat, -self.w_max_relative_position, self.w_max_relative_position)
-        final_mat = distance_mat_clipped + self.w_max_relative_position
-        final_mat = torch.LongTensor(final_mat).to(target_feat.device)
-        w_embeddings = row_embed[final_mat].unsqueeze(0).repeat(f_h, 1, 1)
-
-        # bs, c, h, w
-        this_embed = torch.cat((h_embeddings, w_embeddings), dim=-1).permute(2, 0, 1).unsqueeze(0)
+        # range_vec = torch.arange(f_w)
+        # distance_mat = range_vec[None, :] - range_vec[:, None]
+        # distance_mat_clipped = torch.clamp(distance_mat, -self.w_max_relative_position, self.w_max_relative_position)
+        # final_mat = distance_mat_clipped + self.w_max_relative_position
+        # final_mat = torch.LongTensor(final_mat).to(target_feat.device)
+        # w_embeddings = row_embed[final_mat].unsqueeze(0).repeat(f_h, 1, 1)
+        #
+        # # bs, c, h, w
+        # this_embed = torch.cat((h_embeddings, w_embeddings), dim=-1).permute(2, 0, 1).unsqueeze(0)
 
         return this_embed
 
@@ -217,9 +217,6 @@ class RAFT(nn.Module):
             # bs, HW, CU1
             U1 = torch.flatten(U1, 2).permute(0, 2, 1)
 
-            D1 = D1 + pos_embeds
-            D2 = D2 + pos_embeds
-
             # bs, n, c
             # context = self.correlation_query.weight.unsqueeze(0).repeat(bs, 1, 1)
             context = self.context_query_embed(D1)
@@ -229,9 +226,9 @@ class RAFT(nn.Module):
             # correlation = self.correlation_query_embed(correlation_query.permute(1, 0, 2),
             #                                            D1.permute(1, 0, 2)).permute(1, 0, 2)
 
-            # spatial_shapes = torch.as_tensor([(h, w)], dtype=torch.long, device=D1.device)
-            # level_start_index = torch.cat((spatial_shapes.new_zeros((1, )), spatial_shapes.prod(1).cumsum(0)[:-1]))
-            # reference_points = self.get_reference_points(spatial_shapes, device=spatial_shapes.device)
+            spatial_shapes = torch.as_tensor([(h, w)], dtype=torch.long, device=D1.device)
+            level_start_index = torch.cat((spatial_shapes.new_zeros((1, )), spatial_shapes.prod(1).cumsum(0)[:-1]))
+            reference_points = self.get_reference_points(spatial_shapes, device=spatial_shapes.device)
             # reference_points = self.reference_points(correlation_query_pos).sigmoid().unsqueeze(2)
 
             flow_predictions = list()
@@ -245,15 +242,15 @@ class RAFT(nn.Module):
             for i in range(len(self.correlation_decoder)):
                 # bs, n, c
                 # context = context.permute(1, 0, 2)
-                context = self.context_decoder[i](context.permute(1, 0, 2), D1.permute(1, 0, 2)).permute(1, 0, 2)
-                # context = self.context_decoder[i](context, pos_embeds, reference_points,
-                #                                   D1, spatial_shapes, level_start_index)
+                # context = self.context_decoder[i](context.permute(1, 0, 2), D1.permute(1, 0, 2)).permute(1, 0, 2)
+                context = self.context_decoder[i](context, pos_embeds, reference_points,
+                                                  D1, pos_embeds, spatial_shapes, level_start_index)
                 # bs, hw, c
                 # correlation = correlation.permute(1, 0, 2)
-                correlation = self.correlation_decoder[i](correlation.permute(1, 0, 2),
-                                                          D2.permute(1, 0, 2)).permute(1, 0, 2)
-                # correlation = self.correlation_decoder[i](correlation, correlation_query_pos, reference_points,
-                #                                           D2 + pos_embeds, spatial_shapes, level_start_index)
+                # correlation = self.correlation_decoder[i](correlation.permute(1, 0, 2),
+                #                                           D2.permute(1, 0, 2)).permute(1, 0, 2)
+                correlation = self.correlation_decoder[i](correlation, pos_embeds, reference_points,
+                                                          D2, pos_embeds, spatial_shapes, level_start_index)
 
                 # bs, n, c
                 context_correlation = self.context_correlation_embed[i](context)

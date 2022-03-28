@@ -264,16 +264,20 @@ class DeformableTransformerEncoder(nn.Module):
 class DeformableTransformerDecoderLayer(nn.Module):
     def __init__(self, d_model=256, d_ffn=1024,
                  dropout=0.1, activation="relu",
-                 n_levels=1, n_heads=8, n_points=4):
+                 n_levels=1, n_heads=8, n_points=4, self_deformable=False):
         super().__init__()
 
+        self.self_deformable = self_deformable
         # cross attention
         self.cross_attn = MSDeformAttn(d_model, n_levels, n_heads, n_points)
         self.dropout1 = nn.Dropout(dropout)
         self.norm1 = nn.LayerNorm(d_model)
 
         # self attention
-        self.self_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
+        if self_deformable:
+            self.self_attn = MSDeformAttn(d_model, n_levels, n_heads, n_points)
+        else:
+            self.self_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
         self.dropout2 = nn.Dropout(dropout)
         self.norm2 = nn.LayerNorm(d_model)
 
@@ -305,17 +309,21 @@ class DeformableTransformerDecoderLayer(nn.Module):
         tgt = self.norm3(tgt)
         return tgt
 
-    def forward(self, tgt, query_pos, reference_points, src, src_spatial_shapes, level_start_index):
+    def forward(self, tgt, query_pos, reference_points,
+                src, src_pos, src_spatial_shapes, level_start_index):
         # self attention
-        q = k = self.with_pos_embed(tgt, query_pos)
-        tgt2 = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))[0].transpose(0, 1)
+        if self.self_deformable:
+            tgt2, scores = self.self_attn(self.with_pos_embed(tgt, query_pos), reference_points,
+                                          self.with_pos_embed(tgt, src_pos), src_spatial_shapes, level_start_index)
+        else:
+            q = k = self.with_pos_embed(tgt, query_pos)
+            tgt2 = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))[0].transpose(0, 1)
         tgt = tgt + self.dropout2(tgt2)
         tgt = self.norm2(tgt)
 
         # cross attention
-        tgt2, scores = self.cross_attn(self.with_pos_embed(tgt, query_pos),
-                                       reference_points,
-                                       src, src_spatial_shapes, level_start_index)
+        tgt2, scores = self.cross_attn(self.with_pos_embed(tgt, query_pos), reference_points,
+                                       self.with_src_embed(src, src_pos), src_spatial_shapes, level_start_index)
         tgt = tgt + self.dropout1(tgt2)
         tgt = self.norm1(tgt)
 

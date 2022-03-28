@@ -46,7 +46,7 @@ class RAFT(nn.Module):
         self.decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
                                                              dropout=0.1, activation="relu",
-                                                             n_levels=1, n_heads=8, n_points=4, self_deformable=False)
+                                                             n_levels=2, n_heads=8, n_points=4, self_deformable=False)
                            for _ in range(6)))
 
         h, w = args.image_size[0], args.image_size[1]
@@ -183,7 +183,7 @@ class RAFT(nn.Module):
             query_pos = self.query_pos_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
             reference_points = self.query_ref_embed.weight.unsqueeze(0).repeat(bs, 1, 1).sigmoid().unsqueeze(2)
 
-            spatial_shapes = torch.as_tensor([(h, w)], dtype=torch.long, device=D1.device)
+            spatial_shapes = torch.as_tensor([(h, w), ] * 2, dtype=torch.long, device=D1.device)
             level_start_index = torch.cat((spatial_shapes.new_zeros((1, )), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
             flow_predictions = list()

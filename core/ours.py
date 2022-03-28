@@ -232,6 +232,7 @@ class RAFT(nn.Module):
             reference_points = self.get_reference_points(spatial_shapes, device=spatial_shapes.device)
             # reference_points = self.reference_points(correlation_query_pos).sigmoid().unsqueeze(2)
 
+            # bs, hw, 2
             coords = coords_grid(bs, h, w, device=D1.device).flatten(2).permute(0, 2, 1)
 
             flow_predictions = list()

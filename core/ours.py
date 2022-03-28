@@ -77,8 +77,8 @@ class RAFT(nn.Module):
 
         nn.init.xavier_uniform_(self.row_pos_embed.weight)
         nn.init.xavier_uniform_(self.col_pos_embed.weight)
-        nn.init.xavier_uniform_(self.context_query_embed.weight)
-        nn.init.xavier_uniform_(self.context_query_pos_embed.weight)
+        nn.init.xavier_uniform_(self.query_embed.weight)
+        nn.init.xavier_uniform_(self.query_pos_embed.weight)
 
     def _get_clones(self, module, N):
         return nn.ModuleList([copy.deepcopy(module) for i in range(N)])

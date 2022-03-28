@@ -43,27 +43,55 @@ class RAFT(nn.Module):
             nn.Sequential(nn.Conv2d(self.extractor.down_dim, d_model, kernel_size=1),
             nn.GroupNorm(d_model // 8, d_model))
 
-        self.decoder = \
+        # self.encoder = nn.TransformerEncoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
+
+        # self.context_decoder = \
+        #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
+        #                    for _ in range(6)))
+        # self.context_decoder = nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
+        self.context_decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
                                                              dropout=0.1, activation="relu",
-                                                             n_levels=1, n_heads=8, n_points=4, self_deformable=False)
+                                                             n_levels=1, n_heads=8, n_points=4, self_deformable=True)
+                           for _ in range(6)))
+        # self.correlation_decoder = \
+        #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
+        #                    for _ in range(6)))
+        self.correlation_decoder = \
+            nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
+                                                             dropout=0.1, activation="relu",
+                                                             n_levels=1, n_heads=8, n_points=4, self_deformable=True)
                            for _ in range(6)))
 
         h, w = args.image_size[0], args.image_size[1]
         self.row_pos_embed = nn.Embedding(w // (2 ** 3), d_model // 2)
         self.col_pos_embed = nn.Embedding(h // (2 ** 3), d_model // 2)
-        self.img_pos_embed = nn.Embedding(2, d_model)
+        # self.h_max_relative_position = (h // (2 ** 3)) // (2 ** 2)
+        # self.w_max_relative_position = (w // (2 ** 3)) // (2 ** 2)
+        # self.row_pos_embed = nn.Embedding(self.w_max_relative_position * 2 + 1, d_model // 2)
+        # self.col_pos_embed = nn.Embedding(self.h_max_relative_position * 2 + 1, d_model // 2)
+        # self.context_query_embed = nn.Embedding(50, d_model)
+        self.context_query_embed = nn.Linear(d_model, d_model)
+        self.correlation_query_embed = nn.Linear(d_model, d_model)
+        # self.correlation_query = nn.Embedding(50, d_model)
+        # self.correlation_query_pos = nn.Embedding(50, d_model)
+        # self.correlation_query_embed = \
+        #     nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4, nhead=8)
+        # self.reference_points = nn.Linear(d_model, 2)
 
-        self.query_embed = nn.Embedding(50, d_model)
-        self.query_pos_embed = nn.Embedding(50, d_model)
-        self.flow_embed = MLP(d_model, d_model, 2, 3)
-        self.context_embed = MLP(d_model, d_model, self.extractor.up_dim, 3)
-        self.reference_embed = MLP(d_model, d_model, 2, 3)
+        self.context_correlation_embed = MLP(d_model, d_model, d_model, 3)
+        self.context_extractor_embed = MLP(d_model, d_model, self.extractor.up_dim, 3)
+        self.correlation_context_embed = MLP(d_model, d_model, d_model, 3)
+        # self.context_query_embed = nn.Embedding(50, d_model)
+        # self.correlation_context_embed = MLP(d_model, d_model, self.extractor.up_dim, 3)
+        self.correlation_flow_embed = MLP(d_model, d_model, 2, 3)
+        # self.correlation_flow_embed = MLP(d_model, d_model, d_model, 3)
 
         iterations = 6
-        self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(iterations)])
-        self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(iterations)])
-        self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(iterations)])
+        self.context_correlation_embed = nn.ModuleList([self.context_correlation_embed for _ in range(iterations)])
+        self.context_extractor_embed = nn.ModuleList([self.context_extractor_embed for _ in range(iterations)])
+        self.correlation_context_embed = nn.ModuleList([self.correlation_context_embed for _ in range(iterations)])
+        self.correlation_flow_embed = nn.ModuleList([self.correlation_flow_embed for _ in range(iterations)])
 
         self.reset_parameters()
 
@@ -77,8 +105,16 @@ class RAFT(nn.Module):
 
         nn.init.xavier_uniform_(self.row_pos_embed.weight)
         nn.init.xavier_uniform_(self.col_pos_embed.weight)
-        nn.init.xavier_uniform_(self.context_query_embed.weight)
-        nn.init.xavier_uniform_(self.context_query_pos_embed.weight)
+
+        # nn.init.uniform_(self.context_query_embed.weight)
+        nn.init.xavier_uniform_(self.context_query_embed.weight.data)
+        nn.init.constant_(self.context_query_embed.bias.data, 0.)
+        nn.init.xavier_uniform_(self.correlation_query_embed.weight.data, gain=1.0)
+        nn.init.constant_(self.correlation_query_embed.bias.data, 0.)
+        # nn.init.xavier_uniform_(self.correlation_query.weight)
+        # nn.init.xavier_uniform_(self.correlation_query_pos.weight)
+        # nn.init.xavier_uniform_(self.reference_points.weight.data)
+        # nn.init.constant_(self.reference_points.bias.data, 0.)
 
     def _get_clones(self, module, N):
         return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
@@ -168,54 +204,113 @@ class RAFT(nn.Module):
             bs, c, h, w = D1.shape
             _, C, H, W = U1.shape
             # bs, hw, c
-            src_pos = self.get_embedding(D1, self.col_pos_embed, self.row_pos_embed).flatten(2).permute(0, 2, 1)
-            src_img_embed = self.img_pos_embed.weight[None, :, None]
-            src_pos = torch.flatten(torch.stack((src_pos, src_pos), dim=1) + src_img_embed, 1, 2)
+            pos_embeds = self.get_embedding(D1, self.col_pos_embed, self.row_pos_embed).flatten(2).permute(0, 2, 1)
+            # hw, bs, c
+            # D1, D2 = torch.split(
+            #     torch.flatten(self.extractor_projection(torch.cat((D1, D2), dim=0)), 2).permute(2, 0, 1),
+            #     bs, dim=1)
+            # bs, hw, c
             D1, D2 = self.extractor_projection(torch.cat((D1, D2), dim=0)).flatten(2).permute(0, 2, 1).split(bs, dim=0)
-            src = torch.cat((D1, D2), dim=1)
+
+            # hw, bs, c
+            # D1, D2 = self.encoder(torch.cat((D1, D2), dim=1)).split(bs, dim=0)
 
             # bs, HW, CU1
             U1 = torch.flatten(U1, 2).permute(0, 2, 1)
 
             # bs, n, c
-            query = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
-            query_pos = self.query_pos_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
-            reference_points = self.reference_points(query).sigmoid().unsqueeze(2)
+            # context = self.correlation_query.weight.unsqueeze(0).repeat(bs, 1, 1)
+            context = self.context_query_embed(D1)
+            correlation = self.correlation_query_embed(D1)
+            # correlation_query = self.correlation_query.weight.unsqueeze(0).repeat(bs, 1, 1)
+            # correlation_query_pos = self.correlation_query_pos.weight.unsqueeze(0).repeat(bs, 1, 1)
+            # correlation = self.correlation_query_embed(correlation_query.permute(1, 0, 2),
+            #                                            D1.permute(1, 0, 2)).permute(1, 0, 2)
 
             spatial_shapes = torch.as_tensor([(h, w)], dtype=torch.long, device=D1.device)
             level_start_index = torch.cat((spatial_shapes.new_zeros((1, )), spatial_shapes.prod(1).cumsum(0)[:-1]))
+            reference_points = self.get_reference_points(spatial_shapes, device=spatial_shapes.device)
+            # reference_points = self.reference_points(correlation_query_pos).sigmoid().unsqueeze(2)
+
+            # bs, hw, 2
+            coords = coords_grid(bs, h, w, device=D1.device).flatten(2).permute(0, 2, 1)
 
             flow_predictions = list()
-            for i in range(len(self.decoder)):
+            corr_predictions = list()
+            # # bs, n, c
+            # context = self.context_decoder(context.permute(1, 0, 2), D1 + pos_embeds.permute(2, 0, 1)).permute(1, 0, 2)
+            # # bs, n, c
+            # context_correlation = self.context_correlation_embed(context)
+            # # bs, n, C
+            # context_extractor = self.context_extractor_embed(context)
+            for i in range(len(self.correlation_decoder)):
                 # bs, n, c
-                query = self.decoder[i](query, query_pos, reference_points,
-                                        src, src_pos, spatial_shapes, level_start_index)
+                # context = context.permute(1, 0, 2)
+                # context = self.context_decoder[i](context.permute(1, 0, 2), D1.permute(1, 0, 2)).permute(1, 0, 2)
+                context = self.context_decoder[i](context, pos_embeds, reference_points,
+                                                  D1, pos_embeds, spatial_shapes, level_start_index)
+                # bs, hw, c
+                # correlation = correlation.permute(1, 0, 2)
+                # correlation = self.correlation_decoder[i](correlation.permute(1, 0, 2),
+                #                                           D2.permute(1, 0, 2)).permute(1, 0, 2)
+                correlation = self.correlation_decoder[i](correlation, pos_embeds, reference_points,
+                                                          D2, pos_embeds, spatial_shapes, level_start_index)
 
                 # bs, n, c
-                flow = self.flow_embed[i](query)
-                # bs, n, c
-                context = self.context_embed[i](query)
-                # bs, n, c
-                reference_points = self.reference_embed[i](query)
+                context_correlation = self.context_correlation_embed[i](context)
+                # bs, n, C
+                context_extractor = self.context_extractor_embed[i](context)
+                # bs, hw, c
+                # correlation_context = self.correlation_context_embed[i](correlation)
+                # correlation_context = correlation.detach()
+                # bs, hw, 2
+                correlation_flow = self.correlation_flow_embed[i](correlation)
+                # correlation_flow = F.softmax(torch.bmm(correlation_flow, D2.permute(0, 2, 1)), dim=-1)
+                # correlation_flow = coords - torch.bmm(correlation_flow, coords)
+
+                # bs, n, hw
+                # context_flow = torch.bmm(context_correlation, correlation_context.permute(0, 2, 1))
+                context_flow = F.softmax(torch.bmm(context_correlation, D1.permute(0, 2, 1)), dim=-1)
+                # bs, n, 2
+                # context_flow = torch.bmm(context_flow, correlation_flow)
+                context_flow = torch.bmm(context_flow, correlation_flow.detach())
 
                 # bs, HW, n
-                context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
+                # extractor_flow = torch.bmm(U1, context_extractor.permute(0, 2, 1))
+                extractor_flow = F.softmax(torch.bmm(U1, context_extractor.permute(0, 2, 1)), dim=-1)
+                # extractor_flow = torch.bmm(U1, correlation_context.permute(0, 2, 1))
                 # bs, HW, 2
-                context_flow = torch.bmm(context_flow, flow)
+                extractor_flow = torch.bmm(extractor_flow, context_flow)
+                # extractor_flow = torch.bmm(extractor_flow, correlation_flow)
                 # bs, 2, H, W
-                context_flow = torch.tanh(context_flow.permute(0, 2, 1).view(bs, 2, H, W))
+                flow = torch.tanh(extractor_flow.permute(0, 2, 1).view(bs, 2, H, W))
+                # flow = extractor_flow.permute(0, 2, 1).view(bs, 2, H, W)
 
-                context_flow = context_flow * \
-                               torch.tensor((I_W, I_H), dtype=torch.float32).view(1, 2, 1, 1).to(context_flow.device)
+                flow = flow * torch.tensor((I_W, I_H), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
+                # flow = flow * torch.tensor((I_W - 1, I_H - 1), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
                 if I_H != H or I_W != W:
-                    context_flow = F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=True)
+                    flow = F.interpolate(flow, size=(I_H, I_W), mode="bilinear", align_corners=True)
 
-                flow_predictions.append(context_flow)
+                # bs, 2, H, W
+                corr_flow = torch.tanh(correlation_flow.permute(0, 2, 1).view(bs, 2, h, w))
+                # corr_flow = correlation_flow.permute(0, 2, 1).view(bs, 2, h, w)
+                corr_flow = \
+                    corr_flow * torch.tensor((I_W, I_H),
+                                             dtype=torch.float32).view(1, 2, 1, 1).to(extractor_flow.device)
+                # corr_flow = \
+                #     corr_flow * torch.tensor((I_W - 1, I_H - 1),
+                #                              dtype=torch.float32).view(1, 2, 1, 1).to(extractor_flow.device)
+                if I_H != H or I_W != W:
+                    corr_flow = F.interpolate(corr_flow, size=(I_H, I_W), mode="bilinear", align_corners=True)
+
+                flow_predictions.append(flow)
+                corr_predictions.append(corr_flow)
+                # corr_predictions.append(flow)
 
             if test_mode:
                 return flow_predictions[-1], flow_predictions[-1]
             else:
-                return flow_predictions
+                return flow_predictions, corr_predictions
 
 
 class MLP(nn.Module):

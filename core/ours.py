@@ -264,7 +264,7 @@ class RAFT(nn.Module):
                 # correlation_context = correlation.detach()
                 # bs, hw, 2
                 correlation_flow = self.correlation_flow_embed[i](correlation)
-                correlation_flow = F.softmax(torch.bmm(correlation_flow, D2), dim=-1)
+                correlation_flow = F.softmax(torch.bmm(correlation_flow, D2.permute(0, 2, 1)), dim=-1)
                 correlation_flow = coords - torch.bmm(correlation_flow, coords)
 
                 # bs, n, hw

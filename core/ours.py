@@ -283,15 +283,19 @@ class RAFT(nn.Module):
                 # flow = torch.tanh(extractor_flow.permute(0, 2, 1).view(bs, 2, H, W))
                 flow = extractor_flow.permute(0, 2, 1).view(bs, 2, H, W)
 
-                flow = flow * torch.tensor((I_W, I_H), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
+                # flow = flow * torch.tensor((I_W, I_H), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
+                flow = flow * torch.tensor((I_W - 1, I_H - 1), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
                 if I_H != H or I_W != W:
                     flow = F.interpolate(flow, size=(I_H, I_W), mode="bilinear", align_corners=True)
 
                 # bs, 2, H, W
                 # corr_flow = torch.tanh(correlation_flow.permute(0, 2, 1).view(bs, 2, h, w))
                 corr_flow = correlation_flow.permute(0, 2, 1).view(bs, 2, h, w)
+                # corr_flow = \
+                #     corr_flow * torch.tensor((I_W, I_H),
+                #                              dtype=torch.float32).view(1, 2, 1, 1).to(extractor_flow.device)
                 corr_flow = \
-                    corr_flow * torch.tensor((I_W, I_H),
+                    corr_flow * torch.tensor((I_W - 1, I_H - 1),
                                              dtype=torch.float32).view(1, 2, 1, 1).to(extractor_flow.device)
                 if I_H != H or I_W != W:
                     corr_flow = F.interpolate(corr_flow, size=(I_H, I_W), mode="bilinear", align_corners=True)

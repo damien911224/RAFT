@@ -56,6 +56,7 @@ class RAFT(nn.Module):
 
         self.query_embed = nn.Embedding(50, d_model)
         self.query_pos_embed = nn.Embedding(50, d_model)
+        self.query_ref_embed = nn.Embedding(50, 2)
         self.flow_embed = MLP(d_model, d_model, 2, 3)
         self.context_embed = MLP(d_model, d_model, self.extractor.up_dim, 3)
         self.reference_embed = MLP(d_model, d_model, 2, 3)
@@ -180,7 +181,7 @@ class RAFT(nn.Module):
             # bs, n, c
             query = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
             query_pos = self.query_pos_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
-            reference_points = self.reference_embed(query).sigmoid().unsqueeze(2)
+            reference_points = self.query_ref_embed.weight.unsqueeze(0).repeat(bs, 1, 1).sigmoid().unsqueeze(2)
 
             spatial_shapes = torch.as_tensor([(h, w)], dtype=torch.long, device=D1.device)
             level_start_index = torch.cat((spatial_shapes.new_zeros((1, )), spatial_shapes.prod(1).cumsum(0)[:-1]))

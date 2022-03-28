@@ -162,6 +162,7 @@ class RAFT(nn.Module):
         distance_mat_clipped = torch.clamp(distance_mat, -self.h_max_relative_position, self.h_max_relative_position)
         final_mat = distance_mat_clipped + self.h_max_relative_position
         final_mat = torch.LongTensor(final_mat).to(target_feat.device)
+        print(col_embed.weight[final_mat].shape)
         h_embeddings = col_embed.weight[final_mat].unsqueeze(1).repeat(1, f_w, 1)
 
         range_vec = torch.arange(f_w)

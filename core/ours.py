@@ -192,7 +192,7 @@ class RAFT(nn.Module):
                 query = self.decoder[i](query, query_pos, reference_points,
                                         src, src_pos, spatial_shapes, level_start_index)
 
-                # bs, n, c
+                # bs, n, 2
                 flow = self.flow_embed[i](query)
                 # bs, n, c
                 context = self.context_embed[i](query)

@@ -8,17 +8,27 @@ class RelativePosition(nn.Module):
         super().__init__()
         self.num_units = num_units
         self.max_relative_position = max_relative_position
-        self.embeddings_table = nn.Parameter(torch.Tensor(max_relative_position * 2 + 1, num_units))
-        nn.init.xavier_uniform_(self.embeddings_table)
+        self.embeddings_table_h = nn.Parameter(torch.Tensor(max_relative_position * 2 + 1, num_units))
+        self.embeddings_table_w = nn.Parameter(torch.Tensor(max_relative_position * 2 + 1, num_units))
+        nn.init.xavier_uniform_(self.embeddings_table_h)
+        nn.init.xavier_uniform_(self.embeddings_table_w)
 
-    def forward(self, length_q, length_k, length_h, length_2):
-        range_vec_q = torch.arange(length_q)
-        range_vec_k = torch.arange(length_k)
-        distance_mat = range_vec_k[None, :] - range_vec_q[:, None]
+    def forward(self, length_h, length_w, device):
+        range_vec_h = torch.arange(length_h)
+        range_vec_w = torch.arange(length_w)
+        distance_mat = range_vec_h[None, :] - range_vec_h[:, None]
         distance_mat_clipped = torch.clamp(distance_mat, -self.max_relative_position, self.max_relative_position)
         final_mat = distance_mat_clipped + self.max_relative_position
-        final_mat = torch.LongTensor(final_mat).cuda()
-        embeddings = self.embeddings_table[final_mat].cuda()
+        final_mat = torch.LongTensor(final_mat).to(device)
+        h_embeddings = self.embeddings_table_h[final_mat].to(device)
+
+        distance_mat = range_vec_w[None, :] - range_vec_w[:, None]
+        distance_mat_clipped = torch.clamp(distance_mat, -self.max_relative_position, self.max_relative_position)
+        final_mat = distance_mat_clipped + self.max_relative_position
+        final_mat = torch.LongTensor(final_mat).to(device)
+        w_embeddings = self.embeddings_table_w[final_mat].to(device)
+
+
 
         return embeddings
 
@@ -68,7 +78,7 @@ class MultiHeadAttentionLayer(nn.Module):
         attn1 = torch.matmul(r_q1, r_k1.permute(0, 1, 3, 2))
 
         r_q2 = query.permute(1, 0, 2).contiguous().view(len_q, batch_size * self.n_heads, self.head_dim)
-        r_k2 = self.relative_position_k(len_q, len_k, len_h, len_w)
+        r_k2 = self.relative_position_k(len_h, len_w)
         attn2 = torch.matmul(r_q2, r_k2.transpose(1, 2)).transpose(0, 1)
         attn2 = attn2.contiguous().view(batch_size, self.n_heads, len_q, len_k)
         attn = (attn1 + attn2) / self.head_dim
@@ -81,7 +91,7 @@ class MultiHeadAttentionLayer(nn.Module):
         # attn = [batch size, n heads, query len, key len]
         r_v1 = value.view(batch_size, -1, self.n_heads, self.head_dim).permute(0, 2, 1, 3)
         weight1 = torch.matmul(attn, r_v1)
-        r_v2 = self.relative_position_v(len_q, len_v)
+        r_v2 = self.relative_position_v(len_h, len_w)
         weight2 = attn.permute(2, 0, 1, 3).contiguous().view(len_q, batch_size * self.n_heads, len_k)
         weight2 = torch.matmul(weight2, r_v2)
         weight2 = weight2.transpose(0, 1).contiguous().view(batch_size, self.n_heads, len_q, self.head_dim)

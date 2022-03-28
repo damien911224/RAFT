@@ -84,7 +84,8 @@ class RAFT(nn.Module):
         self.correlation_context_embed = MLP(d_model, d_model, d_model, 3)
         # self.context_query_embed = nn.Embedding(50, d_model)
         # self.correlation_context_embed = MLP(d_model, d_model, self.extractor.up_dim, 3)
-        self.correlation_flow_embed = MLP(d_model, d_model, 2, 3)
+        # self.correlation_flow_embed = MLP(d_model, d_model, 2, 3)
+        self.correlation_flow_embed = MLP(d_model, d_model, d_model, 3)
 
         iterations = 6
         self.context_correlation_embed = nn.ModuleList([self.context_correlation_embed for _ in range(iterations)])
@@ -231,6 +232,8 @@ class RAFT(nn.Module):
             reference_points = self.get_reference_points(spatial_shapes, device=spatial_shapes.device)
             # reference_points = self.reference_points(correlation_query_pos).sigmoid().unsqueeze(2)
 
+            coords = coords_grid(bs, h, w, device=D1.device).flatten(2).permte(0, 2, 1)
+
             flow_predictions = list()
             corr_predictions = list()
             # # bs, n, c
@@ -261,6 +264,8 @@ class RAFT(nn.Module):
                 # correlation_context = correlation.detach()
                 # bs, hw, 2
                 correlation_flow = self.correlation_flow_embed[i](correlation)
+                correlation_flow = F.softmax(torch.bmm(correlation_flow, D2), dim=-1)
+                correlation_flow = coords - torch.bmm(correlation_flow, coords)
 
                 # bs, n, hw
                 context_flow = torch.bmm(context_correlation, correlation_context.permute(0, 2, 1))
@@ -275,14 +280,16 @@ class RAFT(nn.Module):
                 extractor_flow = torch.bmm(extractor_flow, context_flow)
                 # extractor_flow = torch.bmm(extractor_flow, correlation_flow)
                 # bs, 2, H, W
-                flow = torch.tanh(extractor_flow.permute(0, 2, 1).view(bs, 2, H, W))
+                # flow = torch.tanh(extractor_flow.permute(0, 2, 1).view(bs, 2, H, W))
+                flow = extractor_flow.permute(0, 2, 1).view(bs, 2, H, W)
 
                 flow = flow * torch.tensor((I_W, I_H), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
                 if I_H != H or I_W != W:
                     flow = F.interpolate(flow, size=(I_H, I_W), mode="bilinear", align_corners=True)
 
                 # bs, 2, H, W
-                corr_flow = torch.tanh(correlation_flow.permute(0, 2, 1).view(bs, 2, h, w))
+                # corr_flow = torch.tanh(correlation_flow.permute(0, 2, 1).view(bs, 2, h, w))
+                corr_flow = correlation_flow.permute(0, 2, 1).view(bs, 2, h, w)
                 corr_flow = \
                     corr_flow * torch.tensor((I_W, I_H),
                                              dtype=torch.float32).view(1, 2, 1, 1).to(extractor_flow.device)

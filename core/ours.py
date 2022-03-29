@@ -187,13 +187,16 @@ class RAFT(nn.Module):
             level_start_index = torch.cat((spatial_shapes.new_zeros((1, )), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
             flow_predictions = list()
+            sparse_predictions = list()
             for i in range(len(self.decoder)):
                 # bs, n, c
                 query = self.decoder[i](query, query_pos, reference_points,
                                         src, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, 2
-                flow = self.flow_embed[i](query)
+                flow = inverse_sigmoid(reference_points) + self.flow_embed[i](query)
+                flow = reference_points - flow.sigmoid()
+                sparse_predictions.append((reference_points, flow))
                 # bs, n, c
                 context = self.context_embed[i](query)
                 # bs, n, c
@@ -216,7 +219,7 @@ class RAFT(nn.Module):
             if test_mode:
                 return flow_predictions[-1], flow_predictions[-1]
             else:
-                return flow_predictions
+                return flow_predictions, sparse_predictions
 
 
 class MLP(nn.Module):

@@ -56,8 +56,6 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
     # exlude invalid pixels and extremely large diplacements
     mag = torch.sum(flow_gt ** 2, dim=1).sqrt()
     dense_valid = (valid >= 0.5) & (mag < max_flow)
-    print(valid.shape)
-    exit()
 
     bs, _, I_H, I_W = flow_gt.shape
 
@@ -71,7 +69,7 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
         n = ref.shape[1]
         scale = torch.tensor((I_W, I_H), dtype=torch.float32).view(1, 1, 2).to(sparse_flow.device)
         flatten_gt = flow_gt.flatten(2).permute(0, 2, 1)
-        flatten_valid = valid.flatten(2).permute(0, 2, 1)
+        flatten_valid = valid.flatten(1)
         ceil_coords = torch.ceil(ref * scale).long()
         ceil_coords = torch.clamp_max(ceil_coords[..., 1] * ceil_coords[..., 0], I_H * I_W)
         floor_coords = torch.floor(ref * scale).long()
@@ -84,14 +82,17 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
             for n_i in range(n):
                 this_sparse_gt = flatten_gt[b_i, floor_coords[b_i, n_i]] * ref[b_i, n_i].frac() + \
                                  flatten_gt[b_i, ceil_coords[b_i, n_i]] * (1 - ref[b_i, n_i].frac())
-                this_sparse_valid = flatten_gt[b_i, floor_coords[b_i, n_i]] * ref[b_i, n_i].frac() + \
-                                 flatten_gt[b_i, ceil_coords[b_i, n_i]] * (1 - ref[b_i, n_i].frac())
+                this_sparse_valid = flatten_valid[b_i, floor_coords[b_i, n_i]] * ref[b_i, n_i].frac() + \
+                                    flatten_valid[b_i, ceil_coords[b_i, n_i]] * (1 - ref[b_i, n_i].frac())
                 n_sparse_gt.append(this_sparse_gt)
-                n_sparse_valid.append()
+                n_sparse_valid.append(this_sparse_valid)
             n_sparse_gt = torch.stack(n_sparse_gt, dim=0)
+            n_sparse_valid = torch.stack(n_sparse_valid, dim=0)
             sparse_gt.append(n_sparse_gt)
+            sparse_valid.append(n_sparse_valid)
         sparse_gt = torch.stack(sparse_gt, dim=0)
-        sparse_valid = (valid >= 0.5) & (torch.sum(sparse_gt ** 2, dim=-1).sqrt() < max_flow)
+        sparse_valid = torch.stack(sparse_valid, dim=0)
+        sparse_valid = (sparse_valid >= 0.5) & (torch.sum(sparse_gt ** 2, dim=-1).sqrt() < max_flow)
         sparse_i_loss = (sparse_flow * scale - sparse_gt).abs()
         sparse_loss += i_weight * (sparse_valid[..., None] * sparse_i_loss).mean()
         # sparse_gt = flatten_gt[torch.arange(bs), floor_coords[torch.arange(bs), torch.arange(50)]] * \

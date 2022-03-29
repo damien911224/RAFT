@@ -194,7 +194,7 @@ class RAFT(nn.Module):
                                         src, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, 2
-                print(reference_points.shape, self.flow_embed[i](query).shape)
+                reference_points = reference_points.unsqueeze(2)
                 flow = inverse_sigmoid(reference_points) + self.flow_embed[i](query)
                 flow = reference_points - flow.sigmoid()
                 sparse_predictions.append((reference_points, flow))

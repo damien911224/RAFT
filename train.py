@@ -73,16 +73,20 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
         ceil_coords = torch.clamp_max(ceil_coords[..., 1] * ceil_coords[..., 0], I_H * I_W)
         floor_coords = torch.floor(ref * scale).long()
         floor_coords = torch.clamp_max(floor_coords[..., 1] * floor_coords[..., 0], I_H * I_W)
-        sparse_gt = list()
-        for b_i in range(bs):
-            n_sparse_gt = list()
-            for n_i in range(n):
-                this_sparse_gt = flatten_gt[b_i, floor_coords[b_i, n_i]] * ref.frac() + \
-                                 flatten_gt[b_i, ceil_coords[b_i, n_i]] * (1 - ref.frac())
-                n_sparse_gt.append(this_sparse_gt)
-            n_sparse_gt = torch.stack(n_sparse_gt, dim=0)
-            sparse_gt.append(n_sparse_gt)
-        sparse_gt = torch.stack(sparse_gt, dim=0)
+        # sparse_gt = list()
+        # for b_i in range(bs):
+        #     n_sparse_gt = list()
+        #     for n_i in range(n):
+        #         this_sparse_gt = flatten_gt[b_i, floor_coords[b_i, n_i]] * ref.frac() + \
+        #                          flatten_gt[b_i, ceil_coords[b_i, n_i]] * (1 - ref.frac())
+        #         n_sparse_gt.append(this_sparse_gt)
+        #     n_sparse_gt = torch.stack(n_sparse_gt, dim=0)
+        #     sparse_gt.append(n_sparse_gt)
+        # sparse_gt = torch.stack(sparse_gt, dim=0)
+        sparse_gt = flatten_gt[torch.arange(bs), floor_coords[torch.arange(bs), torch.arange(50)]] * \
+                    ref.frac()[torch.arange(bs), torch.arange(50)] + \
+                    flatten_gt[torch.arange(bs), ceil_coords[torch.arange(bs), torch.arange(50)]] * \
+                    (1 - ref.frac()[torch.arange(bs), torch.arange(50)])
         print(sparse_gt.shape)
         exit()
 

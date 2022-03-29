@@ -58,7 +58,6 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
     valid = (valid >= 0.5) & (mag < max_flow)
 
     bs, _, I_H, I_W = flow_gt.shape
-    n = flow_preds[1][0].shape[1]
 
     for i in range(n_predictions):
         # i_weight = gamma ** (n_predictions - i - 1)
@@ -67,6 +66,7 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
         flow_loss += i_weight * (valid[:, None] * i_loss).mean()
 
         ref, sparse_flow = flow_preds[1][i]
+        n = ref.shape[1]
         scale = torch.tensor((I_W, I_H), dtype=torch.float32).view(1, 1, 2).to(sparse_flow.device)
         flatten_gt = flow_gt.flatten(2).permute(0, 2, 1)
         ceil_coords = torch.ceil(ref * scale).long()

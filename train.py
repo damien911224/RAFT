@@ -83,16 +83,17 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
             n_sparse_gt = torch.stack(n_sparse_gt, dim=0)
             sparse_gt.append(n_sparse_gt)
         sparse_gt = torch.stack(sparse_gt, dim=0)
+        sparse_valid = (valid >= 0.5) & (torch.sum(sparse_gt ** 2, dim=-1).sqrt() < max_flow)
+        sparse_i_loss = (sparse_flow * scale - flow_gt).abs()
+        sparse_loss += i_weight * (sparse_valid[..., None] * sparse_i_loss).mean()
         # sparse_gt = flatten_gt[torch.arange(bs), floor_coords[torch.arange(bs), torch.arange(50)]] * \
         #             ref.frac()[torch.arange(bs), torch.arange(50)] + \
         #             flatten_gt[torch.arange(bs), ceil_coords[torch.arange(bs), torch.arange(50)]] * \
         #             (1 - ref.frac()[torch.arange(bs), torch.arange(50)])
-        print(sparse_gt.shape)
-        exit()
 
 
 
-    loss = flow_loss
+    loss = flow_loss + sparse_loss
 
     epe = torch.sum((flow_preds[0][-1] - flow_gt)**2, dim=1).sqrt()
     epe = epe.view(-1)[valid.view(-1)]
@@ -102,7 +103,9 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
         '1px': (epe < 1).float().mean().item(),
         '3px': (epe < 3).float().mean().item(),
         '5px': (epe < 5).float().mean().item(),
-        'loss': loss
+        'loss': loss,
+        'flow_loss': flow_loss,
+        'sparse_loss': sparse_loss
     }
 
     return loss, metrics

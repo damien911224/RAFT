@@ -70,14 +70,18 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
         scale = torch.tensor((I_W, I_H), dtype=torch.float32).view(1, 1, 2).to(sparse_flow.device)
         flatten_gt = flow_gt.flatten(2).permute(0, 2, 1)
         flatten_valid = valid.flatten(1)
-        ceil_coords = torch.ceil(ref * scale).long()
-        ceil_coords = torch.clamp_max(ceil_coords[..., 1] * ceil_coords[..., 0], I_H * I_W)
-        floor_coords = torch.floor(ref * scale).long()
-        floor_coords = torch.clamp_max(floor_coords[..., 1] * floor_coords[..., 0], I_H * I_W)
-        sparse_gt = torch.gather(flatten_gt, 1, floor_coords.unsqueeze(-1).repeat(1, 1, 2)) * ref.frac() + \
-                    torch.gather(flatten_gt, 1, ceil_coords.unsqueeze(-1).repeat(1, 1, 2)) * (1 - ref.frac())
-        sparse_valid = torch.gather(flatten_valid, 1, floor_coords) * ref.frac() + \
-                       torch.gather(flatten_valid, 1, ceil_coords) * (1 - ref.frac())
+        # ceil_coords = torch.ceil(ref * scale).long()
+        # ceil_coords = torch.clamp_max(ceil_coords[..., 1] * ceil_coords[..., 0], I_H * I_W)
+        # floor_coords = torch.floor(ref * scale).long()
+        # floor_coords = torch.clamp_max(floor_coords[..., 1] * floor_coords[..., 0], I_H * I_W)
+        # sparse_gt = torch.gather(flatten_gt, 1, floor_coords.unsqueeze(-1).repeat(1, 1, 2)) * ref.frac() + \
+        #             torch.gather(flatten_gt, 1, ceil_coords.unsqueeze(-1).repeat(1, 1, 2)) * (1 - ref.frac())
+        # sparse_valid = torch.gather(flatten_valid, 1, floor_coords) * ref.frac() + \
+        #                torch.gather(flatten_valid, 1, ceil_coords) * (1 - ref.frac())
+        coords = torch.round(ref * scale).long()
+        coords = torch.clamp_max(coords[..., 1] * coords[..., 0], I_H * I_W)
+        sparse_gt = torch.gather(flatten_gt, 1, coords.unsqueeze(-1).repeat(1, 1, 2))
+        sparse_valid = torch.gather(flatten_valid, 1, coords)
         # sparse_gt = list()
         # sparse_valid = list()
         # for b_i in range(bs):

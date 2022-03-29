@@ -74,7 +74,7 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
         ceil_coords = torch.clamp_max(ceil_coords[..., 1] * ceil_coords[..., 0], I_H * I_W)
         floor_coords = torch.floor(ref * scale).long()
         floor_coords = torch.clamp_max(floor_coords[..., 1] * floor_coords[..., 0], I_H * I_W)
-        sparse_gt = torch.gather(flatten_gt, floor_coords.unsqueeze(-1))
+        sparse_gt = torch.gather(flatten_gt, 1, floor_coords.unsqueeze(-1))
         print(sparse_gt.shape)
         exit()
         sparse_gt = list()

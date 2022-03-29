@@ -100,9 +100,9 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
         #     sparse_valid.append(n_sparse_valid)
         # sparse_gt = torch.stack(sparse_gt, dim=0)
         # sparse_valid = torch.stack(sparse_valid, dim=0)
-        sparse_valid = (sparse_valid >= 0.5) & (torch.sum(sparse_gt ** 2, dim=-1).sqrt() < max_flow)[..., None]
+        sparse_valid = (sparse_valid >= 0.5) & (torch.sum(sparse_gt ** 2, dim=-1).sqrt() < max_flow)
         sparse_i_loss = (sparse_flow * scale - sparse_gt).abs()
-        sparse_loss += i_weight * (sparse_valid * sparse_i_loss).mean()
+        sparse_loss += i_weight * (sparse_valid[..., None] * sparse_i_loss).mean()
         # sparse_gt = flatten_gt[torch.arange(bs), floor_coords[torch.arange(bs), torch.arange(50)]] * \
         #             ref.frac()[torch.arange(bs), torch.arange(50)] + \
         #             flatten_gt[torch.arange(bs), ceil_coords[torch.arange(bs), torch.arange(50)]] * \

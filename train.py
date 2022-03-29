@@ -57,6 +57,7 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
     mag = torch.sum(flow_gt ** 2, dim=1).sqrt()
     dense_valid = (valid >= 0.5) & (mag < max_flow)
     print(valid.shape)
+    exit()
 
     bs, _, I_H, I_W = flow_gt.shape
 

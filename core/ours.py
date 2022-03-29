@@ -205,7 +205,7 @@ class RAFT(nn.Module):
 
                 # bs, HW, n
                 # context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
-                context_flow = F.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
+                context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
                 # bs, HW, 2
                 context_flow = torch.bmm(context_flow, flow)
                 # bs, 2, H, W

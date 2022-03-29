@@ -70,10 +70,9 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
         flatten_gt = flow_gt.flatten(2).permute(0, 2, 1)
         ceil_coords = torch.ceil(ref * scale).long()
         floor_coords = torch.floor(ref * scale).long()
-        sparse_gt = flatten_gt[torch.arange(bs),
-                    floor_coords[torch.arange(bs), :, 1] * floor_coords[torch.arange(bs), :, 0]] * ref.frac() + \
-                    flatten_gt[torch.arange(bs),
-                    ceil_coords[torch.arange(bs), :, 1] * ceil_coords[torch.arange(bs), :, 0]] * (1 - ref.frac())
+
+        sparse_gt = flatten_gt[:, floor_coords[..., 1] * floor_coords[..., 0]] * ref.frac() + \
+                    flatten_gt[:, ceil_coords[..., 1] * ceil_coords[..., 0]] * (1 - ref.frac())
         print(sparse_gt.shape)
         exit()
 

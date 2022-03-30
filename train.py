@@ -210,7 +210,7 @@ class Logger:
                 coords = torch.round(ref * scale).long()
                 coords = torch.clamp_max(coords[..., 1] * coords[..., 0], I_H * I_W)
                 coords = coords.detach().cpu().numpy()[n_i]
-                ref_img = np.copy(this_image1)
+                ref_img = np.array(this_image1, dtype=np.uint8)
                 for k_i in range(len(coords)):
                     coord = coords[k_i].astype(np.uint8)
                     ref_img = cv2.circle(ref_img, coord, (255, 0, 0), 10)

@@ -211,7 +211,7 @@ class Logger:
                 coords = coords.detach().cpu().numpy()[n_i]
                 ref_img = np.copy(this_image1).astype(np.uint8)
                 for k_i in range(len(coords)):
-                    coord = coords[k_i].astype(np.uint8)
+                    coord = coords[k_i].astype(np.uint8).tolist()
                     print(coord)
                     print(ref_img.shape)
                     ref_img = cv2.circle(ref_img, coord, 20, (255, 0, 0), 10)

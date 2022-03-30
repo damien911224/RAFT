@@ -56,7 +56,7 @@ class RAFT(nn.Module):
 
         self.query_embed = nn.Embedding(50, d_model)
         self.query_pos_embed = nn.Embedding(50, d_model)
-        self.query_ref_embed = nn.Embedding(50, 2)
+        # self.query_ref_embed = nn.Embedding(50, 2)
         self.flow_embed = MLP(d_model, d_model, 2, 3)
         self.context_embed = MLP(d_model, d_model, self.extractor.up_dim, 3)
         self.reference_embed = MLP(d_model, d_model, 2, 3)
@@ -79,7 +79,7 @@ class RAFT(nn.Module):
         nn.init.xavier_uniform_(self.row_pos_embed.weight)
         nn.init.xavier_uniform_(self.col_pos_embed.weight)
         nn.init.xavier_uniform_(self.query_embed.weight)
-        nn.init.uniform_(self.query_ref_embed.weight)
+        # nn.init.uniform_(self.query_ref_embed.weight)
         nn.init.xavier_uniform_(self.query_pos_embed.weight)
 
     def _get_clones(self, module, N):
@@ -191,6 +191,8 @@ class RAFT(nn.Module):
             sparse_predictions = list()
             for i in range(len(self.decoder)):
                 # bs, n, c
+                reference_points = self.reference_embed[i](query).unsqueeze(2).sigmoid()
+                # bs, n, c
                 query = self.decoder[i](query, query_pos, reference_points,
                                         src, src_pos, spatial_shapes, level_start_index)
 
@@ -202,8 +204,8 @@ class RAFT(nn.Module):
                 # bs, n, c
                 context = self.context_embed[i](query)
                 # bs, n, c
-                reference_points = inverse_sigmoid(reference_points.detach()) + self.reference_embed[i](query)
-                reference_points = reference_points.unsqueeze(2).sigmoid()
+                # reference_points = inverse_sigmoid(reference_points.detach()) + self.reference_embed[i](query)
+                # reference_points = reference_points.unsqueeze(2).sigmoid()
 
                 # bs, HW, n
                 # context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)

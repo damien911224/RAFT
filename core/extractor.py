@@ -190,7 +190,7 @@ class BasicEncoder(nn.Module):
         # x = self.down_layer4(x)
         # x = self.down_layer5(x)
 
-        D1_x1, D1_x2 = torch.split(D3, D3.shape[0] // 2, dim=0)
+        D1_x1, D1_x2 = torch.split(D1, D1.shape[0] // 2, dim=0)
         D2_x1, D2_x2 = torch.split(D2, D2.shape[0] // 2, dim=0)
         D3_x1, D3_x2 = torch.split(D3, D3.shape[0] // 2, dim=0)
 

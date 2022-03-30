@@ -202,7 +202,7 @@ class RAFT(nn.Module):
                 # bs, n, c
                 context = self.context_embed[i](query)
                 # bs, n, c
-                reference_points = inverse_sigmoid(reference_points) + self.reference_embed[i](query)
+                reference_points = inverse_sigmoid(reference_points.detach()) + self.reference_embed[i](query)
                 reference_points = reference_points.unsqueeze(2).sigmoid()
 
                 # bs, HW, n

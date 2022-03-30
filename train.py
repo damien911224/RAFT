@@ -213,7 +213,7 @@ class Logger:
                 ref_img = np.copy(this_image1)
                 for k_i in range(len(coords)):
                     coord = coords[k_i].astype(np.uint8)
-                    ref_img = cv2.circle(this_image1, coord, (255, 0, 0), 10)
+                    ref_img = cv2.circle(ref_img, coord, (255, 0, 0), 10)
                 pred_img.append(ref_img)
 
                 this_pred = preds[0][p_i].detach().cpu().numpy()[n_i]

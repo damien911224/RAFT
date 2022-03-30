@@ -190,16 +190,16 @@ class RAFT(nn.Module):
             flow_predictions = list()
             sparse_predictions = list()
             for i in range(len(self.decoder)):
-                # bs, n, 1, 2
-                reference_points = self.reference_embed[i](query).unsqueeze(2).sigmoid()
+                # bs, n, 2
+                reference_points = self.reference_embed[i](query).sigmoid()
                 # bs, n, c
-                query = self.decoder[i](query, query_pos, reference_points,
+                query = self.decoder[i](query, query_pos, reference_points.unsqueeze(2),
                                         src, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, 2
-                flow = inverse_sigmoid(reference_points.squeeze(2)) + self.flow_embed[i](query)
-                flow = reference_points.squeeze(2) - flow.sigmoid()
-                sparse_predictions.append((reference_points.squeeze(2), flow))
+                flow = inverse_sigmoid(reference_points) + self.flow_embed[i](query)
+                flow = reference_points - flow.sigmoid()
+                sparse_predictions.append((reference_points, flow))
                 # bs, n, c
                 context = self.context_embed[i](query)
                 # bs, n, c

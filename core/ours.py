@@ -79,7 +79,7 @@ class RAFT(nn.Module):
         nn.init.xavier_uniform_(self.row_pos_embed.weight)
         nn.init.xavier_uniform_(self.col_pos_embed.weight)
         nn.init.xavier_uniform_(self.query_embed.weight)
-        nn.init.xavier_uniform_(self.query_ref_embed.weight)
+        nn.init.uniform(self.query_ref_embed.weight)
         nn.init.xavier_uniform_(self.query_pos_embed.weight)
 
     def _get_clones(self, module, N):
@@ -182,11 +182,10 @@ class RAFT(nn.Module):
             # bs, n, c
             query = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
             query_pos = self.query_pos_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
-            # reference_points = self.query_ref_embed.weight.unsqueeze(0).repeat(bs, 1, 1).sigmoid().unsqueeze(2)
+            reference_points = self.query_ref_embed.weight.unsqueeze(0).repeat(bs, 1, 1).sigmoid().unsqueeze(2)
 
             spatial_shapes = torch.as_tensor([(h, w), ] * 2, dtype=torch.long, device=D1.device)
             level_start_index = torch.cat((spatial_shapes.new_zeros((1, )), spatial_shapes.prod(1).cumsum(0)[:-1]))
-            reference_points = self.get_reference_points(spatial_shapes, src.device)
 
             flow_predictions = list()
             sparse_predictions = list()

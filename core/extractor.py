@@ -114,7 +114,7 @@ class BottleneckBlock(nn.Module):
 
 
 class BasicEncoder(nn.Module):
-    def __init__(self, base_channel=64, norm_fn="group"):
+    def __init__(self, base_channel=64, norm_fn="batch"):
         super(BasicEncoder, self).__init__()
         self.norm_fn = norm_fn
 

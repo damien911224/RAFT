@@ -206,7 +206,7 @@ class Logger:
             target_img = flow_vis.flow_to_color(targets[n_i], convert_to_bgr=False)
             pred_img = list()
             for p_i in range(len(preds[0])):
-                ref, sparse_flow = preds[1]
+                ref, sparse_flow = preds[1][p_i]
                 coords = torch.round(ref * scale).long()
                 coords = torch.clamp_max(coords[..., 1] * coords[..., 0], I_H * I_W)
                 coords = coords.detach().cpu().numpy()[n_i]

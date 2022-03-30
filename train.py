@@ -208,7 +208,6 @@ class Logger:
             for p_i in range(len(preds[0])):
                 ref, sparse_flow = preds[1][p_i]
                 coords = torch.round(ref * scale).long()
-                coords = torch.clamp_max(coords[..., 1] * coords[..., 0], I_H * I_W)
                 coords = coords.detach().cpu().numpy()[n_i]
                 ref_img = np.array(this_image1, dtype=np.uint8)
                 for k_i in range(len(coords)):

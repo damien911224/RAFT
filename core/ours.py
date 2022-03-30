@@ -79,7 +79,7 @@ class RAFT(nn.Module):
         nn.init.xavier_uniform_(self.row_pos_embed.weight)
         nn.init.xavier_uniform_(self.col_pos_embed.weight)
         nn.init.xavier_uniform_(self.query_embed.weight)
-        nn.init.uniform(self.query_ref_embed.weight)
+        nn.init.uniform_(self.query_ref_embed.weight)
         nn.init.xavier_uniform_(self.query_pos_embed.weight)
 
     def _get_clones(self, module, N):

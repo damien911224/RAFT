@@ -195,9 +195,9 @@ class BasicEncoder(nn.Module):
         T = self.top_layer(D3_x1)
 
         D2 = self.up_lateral1(D2)
-        U1 = self.up_smooth1(F.upsample(T, scale=2.0, mode="bilinear") + D2)
+        U1 = self.up_smooth1(F.upsample(T, scale_factor=2.0, mode="bilinear") + D2)
         D1 = self.up_lateral1(D1)
-        U2 = self.up_smooth1(F.upsample(U1, scale=2.0, mode="bilinear") + D1)
+        U2 = self.up_smooth1(F.upsample(U1, scale_factor=2.0, mode="bilinear") + D1)
         # x = self.up_layer2(x)
         # U1 = self.up_layer3(x)
 

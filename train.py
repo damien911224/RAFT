@@ -191,6 +191,9 @@ class Logger:
         if self.writer is None:
             self.writer = SummaryWriter()
 
+        _, _, I_H, I_W = image1.shape
+        scale = torch.tensor((I_W, I_H), dtype=torch.float32).view(1, 1, 2).to(image1.device)
+
         image1 = image1.detach().cpu().numpy()
         image1 = np.transpose(image1, (0, 2, 3, 1))
         image2 = image2.detach().cpu().numpy()
@@ -202,10 +205,21 @@ class Logger:
             this_image2 = image2[n_i]
             target_img = flow_vis.flow_to_color(targets[n_i], convert_to_bgr=False)
             pred_img = list()
-            for p_i in range(len(preds)):
-                this_pred = preds[p_i].detach().cpu().numpy()[n_i]
+            for p_i in range(len(preds[0])):
+                ref, sparse_flow = preds[1]
+                coords = torch.round(ref * scale).long()
+                coords = torch.clamp_max(coords[..., 1] * coords[..., 0], I_H * I_W)
+                coords = coords.detach().cpu().numpy()[n_i]
+                ref_img = np.copy(this_image1)
+                for k_i in range(len(coords)):
+                    coord = coords[k_i].astype(np.uint8)
+                    ref_img = cv2.circle(this_image1, coord, (255, 0, 0), 10)
+                pred_img.append(ref_img)
+
+                this_pred = preds[0][p_i].detach().cpu().numpy()[n_i]
                 this_pred = np.transpose(this_pred, (1, 2, 0))
                 pred_img.append(flow_vis.flow_to_color(this_pred, convert_to_bgr=False))
+
             pred_img = np.concatenate(pred_img, axis=1)
             image = np.concatenate((this_image1, this_image2, target_img, pred_img), axis=1)
 
@@ -266,7 +280,7 @@ def train(args):
 
             logger.push(metrics)
             if total_steps % IMAGE_FREQ == IMAGE_FREQ - 1:
-                logger.write_images(image1, image2, flow, flow_predictions[0])
+                logger.write_images(image1, image2, flow, flow_predictions)
 
             if total_steps % VAL_FREQ == VAL_FREQ - 1:
                 PATH = 'checkpoints/%d_%s.pth' % (total_steps+1, args.name)

@@ -202,7 +202,8 @@ class RAFT(nn.Module):
                 # bs, n, c
                 context = self.context_embed[i](query)
                 # bs, n, c
-                reference_points = self.reference_embed[i](query).sigmoid().unsqueeze(2)
+                reference_points = inverse_sigmoid(reference_points) + self.reference_embed[i](query).unsqueeze(2)
+                reference_points = reference_points.sigmoid()
 
                 # bs, HW, n
                 # context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)

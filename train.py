@@ -212,8 +212,8 @@ class Logger:
                 ref_img = cv2.cvtColor(np.array(this_image1, dtype=np.uint8), cv2.COLOR_RGB2BGR)
                 for k_i in range(len(coords)):
                     coord = coords[k_i]
-                    ref_img = cv2.circle(ref_img, coord, 100, (255, 0, 255), -1)
-                ref_img = cv2.cvtColor(np.array(this_image1, dtype=np.uint8), cv2.COLOR_BGR2RGB)
+                    ref_img = cv2.circle(ref_img, coord, 20, (255, 0, 255), 20)
+                ref_img = cv2.cvtColor(np.array(ref_img, dtype=np.uint8), cv2.COLOR_BGR2RGB)
                 pred_img.append(ref_img)
 
                 this_pred = preds[0][p_i].detach().cpu().numpy()[n_i]

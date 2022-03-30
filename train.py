@@ -212,6 +212,8 @@ class Logger:
                 ref_img = np.array(this_image1, dtype=np.uint8)
                 for k_i in range(len(coords)):
                     coord = coords[k_i].astype(np.uint8)
+                    print(coord)
+                    print(ref_img.shape)
                     ref_img = cv2.circle(ref_img, coord, (255, 0, 0), 10)
                 pred_img.append(ref_img)
 

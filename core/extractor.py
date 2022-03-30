@@ -137,7 +137,7 @@ class BasicEncoder(nn.Module):
         # self.down_layer4 = self._make_down_layer(round(base_channel * 2 * 1.5), stride=2)
         self.down_dim = self.in_planes
         # self.down_layer5 = self._make_down_layer(base_channel * 2 * 2, stride=2)
-        self.top_layer = nn.Conv2d(base_channel * 2 * 2, base_channel, kernel_size=1, padding=0)
+        self.top_layer = nn.Conv2d(base_channel * 2, base_channel, kernel_size=1, padding=0)
         self.up_smooth1 = nn.Conv2d(base_channel, base_channel, kernel_size=3, padding=1)
         self.up_lateral1 = nn.Conv2d(round(base_channel * 1.5), base_channel, kernel_size=1, padding=0)
         self.up_smooth2 = nn.Conv2d(base_channel, base_channel, kernel_size=3, padding=1)

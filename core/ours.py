@@ -191,10 +191,11 @@ class RAFT(nn.Module):
             sparse_predictions = list()
             for i in range(len(self.decoder)):
                 # bs, n, 2
-                if i <= 0:
-                    reference_points = self.reference_embed[i](query).sigmoid()
-                else:
-                    reference_points = (inverse_sigmoid(reference_points) + self.reference_embed[i](query)).sigmoid()
+                # if i <= 0:
+                #     reference_points = self.reference_embed[i](query).sigmoid()
+                # else:
+                #     reference_points = (inverse_sigmoid(reference_points) + self.reference_embed[i](query)).sigmoid()
+                reference_points = self.reference_embed[i](query).sigmoid()
 
                 # bs, n, c
                 query = self.decoder[i](query, query_pos, reference_points.unsqueeze(2),

@@ -209,12 +209,13 @@ class Logger:
                 ref, sparse_flow = preds[1][p_i]
                 coords = torch.round(ref * scale).long()
                 coords = coords.detach().cpu().numpy()[n_i]
-                ref_img = np.copy(this_image1).astype(np.uint8)
+                ref_img = cv2.cvtColor(np.array(this_image1, dtype=np.uint8), cv2.COLOR_RGB2BGR)
                 for k_i in range(len(coords)):
                     coord = coords[k_i].astype(np.uint8).tolist()
                     print(coord)
                     print(ref_img.shape)
                     ref_img = cv2.circle(ref_img, coord, 20, (255, 0, 0), 10)
+                ref_img = cv2.cvtColor(np.array(this_image1, dtype=np.uint8), cv2.COLOR_BGR2RGB)
                 pred_img.append(ref_img)
 
                 this_pred = preds[0][p_i].detach().cpu().numpy()[n_i]

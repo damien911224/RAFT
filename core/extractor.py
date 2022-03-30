@@ -185,8 +185,8 @@ class BasicEncoder(nn.Module):
         x = self.relu1(x)
 
         D1 = self.down_layer1(x)
-        D2 = self.down_layer2(x)
-        D3 = self.down_layer3(x)
+        D2 = self.down_layer2(D1)
+        D3 = self.down_layer3(D2)
         # x = self.down_layer4(x)
         # x = self.down_layer5(x)
 

@@ -62,7 +62,7 @@ class RAFT(nn.Module):
         self.context_embed = MLP(d_model, self.extractor.up_dim, self.extractor.up_dim, 3)
         # self.reference_embed = MLP(d_model, d_model, 2, 3)
         self.reference_embed = nn.Linear(d_model, 2)
-        self.confidence_embed = nn.Linear(d_model, 1)
+        # self.confidence_embed = nn.Linear(d_model, 1)
 
         self.reset_parameters()
 
@@ -73,7 +73,7 @@ class RAFT(nn.Module):
         self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(iterations)])
         self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(iterations)])
         self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(iterations)])
-        self.confidence_embed = nn.ModuleList([copy.deepcopy(self.confidence_embed) for _ in range(iterations)])
+        # self.confidence_embed = nn.ModuleList([copy.deepcopy(self.confidence_embed) for _ in range(iterations)])
 
     def reset_parameters(self):
         for p in self.parameters():
@@ -87,8 +87,8 @@ class RAFT(nn.Module):
         nn.init.constant_(self.flow_embed.bias, 0)
         nn.init.xavier_uniform_(self.flow_embed.weight)
         nn.init.constant_(self.flow_embed.bias, 0)
-        nn.init.xavier_uniform_(self.confidence_embed.weight)
-        nn.init.constant_(self.confidence_embed.bias, 0)
+        # nn.init.xavier_uniform_(self.confidence_embed.weight)
+        # nn.init.constant_(self.confidence_embed.bias, 0)
 
         nn.init.xavier_uniform_(self.row_pos_embed.weight)
         nn.init.xavier_uniform_(self.col_pos_embed.weight)
@@ -221,8 +221,8 @@ class RAFT(nn.Module):
                 # bs, n, 2
                 flow = inverse_sigmoid(reference_points) + self.flow_embed[i](query)
                 flow = reference_points - flow.sigmoid()
-                confidence = self.confidence_embed[i](query).sigmoid()
-                sparse_predictions.append((reference_points, flow, confidence))
+                # confidence = self.confidence_embed[i](query).sigmoid()
+                sparse_predictions.append((reference_points, flow))
                 # bs, n, c
                 context = self.context_embed[i](query)
                 # bs, n, c
@@ -233,7 +233,7 @@ class RAFT(nn.Module):
                 # context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
                 context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
                 # bs, HW, 2
-                context_flow = torch.bmm(context_flow * confidence.permute(0, 2, 1), flow)
+                context_flow = torch.bmm(context_flow, flow)
                 # bs, 2, H, W
                 context_flow = torch.tanh(context_flow.permute(0, 2, 1).view(bs, 2, H, W))
 

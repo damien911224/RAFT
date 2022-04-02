@@ -66,7 +66,7 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
         i_loss = (flow_preds[0][i] - flow_gt).abs()
         flow_loss += i_weight * (dense_valid[:, None] * i_loss).mean()
 
-        ref, sparse_flow, confidence = flow_preds[1][i]
+        ref, sparse_flow = flow_preds[1][i]
         n = ref.shape[1]
         scale = torch.tensor((I_W, I_H), dtype=torch.float32).view(1, 1, 2).to(sparse_flow.device)
         flatten_gt = flow_gt.flatten(2).permute(0, 2, 1)
@@ -102,7 +102,7 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
         # sparse_gt = torch.stack(sparse_gt, dim=0)
         # sparse_valid = torch.stack(sparse_valid, dim=0)
         sparse_valid = (sparse_valid >= 0.5) & (torch.sum(sparse_gt ** 2, dim=-1).sqrt() < max_flow)
-        sparse_i_loss = (sparse_flow * scale - sparse_gt).abs() * confidence
+        sparse_i_loss = (sparse_flow * scale - sparse_gt).abs()
         sparse_loss += i_weight * (sparse_valid[..., None] * sparse_i_loss).mean()
         # sparse_gt = flatten_gt[torch.arange(bs), floor_coords[torch.arange(bs), torch.arange(50)]] * \
         #             ref.frac()[torch.arange(bs), torch.arange(50)] + \
@@ -207,14 +207,15 @@ class Logger:
             target_img = flow_vis.flow_to_color(targets[n_i], convert_to_bgr=False)
             pred_img = list()
             for p_i in range(len(preds[0])):
-                ref, sparse_flow, confidence = preds[1][p_i]
+                ref, sparse_flow = preds[1][p_i]
                 coords = torch.round(ref * scale).long()
                 coords = coords.detach().cpu().numpy()[n_i]
-                confidence = np.squeeze(confidence.detach().cpu().numpy()[n_i])
+                # confidence = np.squeeze(confidence.detach().cpu().numpy()[n_i])
                 ref_img = cv2.cvtColor(np.array(this_image1, dtype=np.uint8), cv2.COLOR_RGB2BGR)
                 for k_i in range(len(coords)):
                     coord = coords[k_i]
-                    ref_img = cv2.circle(ref_img, coord, 10, (round(255 * confidence[k_i]), 0, 0), 10)
+                    ref_img = cv2.circle(ref_img, coord, 10, (255, 0, 0), 10)
+                    # ref_img = cv2.circle(ref_img, coord, 10, (round(255 * confidence[k_i]), 0, 0), 10)
                 ref_img = cv2.cvtColor(np.array(ref_img, dtype=np.uint8), cv2.COLOR_BGR2RGB)
                 pred_img.append(ref_img)
 

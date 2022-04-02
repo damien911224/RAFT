@@ -214,11 +214,12 @@ class RAFT(nn.Module):
                 # else:
                 #     reference_points = (inverse_sigmoid(reference_points.detach()) +
                 #                         self.reference_embed[i](query)).sigmoid()
-                if i <= 0:
-                    reference_points = init_ref
-                else:
-                    reference_points = (inverse_sigmoid(reference_points.detach()) +
-                                        self.reference_embed[i](query)).sigmoid()
+                # if i <= 0:
+                #     reference_points = init_ref
+                # else:
+                #     reference_points = (inverse_sigmoid(reference_points.detach()) +
+                #                         self.reference_embed[i](query)).sigmoid()
+                reference_points = self.reference_embed[i](query).sigmoid()
 
                 # bs, n, c
                 query = self.decoder[i](query, query_pos, reference_points.unsqueeze(2),
@@ -227,7 +228,7 @@ class RAFT(nn.Module):
                 # bs, n, 2
                 flow = inverse_sigmoid(reference_points.detach()) + self.flow_embed[i](query)
                 flow = reference_points.detach() - flow.sigmoid()
-                # confidence = self.confidence_embed[i](query).sigmoid()
+                confidence = self.confidence_embed[i](query).sigmoid()
                 sparse_predictions.append((reference_points, flow))
                 # flow = inverse_sigmoid(reference_points) + self.flow_embed[i](query)
                 # flow = reference_points - flow.sigmoid()
@@ -241,7 +242,7 @@ class RAFT(nn.Module):
                 # context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
                 context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
                 # bs, HW, 2
-                context_flow = torch.bmm(context_flow, flow)
+                context_flow = torch.bmm(context_flow * confidence.permute(0, 2, 1), flow)
                 # bs, 2, H, W
                 context_flow = torch.tanh(context_flow.permute(0, 2, 1).view(bs, 2, H, W))
 

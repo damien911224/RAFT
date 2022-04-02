@@ -52,6 +52,7 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
     n_predictions = len(flow_preds[0])
     flow_loss = 0.0
     sparse_loss = 0.0
+    variance_loss = 0.0
 
     # exlude invalid pixels and extremely large diplacements
     mag = torch.sum(flow_gt ** 2, dim=1).sqrt()
@@ -108,7 +109,9 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
         #             flatten_gt[torch.arange(bs), ceil_coords[torch.arange(bs), torch.arange(50)]] * \
         #             (1 - ref.frac()[torch.arange(bs), torch.arange(50)])
 
-    loss = flow_loss + sparse_loss * 0.1
+        variance_loss += ref.var(dim=1).sum(dim=-1).mean()
+
+    loss = flow_loss + sparse_loss - variance_loss
 
     epe = torch.sum((flow_preds[0][-1] - flow_gt)**2, dim=1).sqrt()
     epe = epe.view(-1)[dense_valid.view(-1)]

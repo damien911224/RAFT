@@ -39,13 +39,13 @@ class RAFT(nn.Module):
 
         d_model = 64
         self.extractor = BasicEncoder(base_channel=d_model, norm_fn="batch")
-        self.extractor_projection = \
-            nn.Sequential(nn.Conv2d(self.extractor.down_dim, d_model, kernel_size=1),
-            nn.GroupNorm(d_model // 8, d_model))
+        # self.extractor_projection = \
+        #     nn.Sequential(nn.Conv2d(self.extractor.down_dim, d_model, kernel_size=1),
+        #     nn.GroupNorm(d_model // 8, d_model))
 
         self.decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
-                                                             dropout=0.1, activation="relu",
+                                                             dropout=0.1, activation="gelu",
                                                              n_levels=2, n_heads=8, n_points=4, self_deformable=False)
                            for _ in range(6)))
 
@@ -57,9 +57,11 @@ class RAFT(nn.Module):
         self.query_embed = nn.Embedding(50, d_model)
         self.query_pos_embed = nn.Embedding(50, d_model)
         # self.query_ref_embed = nn.Embedding(50, 2)
-        self.flow_embed = MLP(d_model, d_model, 2, 3)
+        # self.flow_embed = MLP(d_model, d_model, 2, 3)
+        self.flow_embed = nn.Linear(d_model, 2)
         self.context_embed = MLP(d_model, d_model, self.extractor.up_dim, 3)
-        self.reference_embed = MLP(d_model, d_model, 2, 3)
+        # self.reference_embed = MLP(d_model, d_model, 2, 3)
+        self.reference_embed = nn.Linear(d_model, 2)
 
         iterations = 6
         # self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(iterations)])
@@ -76,8 +78,13 @@ class RAFT(nn.Module):
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
 
-        nn.init.xavier_uniform_(self.extractor_projection[0].weight)
-        nn.init.constant_(self.extractor_projection[0].bias, 0)
+        # nn.init.xavier_uniform_(self.extractor_projection[0].weight)
+        # nn.init.constant_(self.extractor_projection[0].bias, 0)
+
+        nn.init.xavier_uniform_(self.flow_embed.weight)
+        nn.init.constant_(self.flow_embed.bias, 0)
+        nn.init.xavier_uniform_(self.flow_embed.weight)
+        nn.init.constant_(self.flow_embed.bias, 0)
 
         nn.init.xavier_uniform_(self.row_pos_embed.weight)
         nn.init.xavier_uniform_(self.col_pos_embed.weight)
@@ -176,7 +183,9 @@ class RAFT(nn.Module):
             src_pos = self.get_embedding(D1, self.col_pos_embed, self.row_pos_embed).flatten(2).permute(0, 2, 1)
             src_img_embed = self.img_pos_embed.weight[None, :, None]
             src_pos = torch.flatten(torch.stack((src_pos, src_pos), dim=1) + src_img_embed, 1, 2)
-            D1, D2 = self.extractor_projection(torch.cat((D1, D2), dim=0)).flatten(2).permute(0, 2, 1).split(bs, dim=0)
+            # D1, D2 = self.extractor_projection(torch.cat((D1, D2), dim=0)).flatten(2).permute(0, 2, 1).split(bs, dim=0)
+            D1 = torch.flatten(D1, 2).permute(0, 2, 1)
+            D2 = torch.flatten(D2, 2).permute(0, 2, 1)
             src = torch.cat((D1, D2), dim=1)
 
             # bs, HW, CU1
@@ -251,7 +260,8 @@ class MLP(nn.Module):
     def forward(self, x):
         x = x.permute(0, 2, 1)
         for i, (layer, norm) in enumerate(zip(self.layers, self.norms)):
-            x = F.relu(norm(layer(x))) if i < self.num_layers - 1 else layer(x)
+            # x = F.relu(norm(layer(x))) if i < self.num_layers - 1 else layer(x)
+            x = F.gelu(norm(layer(x))) if i < self.num_layers - 1 else layer(x)
         x = x.permute(0, 2, 1)
         return x
 

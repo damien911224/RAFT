@@ -9,7 +9,8 @@ class ResidualBlock(nn.Module):
 
         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, padding=1, stride=stride)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, padding=1)
-        self.relu = nn.ReLU(inplace=True)
+        # self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.GELU()
 
         num_groups = planes // 8
 
@@ -62,7 +63,8 @@ class BottleneckBlock(nn.Module):
         self.conv1 = nn.Conv2d(in_planes, planes // 4, kernel_size=1, padding=0)
         self.conv2 = nn.Conv2d(planes // 4, planes // 4, kernel_size=3, padding=1, stride=stride)
         self.conv3 = nn.Conv2d(planes // 4, planes, kernel_size=1, padding=0)
-        self.relu = nn.ReLU(inplace=True)
+        # self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.GELU()
 
         num_groups = planes // 8
 
@@ -128,21 +130,22 @@ class BasicEncoder(nn.Module):
             self.norm1 = nn.Sequential()
 
         self.conv1 = nn.Conv2d(3, base_channel, kernel_size=7, stride=2, padding=3)
-        self.relu1 = nn.ReLU(inplace=True)
+        # self.relu1 = nn.ReLU(inplace=True)
+        self.relu1 = nn.GELU()
 
         self.in_planes = base_channel
         self.down_layer1 = self._make_down_layer(base_channel, stride=1)
         self.down_layer2 = self._make_down_layer(round(base_channel * 1.5), stride=2)
         self.down_layer3 = self._make_down_layer(base_channel * 2, stride=2)
-        # self.down_layer4 = self._make_down_layer(round(base_channel * 2 * 1.5), stride=2)
+        self.down_layer4 = self._make_down_layer(round(base_channel * 2 * 1.5), stride=2)
         self.down_dim = self.in_planes
         # self.down_layer5 = self._make_down_layer(base_channel * 2 * 2, stride=2)
-        self.top_layer = nn.Conv2d(base_channel * 2, base_channel, kernel_size=1, padding=0)
-        self.up_smooth1 = nn.Conv2d(base_channel, base_channel, kernel_size=3, padding=1)
-        self.up_lateral1 = nn.Conv2d(round(base_channel * 1.5), base_channel, kernel_size=1, padding=0)
-        self.up_smooth2 = nn.Conv2d(base_channel, base_channel, kernel_size=3, padding=1)
-        self.up_lateral2 = nn.Conv2d(base_channel, base_channel, kernel_size=1, padding=0)
-        self.up_dim = base_channel
+        self.top_layer = nn.Conv2d(round(base_channel * 2 * 1.5), round(base_channel * 1.5), kernel_size=1, padding=0)
+        self.up_smooth1 = nn.Conv2d(round(base_channel * 1.5), round(base_channel * 1.5), kernel_size=3, padding=1)
+        self.up_lateral1 = nn.Conv2d(base_channel * 2, round(base_channel * 1.5), kernel_size=1, padding=0)
+        self.up_smooth2 = nn.Conv2d(round(base_channel * 1.5), round(base_channel * 1.5), kernel_size=3, padding=1)
+        self.up_lateral2 = nn.Conv2d(round(base_channel * 1.5), round(base_channel * 1.5), kernel_size=1, padding=0)
+        self.up_dim = round(base_channel * 1.5)
         # self.up_layer3 = self._make_up_layer(base_channel * 2, scale=2.0)
 
         for m in self.modules():
@@ -173,7 +176,8 @@ class BasicEncoder(nn.Module):
             layer3 = nn.InstanceNorm2d(dim)
         else:
             layer3 = nn.Sequential()
-        layer4 = nn.ReLU()
+        # layer4 = nn.ReLU()
+        layer4 = nn.GELU()
         layers = (layer1, layer2, layer3, layer4)
 
         self.in_planes = dim
@@ -187,23 +191,24 @@ class BasicEncoder(nn.Module):
         D1 = self.down_layer1(x)
         D2 = self.down_layer2(D1)
         D3 = self.down_layer3(D2)
-        # x = self.down_layer4(x)
+        D4 = self.down_layer4(D3)
         # x = self.down_layer5(x)
 
-        D1_x1, D1_x2 = torch.split(D1, D1.shape[0] // 2, dim=0)
+        # D1_x1, D1_x2 = torch.split(D1, D1.shape[0] // 2, dim=0)
         D2_x1, D2_x2 = torch.split(D2, D2.shape[0] // 2, dim=0)
         D3_x1, D3_x2 = torch.split(D3, D3.shape[0] // 2, dim=0)
+        D4_x1, D4_x2 = torch.split(D4, D4.shape[0] // 2, dim=0)
 
-        T = self.top_layer(D3_x1)
+        T = self.top_layer(D4_x1)
 
-        D2_x1 = self.up_lateral1(D2_x1)
-        U1 = self.up_smooth1(F.upsample(T, scale_factor=2.0, mode="bilinear") + D2_x1)
-        D1_x1 = self.up_lateral2(D1_x1)
-        U2 = self.up_smooth2(F.upsample(U1, scale_factor=2.0, mode="bilinear") + D1_x1)
+        D3_x1 = self.up_lateral1(D3_x1)
+        U1 = self.up_smooth1(F.upsample(T, scale_factor=2.0, mode="bilinear") + D3_x1)
+        D2_x1 = self.up_lateral2(D2_x1)
+        U2 = self.up_smooth2(F.upsample(U1, scale_factor=2.0, mode="bilinear") + D2_x1)
         # x = self.up_layer2(x)
         # U1 = self.up_layer3(x)
 
-        return D3_x1, D3_x2, U2
+        return D4_x1, D4_x2, U2
 
 
 class SmallEncoder(nn.Module):
@@ -224,7 +229,8 @@ class SmallEncoder(nn.Module):
             self.norm1 = nn.Sequential()
 
         self.conv1 = nn.Conv2d(3, 32, kernel_size=7, stride=2, padding=3)
-        self.relu1 = nn.ReLU(inplace=True)
+        # self.relu1 = nn.ReLU(inplace=True)
+        self.relu1 = nn.GELU()
 
         self.in_planes = 32
         self.layer1 = self._make_layer(32, stride=1)

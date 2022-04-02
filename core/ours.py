@@ -57,11 +57,11 @@ class RAFT(nn.Module):
         self.query_embed = nn.Embedding(64, d_model)
         self.query_pos_embed = nn.Embedding(64, d_model)
         # self.query_ref_embed = nn.Embedding(50, 2)
-        # self.flow_embed = MLP(d_model, d_model, 2, 3)
-        self.flow_embed = nn.Linear(d_model, 2)
+        self.flow_embed = MLP(d_model, d_model, 3, 3)
+        # self.flow_embed = nn.Linear(d_model, 2)
         self.context_embed = MLP(d_model, self.extractor.up_dim, self.extractor.up_dim, 3)
-        # self.reference_embed = MLP(d_model, d_model, 2, 3)
-        self.reference_embed = nn.Linear(d_model, 2)
+        self.reference_embed = MLP(d_model, d_model, 2, 3)
+        # self.reference_embed = nn.Linear(d_model, 2)
         # self.confidence_embed = nn.Linear(d_model, 1)
 
         self.reset_parameters()
@@ -226,9 +226,10 @@ class RAFT(nn.Module):
                                         src, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, 2
-                flow = inverse_sigmoid(reference_points.detach()) + self.flow_embed[i](query)
+                flow_embed = self.flow_embed[i](query)
+                flow = inverse_sigmoid(reference_points.detach()) + flow_embed[..., :2]
                 flow = reference_points.detach() - flow.sigmoid()
-                confidence = self.confidence_embed[i](query).sigmoid()
+                confidence = flow_embed[..., 2:].sigmoid()
                 sparse_predictions.append((reference_points, flow))
                 # flow = inverse_sigmoid(reference_points) + self.flow_embed[i](query)
                 # flow = reference_points - flow.sigmoid()

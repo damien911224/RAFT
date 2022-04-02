@@ -255,7 +255,7 @@ class MLP(nn.Module):
         # self.layers = nn.ModuleList(nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
         self.layers = nn.ModuleList(nn.Conv1d(n, k, kernel_size=1) for n, k in zip([input_dim] + h, h + [output_dim]))
         self.norms = nn.ModuleList([nn.GroupNorm(c // 2, c) if c is not None else None
-                                    for c in [h] + h + [None]])
+                                    for c in [hidden_dim] + h + [None]])
 
     def forward(self, x):
         x = x.permute(0, 2, 1)

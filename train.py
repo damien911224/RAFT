@@ -108,7 +108,7 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
         #             flatten_gt[torch.arange(bs), ceil_coords[torch.arange(bs), torch.arange(50)]] * \
         #             (1 - ref.frac()[torch.arange(bs), torch.arange(50)])
 
-    loss = flow_loss + sparse_loss
+    loss = flow_loss + sparse_loss * 0.5
 
     epe = torch.sum((flow_preds[0][-1] - flow_gt)**2, dim=1).sqrt()
     epe = epe.view(-1)[dense_valid.view(-1)]
@@ -210,7 +210,8 @@ class Logger:
                 ref_img = cv2.cvtColor(np.array(this_image1, dtype=np.uint8), cv2.COLOR_RGB2BGR)
                 for k_i in range(len(coords)):
                     coord = coords[k_i]
-                    ref_img = cv2.circle(ref_img, coord, 10, (255 * confidence, 0, 0), 10)
+                    ref_img = cv2.circle(ref_img, coord, 10,
+                                         (max(round(255 * confidence), 255), 0, 0), 10)
                 ref_img = cv2.cvtColor(np.array(ref_img, dtype=np.uint8), cv2.COLOR_BGR2RGB)
                 pred_img.append(ref_img)
 

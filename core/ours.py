@@ -37,8 +37,8 @@ class RAFT(nn.Module):
         if "dropout" not in self.args:
             self.args.dropout = 0
 
-        d_model = 64
-        self.extractor = BasicEncoder(base_channel=d_model, norm_fn="batch")
+        self.extractor = BasicEncoder(base_channel=64, norm_fn="batch")
+        d_model = self.extractor.down_dim
         # self.extractor_projection = \
         #     nn.Sequential(nn.Conv2d(self.extractor.down_dim, d_model, kernel_size=1),
         #     nn.GroupNorm(d_model // 8, d_model))
@@ -59,7 +59,7 @@ class RAFT(nn.Module):
         # self.query_ref_embed = nn.Embedding(50, 2)
         # self.flow_embed = MLP(d_model, d_model, 2, 3)
         self.flow_embed = nn.Linear(d_model, 2)
-        self.context_embed = MLP(d_model, d_model, self.extractor.up_dim, 3)
+        self.context_embed = MLP(d_model, self.extractor.up_dim, self.extractor.up_dim, 3)
         # self.reference_embed = MLP(d_model, d_model, 2, 3)
         self.reference_embed = nn.Linear(d_model, 2)
 

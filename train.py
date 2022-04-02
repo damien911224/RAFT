@@ -109,7 +109,7 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
         #             flatten_gt[torch.arange(bs), ceil_coords[torch.arange(bs), torch.arange(50)]] * \
         #             (1 - ref.frac()[torch.arange(bs), torch.arange(50)])
 
-        variance_loss += ref.var(dim=1).sum(dim=-1).mean()
+        variance_loss += ref.var(dim=1).sum(dim=-1).mean().log()
 
     loss = flow_loss + sparse_loss - variance_loss
 

@@ -67,12 +67,12 @@ class RAFT(nn.Module):
         self.reset_parameters()
 
         iterations = 6
-        self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(iterations)])
-        self.context_embed = nn.ModuleList([self.context_embed for _ in range(iterations)])
-        self.reference_embed = nn.ModuleList([self.reference_embed for _ in range(iterations)])
-        # self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(iterations)])
-        # self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(iterations)])
-        # self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(iterations)])
+        # self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(iterations)])
+        # self.context_embed = nn.ModuleList([self.context_embed for _ in range(iterations)])
+        # self.reference_embed = nn.ModuleList([self.reference_embed for _ in range(iterations)])
+        self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(iterations)])
+        self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(iterations)])
+        self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(iterations)])
         # self.confidence_embed = nn.ModuleList([copy.deepcopy(self.confidence_embed) for _ in range(iterations)])
 
     def reset_parameters(self):
@@ -203,6 +203,8 @@ class RAFT(nn.Module):
             spatial_shapes = torch.as_tensor([(h, w), ] * 2, dtype=torch.long, device=D1.device)
             level_start_index = torch.cat((spatial_shapes.new_zeros((1, )), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
+            init_ref = self.get_reference_points((8, 8), device=D1.device)
+
             flow_predictions = list()
             sparse_predictions = list()
             for i in range(len(self.decoder)):
@@ -212,7 +214,10 @@ class RAFT(nn.Module):
                 # else:
                 #     reference_points = (inverse_sigmoid(reference_points.detach()) +
                 #                         self.reference_embed[i](query)).sigmoid()
-                reference_points = self.reference_embed[i](query).sigmoid()
+                if i <= 0:
+                    reference_points = init_ref
+                else:
+                    reference_points = self.reference_embed[i](query).sigmoid()
 
                 # bs, n, c
                 query = self.decoder[i](query, query_pos, reference_points.unsqueeze(2),

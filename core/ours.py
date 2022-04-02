@@ -63,6 +63,8 @@ class RAFT(nn.Module):
         # self.reference_embed = MLP(d_model, d_model, 2, 3)
         self.reference_embed = nn.Linear(d_model, 2)
 
+        self.reset_parameters()
+
         iterations = 6
         # self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(iterations)])
         # self.context_embed = nn.ModuleList([self.context_embed for _ in range(iterations)])
@@ -70,8 +72,6 @@ class RAFT(nn.Module):
         self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(iterations)])
         self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(iterations)])
         self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(iterations)])
-
-        self.reset_parameters()
 
     def reset_parameters(self):
         for p in self.parameters():

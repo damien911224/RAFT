@@ -37,7 +37,7 @@ class RAFT(nn.Module):
         if "dropout" not in self.args:
             self.args.dropout = 0
 
-        self.extractor = BasicEncoder(base_channel=64, norm_fn="batch")
+        self.extractor = BasicEncoder(base_channel=64, norm_fn="group")
         d_model = self.extractor.down_dim
         # self.extractor_projection = \
         #     nn.Sequential(nn.Conv2d(self.extractor.down_dim, d_model, kernel_size=1),

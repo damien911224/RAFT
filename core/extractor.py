@@ -134,7 +134,7 @@ class BasicEncoder(nn.Module):
         self.relu1 = nn.GELU()
 
         self.in_planes = base_channel
-        self.down_layer1 = self._make_down_layer(base_channel, stride=2)
+        self.down_layer1 = self._make_down_layer(base_channel, stride=1)
         self.down_layer2 = self._make_down_layer(round(base_channel * 1.5), stride=2)
         self.down_layer3 = self._make_down_layer(base_channel * 2, stride=2)
         self.down_layer4 = self._make_down_layer(round(base_channel * 2 * 1.5), stride=2)

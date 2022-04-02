@@ -217,7 +217,8 @@ class RAFT(nn.Module):
                 if i <= 0:
                     reference_points = init_ref
                 else:
-                    reference_points = self.reference_embed[i](query).sigmoid()
+                    reference_points = (inverse_sigmoid(reference_points.detach()) +
+                                        self.reference_embed[i](query)).sigmoid()
 
                 # bs, n, c
                 query = self.decoder[i](query, query_pos, reference_points.unsqueeze(2),

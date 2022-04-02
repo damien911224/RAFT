@@ -207,6 +207,7 @@ class Logger:
                 ref, sparse_flow, confidence = preds[1][p_i]
                 coords = torch.round(ref * scale).long()
                 coords = coords.detach().cpu().numpy()[n_i]
+                confidence = confidence.detach().cpu().numpy()[n_i]
                 ref_img = cv2.cvtColor(np.array(this_image1, dtype=np.uint8), cv2.COLOR_RGB2BGR)
                 for k_i in range(len(coords)):
                     coord = coords[k_i]

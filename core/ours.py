@@ -67,12 +67,12 @@ class RAFT(nn.Module):
         self.reset_parameters()
 
         iterations = 6
-        # self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(iterations)])
-        # self.context_embed = nn.ModuleList([self.context_embed for _ in range(iterations)])
-        # self.reference_embed = nn.ModuleList([self.reference_embed for _ in range(iterations)])
-        self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(iterations)])
-        self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(iterations)])
-        self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(iterations)])
+        self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(iterations)])
+        self.context_embed = nn.ModuleList([self.context_embed for _ in range(iterations)])
+        self.reference_embed = nn.ModuleList([self.reference_embed for _ in range(iterations)])
+        # self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(iterations)])
+        # self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(iterations)])
+        # self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(iterations)])
         # self.confidence_embed = nn.ModuleList([copy.deepcopy(self.confidence_embed) for _ in range(iterations)])
 
     def reset_parameters(self):
@@ -207,12 +207,12 @@ class RAFT(nn.Module):
             sparse_predictions = list()
             for i in range(len(self.decoder)):
                 # bs, n, 2
-                if i <= 0:
-                    reference_points = self.reference_embed[i](query).sigmoid()
-                else:
-                    reference_points = (inverse_sigmoid(reference_points.detach()) +
-                                        self.reference_embed[i](query)).sigmoid()
-                # reference_points = self.reference_embed[i](query).sigmoid()
+                # if i <= 0:
+                #     reference_points = self.reference_embed[i](query).sigmoid()
+                # else:
+                #     reference_points = (inverse_sigmoid(reference_points.detach()) +
+                #                         self.reference_embed[i](query)).sigmoid()
+                reference_points = self.reference_embed[i](query).sigmoid()
 
                 # bs, n, c
                 query = self.decoder[i](query, query_pos, reference_points.unsqueeze(2),

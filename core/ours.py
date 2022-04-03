@@ -57,9 +57,9 @@ class RAFT(nn.Module):
         self.query_embed = nn.Embedding(64, d_model)
         self.query_pos_embed = nn.Embedding(64, d_model)
         # self.query_ref_embed = nn.Embedding(50, 2)
-        self.flow_embed = MLP(d_model, d_model, 3, 3)
+        self.flow_embed = MLP(d_model, d_model, 2, 3)
         # self.flow_embed = nn.Linear(d_model, 2)
-        self.context_embed = MLP(d_model, self.extractor.up_dim, self.extractor.up_dim, 3)
+        self.context_embed = MLP(d_model, self.extractor.up_dim, self.extractor.up_dim, 3, last_activate=True)
         self.reference_embed = MLP(d_model, d_model, 2, 3)
         # self.reference_embed = nn.Linear(d_model, 2)
         # self.confidence_embed = nn.Linear(d_model, 1)
@@ -229,7 +229,7 @@ class RAFT(nn.Module):
                 flow_embed = self.flow_embed[i](query)
                 flow = inverse_sigmoid(reference_points.detach()) + flow_embed[..., :2]
                 flow = reference_points.detach() - flow.sigmoid()
-                confidence = flow_embed[..., 2:].sigmoid()
+                # confidence = flow_embed[..., 2:].sigmoid()
                 sparse_predictions.append((reference_points, flow))
                 # flow = inverse_sigmoid(reference_points) + self.flow_embed[i](query)
                 # flow = reference_points - flow.sigmoid()
@@ -243,7 +243,7 @@ class RAFT(nn.Module):
                 # context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
                 context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
                 # bs, HW, 2
-                context_flow = torch.bmm(context_flow * confidence.permute(0, 2, 1), flow)
+                context_flow = torch.bmm(context_flow, flow)
                 # bs, 2, H, W
                 context_flow = torch.tanh(context_flow.permute(0, 2, 1).view(bs, 2, H, W))
 
@@ -263,20 +263,21 @@ class RAFT(nn.Module):
 class MLP(nn.Module):
     """ Very simple multi-layer perceptron (also called FFN)"""
 
-    def __init__(self, input_dim, hidden_dim, output_dim, num_layers):
+    def __init__(self, input_dim, hidden_dim, output_dim, num_layers, last_activate=False):
         super().__init__()
         self.num_layers = num_layers
+        self.last_activate = last_activate
         h = [hidden_dim] * (num_layers - 1)
         # self.layers = nn.ModuleList(nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
         self.layers = nn.ModuleList(nn.Conv1d(n, k, kernel_size=1) for n, k in zip([input_dim] + h, h + [output_dim]))
         self.norms = nn.ModuleList([nn.GroupNorm(c // 2, c) if c is not None else None
-                                    for c in [hidden_dim] + h + [None]])
+                                    for c in [hidden_dim] + h + [output_dim]])
 
     def forward(self, x):
         x = x.permute(0, 2, 1)
         for i, (layer, norm) in enumerate(zip(self.layers, self.norms)):
             # x = F.relu(norm(layer(x))) if i < self.num_layers - 1 else layer(x)
-            x = F.gelu(norm(layer(x))) if i < self.num_layers - 1 else layer(x)
+            x = F.gelu(norm(layer(x))) if (i < self.num_layers - 1) or self.last_activate else layer(x)
         x = x.permute(0, 2, 1)
         return x
 

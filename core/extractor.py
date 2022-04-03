@@ -138,14 +138,17 @@ class BasicEncoder(nn.Module):
         self.down_layer2 = self._make_down_layer(round(base_channel * 1.5), stride=2)
         self.down_layer3 = self._make_down_layer(base_channel * 2, stride=2)
         self.down_layer4 = self._make_down_layer(round(base_channel * 2 * 1.5), stride=2)
-        self.down_layer5 = self._make_down_layer(base_channel * 2 * 2, stride=2)
+        # self.down_layer5 = self._make_down_layer(base_channel * 2 * 2, stride=2)
         self.down_dim = self.in_planes
-        self.top_layer = nn.Conv2d(base_channel * 2 * 2, base_channel * 2, kernel_size=1, padding=0)
-        self.up_smooth1 = nn.Conv2d(base_channel * 2, base_channel * 2, kernel_size=3, padding=1)
-        self.up_lateral1 = nn.Conv2d(round(base_channel * 2 * 1.5), base_channel * 2, kernel_size=1, padding=0)
-        self.up_smooth2 = nn.Conv2d(base_channel * 2, base_channel * 2, kernel_size=3, padding=1)
-        self.up_lateral2 = nn.Conv2d(base_channel * 2, base_channel * 2, kernel_size=1, padding=0)
-        self.up_dim = base_channel * 2
+        self.up_layer1 = self._make_up_layer(base_channel * 2, scale=2.0)
+        self.up_layer2 = self._make_up_layer(base_channel * 2, scale=2.0)
+        self.up_dim = self.in_planes
+        # self.up_layer1 = self._make_up_layer(round(base_channel * 2 * 1.5), scale=2.0)
+        # self.top_layer = nn.Conv2d(base_channel * 2 * 2, base_channel * 2, kernel_size=1, padding=0)
+        # self.up_smooth1 = nn.Conv2d(base_channel * 2, base_channel * 2, kernel_size=3, padding=1)
+        # self.up_lateral1 = nn.Conv2d(round(base_channel * 2 * 1.5), base_channel * 2, kernel_size=1, padding=0)
+        # self.up_smooth2 = nn.Conv2d(base_channel * 2, base_channel * 2, kernel_size=3, padding=1)
+        # self.up_lateral2 = nn.Conv2d(base_channel * 2, base_channel * 2, kernel_size=1, padding=0)
         # self.up_layer3 = self._make_up_layer(base_channel * 2, scale=2.0)
 
         for m in self.modules():
@@ -192,24 +195,29 @@ class BasicEncoder(nn.Module):
         D2 = self.down_layer2(D1)
         D3 = self.down_layer3(D2)
         D4 = self.down_layer4(D3)
-        D5 = self.down_layer5(D4)
+        # D5 = self.down_layer5(D4)
+
+        D4_x1, D4_x2 = torch.split(D4, D4.shape[0] // 2, dim=0)
+
+        U1 = self.up_layer1(D4_x1)
+        U2 = self.up_layer2(U1)
 
         # D1_x1, D1_x2 = torch.split(D1, D1.shape[0] // 2, dim=0)
         # D2_x1, D2_x2 = torch.split(D2, D2.shape[0] // 2, dim=0)
-        D3_x1, D3_x2 = torch.split(D3, D3.shape[0] // 2, dim=0)
-        D4_x1, D4_x2 = torch.split(D4, D4.shape[0] // 2, dim=0)
-        D5_x1, D5_x2 = torch.split(D5, D5.shape[0] // 2, dim=0)
+        # D3_x1, D3_x2 = torch.split(D3, D3.shape[0] // 2, dim=0)
+        # D4_x1, D4_x2 = torch.split(D4, D4.shape[0] // 2, dim=0)
+        # D5_x1, D5_x2 = torch.split(D5, D5.shape[0] // 2, dim=0)
 
-        T = self.top_layer(D5_x1)
+        # T = self.top_layer(D5_x1)
 
-        D4_x1 = self.up_lateral1(D4_x1)
-        U1 = self.up_smooth1(F.upsample(T, scale_factor=2.0, mode="bilinear") + D4_x1)
-        D3_x1 = self.up_lateral2(D3_x1)
-        U2 = self.up_smooth2(F.upsample(U1, scale_factor=2.0, mode="bilinear") + D3_x1)
+        # D4_x1 = self.up_lateral1(D4_x1)
+        # U1 = self.up_smooth1(F.upsample(T, scale_factor=2.0, mode="bilinear") + D4_x1)
+        # D3_x1 = self.up_lateral2(D3_x1)
+        # U2 = self.up_smooth2(F.upsample(U1, scale_factor=2.0, mode="bilinear") + D3_x1)
         # x = self.up_layer2(x)
         # U1 = self.up_layer3(x)
 
-        return D5_x1, D5_x2, U2
+        return D4_x1, D4_x2, U2
 
 
 class SmallEncoder(nn.Module):

@@ -44,10 +44,10 @@ class RAFT(nn.Module):
         #     nn.GroupNorm(d_model // 8, d_model))
 
         self.encoder = \
-            nn.Sequential(*(DeformableTransformerEncoderLayer(d_model=d_model, d_ffn=d_model * 4,
-                                                              dropout=0.1, activation="gelu",
-                                                              n_levels=2, n_heads=8, n_points=4)
-                            for _ in range(6)))
+            nn.ModuleList((DeformableTransformerEncoderLayer(d_model=d_model, d_ffn=d_model * 4,
+                                                             dropout=0.1, activation="gelu",
+                                                             n_levels=2, n_heads=8, n_points=4)
+                           for _ in range(6)))
 
         self.decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
@@ -211,7 +211,8 @@ class RAFT(nn.Module):
 
             src_ref = self.get_reference_points(spatial_shapes, device=D1.device)
 
-            src = self.encoder(src, src_pos, src_ref, spatial_shapes, level_start_index)
+            for i in range(len(self.encoder)):
+                src = self.encoder[i](src, src_pos, src_ref, spatial_shapes, level_start_index)
 
             flow_predictions = list()
             sparse_predictions = list()

@@ -56,8 +56,8 @@ class RAFT(nn.Module):
                            for _ in range(6)))
 
         h, w = args.image_size[0], args.image_size[1]
-        self.row_pos_embed = nn.Embedding(w // (2 ** 3), d_model // 2)
-        self.col_pos_embed = nn.Embedding(h // (2 ** 3), d_model // 2)
+        self.row_pos_embed = nn.Embedding(w // (2 ** 3), d_model)
+        self.col_pos_embed = nn.Embedding(h // (2 ** 3), d_model)
         self.img_pos_embed = nn.Embedding(2, d_model)
 
         self.query_embed = nn.Embedding(100, d_model)
@@ -139,6 +139,8 @@ class RAFT(nn.Module):
 
         this_embed = torch.cat((col_embed.weight.unsqueeze(1).repeat(1, p_w, 1),
                                 row_embed.weight.unsqueeze(0).repeat(p_h, 1, 1)), dim=-1)
+        this_embed = col_embed.weight.unsqueeze(1).repeat(1, p_w, 1) + \
+                     row_embed.weight.unsqueeze(0).repeat(p_h, 1, 1)
         this_embed = this_embed.permute(2, 0, 1).unsqueeze(0)
 
         if f_h != p_h:

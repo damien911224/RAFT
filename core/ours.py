@@ -43,6 +43,12 @@ class RAFT(nn.Module):
         #     nn.Sequential(nn.Conv2d(self.extractor.down_dim, d_model, kernel_size=1),
         #     nn.GroupNorm(d_model // 8, d_model))
 
+        self.encoder = \
+            nn.Sequential(*(DeformableTransformerEncoderLayer(d_model=d_model, d_ffn=d_model * 4,
+                                                              dropout=0.1, activation="gelu",
+                                                              n_levels=2, n_heads=8, n_points=4)
+                            for _ in range(6)))
+
         self.decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
                                                              dropout=0.1, activation="gelu",
@@ -203,7 +209,9 @@ class RAFT(nn.Module):
             spatial_shapes = torch.as_tensor([(h, w), ] * 2, dtype=torch.long, device=D1.device)
             level_start_index = torch.cat((spatial_shapes.new_zeros((1, )), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
-            # init_ref = self.get_reference_points([(8, 8)], device=D1.device).squeeze(2).repeat(bs, 1, 1)
+            src_ref = self.get_reference_points(spatial_shapes, device=D1.device)
+
+            src = self.encoder(src, src_pos, src_ref, spatial_shapes, level_start_index)
 
             flow_predictions = list()
             sparse_predictions = list()

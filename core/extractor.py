@@ -148,13 +148,13 @@ class BasicEncoder(nn.Module):
         #                     self._get_norm_func(base_channel * 2, norm_fn=self.norm_fn)))
         self.up_top1 = \
             nn.Sequential(*(nn.Conv2d(base_channel * 2 * 2, round(base_channel * 2 * 1.5), kernel_size=1, padding=0),
-                            self._get_norm_func(base_channel * 2, norm_fn=self.norm_fn)))
+                            self._get_norm_func(round(base_channel * 2 * 1.5), norm_fn=self.norm_fn)))
         self.up_lateral1 = \
             nn.Sequential(*(nn.Conv2d(round(base_channel * 2 * 1.5), round(base_channel * 2 * 1.5), kernel_size=1, padding=0),
-                            self._get_norm_func(base_channel * 2, norm_fn=self.norm_fn)))
+                            self._get_norm_func(round(base_channel * 2 * 1.5), norm_fn=self.norm_fn)))
         self.up_smooth1 = \
             nn.Sequential(*(nn.Conv2d(round(base_channel * 2 * 1.5), round(base_channel * 2 * 1.5), kernel_size=3, padding=1),
-                            self._get_norm_func(base_channel * 2, norm_fn=self.norm_fn),
+                            self._get_norm_func(round(base_channel * 2 * 1.5), norm_fn=self.norm_fn),
                             nn.GELU()))
         self.up_top2 = \
             nn.Sequential(*(nn.Conv2d(round(base_channel * 2 * 1.5), base_channel * 2, kernel_size=1, padding=0),

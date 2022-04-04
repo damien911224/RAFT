@@ -37,7 +37,7 @@ class RAFT(nn.Module):
         if "dropout" not in self.args:
             self.args.dropout = 0
 
-        self.extractor = BasicEncoder(base_channel=64, norm_fn="group")
+        self.extractor = BasicEncoder(base_channel=64, norm_fn="instance")
         d_model = self.extractor.down_dim
         # self.extractor_projection = \
         #     nn.Sequential(nn.Conv2d(self.extractor.down_dim, d_model, kernel_size=1),
@@ -54,8 +54,8 @@ class RAFT(nn.Module):
         self.col_pos_embed = nn.Embedding(h // (2 ** 3), d_model // 2)
         self.img_pos_embed = nn.Embedding(2, d_model)
 
-        self.query_embed = nn.Embedding(64, d_model)
-        self.query_pos_embed = nn.Embedding(64, d_model)
+        self.query_embed = nn.Embedding(100, d_model)
+        self.query_pos_embed = nn.Embedding(100, d_model)
         # self.query_ref_embed = nn.Embedding(50, 2)
         self.flow_embed = MLP(d_model, d_model, 2, 3)
         # self.flow_embed = nn.Linear(d_model, 2)
@@ -65,12 +65,12 @@ class RAFT(nn.Module):
         # self.confidence_embed = nn.Linear(d_model, 1)
 
         iterations = 6
-        # self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(iterations)])
-        # self.context_embed = nn.ModuleList([self.context_embed for _ in range(iterations)])
-        # self.reference_embed = nn.ModuleList([self.reference_embed for _ in range(iterations)])
-        self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(iterations)])
-        self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(iterations)])
-        self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(iterations)])
+        self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(iterations)])
+        self.context_embed = nn.ModuleList([self.context_embed for _ in range(iterations)])
+        self.reference_embed = nn.ModuleList([self.reference_embed for _ in range(iterations)])
+        # self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(iterations)])
+        # self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(iterations)])
+        # self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(iterations)])
         # self.confidence_embed = nn.ModuleList([copy.deepcopy(self.confidence_embed) for _ in range(iterations)])
 
         self.reset_parameters()
@@ -203,7 +203,7 @@ class RAFT(nn.Module):
             spatial_shapes = torch.as_tensor([(h, w), ] * 2, dtype=torch.long, device=D1.device)
             level_start_index = torch.cat((spatial_shapes.new_zeros((1, )), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
-            init_ref = self.get_reference_points([(8, 8)], device=D1.device).squeeze(2).repeat(bs, 1, 1)
+            # init_ref = self.get_reference_points([(8, 8)], device=D1.device).squeeze(2).repeat(bs, 1, 1)
 
             flow_predictions = list()
             sparse_predictions = list()

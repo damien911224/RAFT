@@ -37,7 +37,7 @@ class RAFT(nn.Module):
         if "dropout" not in self.args:
             self.args.dropout = 0
 
-        self.extractor = BasicEncoder(base_channel=64, norm_fn="instance")
+        self.extractor = BasicEncoder(base_channel=64, norm_fn="batch")
         d_model = self.extractor.down_dim
         # self.extractor_projection = \
         #     nn.Sequential(nn.Conv2d(self.extractor.down_dim, d_model, kernel_size=1),
@@ -281,7 +281,7 @@ class MLP(nn.Module):
         h = [hidden_dim] * (num_layers - 1)
         # self.layers = nn.ModuleList(nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
         self.layers = nn.ModuleList(nn.Conv1d(n, k, kernel_size=1) for n, k in zip([input_dim] + h, h + [output_dim]))
-        self.norms = nn.ModuleList([nn.GroupNorm(c // 2, c) if c is not None else None
+        self.norms = nn.ModuleList([nn.BatchNorm1d(c) if c is not None else None
                                     for c in [hidden_dim] + h + [output_dim]])
 
     def forward(self, x):

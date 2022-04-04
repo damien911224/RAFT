@@ -67,7 +67,7 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
         flow_loss += i_weight * (dense_valid[:, None] * i_loss).mean()
 
         ref, sparse_flow = flow_preds[1][i]
-        n = ref.shape[1]
+        # n = ref.shape[1]
         scale = torch.tensor((I_W - 1, I_H - 1), dtype=torch.float32).view(1, 1, 2).to(sparse_flow.device)
         flatten_gt = flow_gt.flatten(2).permute(0, 2, 1)
         flatten_valid = valid.flatten(1)

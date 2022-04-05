@@ -83,10 +83,9 @@ class RAFT(nn.Module):
 
     def reset_parameters(self):
         for p in self.parameters():
-            print(p)
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
-        exit()
+
         # nn.init.xavier_uniform_(self.extractor_projection[0].weight)
         # nn.init.constant_(self.extractor_projection[0].bias, 0)
 

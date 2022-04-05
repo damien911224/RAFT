@@ -158,7 +158,7 @@ class BasicEncoder(nn.Module):
                             nn.GELU()))
         self.up_top2 = \
             nn.Sequential(*(nn.Conv2d(round(base_channel * 1.5), base_channel, kernel_size=1, padding=0),
-                            self._get_norm_func(base_channel * 2, norm_fn=self.norm_fn)))
+                            self._get_norm_func(base_channel, norm_fn=self.norm_fn)))
         self.up_lateral2 = \
             nn.Sequential(*(nn.Conv2d(base_channel, base_channel, kernel_size=1, padding=0),
                             self._get_norm_func(base_channel, norm_fn=self.norm_fn)))

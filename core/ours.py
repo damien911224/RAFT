@@ -71,12 +71,12 @@ class RAFT(nn.Module):
         # self.confidence_embed = nn.Linear(d_model, 1)
 
         iterations = 6
-        self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(iterations)])
-        self.context_embed = nn.ModuleList([self.context_embed for _ in range(iterations)])
-        self.reference_embed = nn.ModuleList([self.reference_embed for _ in range(iterations)])
-        # self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(iterations)])
-        # self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(iterations)])
-        # self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(iterations)])
+        # self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(iterations)])
+        # self.context_embed = nn.ModuleList([self.context_embed for _ in range(iterations)])
+        # self.reference_embed = nn.ModuleList([self.reference_embed for _ in range(iterations)])
+        self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(iterations)])
+        self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(iterations)])
+        self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(iterations)])
         # self.confidence_embed = nn.ModuleList([copy.deepcopy(self.confidence_embed) for _ in range(iterations)])
 
         self.reset_parameters()

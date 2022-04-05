@@ -211,10 +211,10 @@ class RAFT(nn.Module):
             spatial_shapes = torch.as_tensor([(h, w), ] * 2, dtype=torch.long, device=D1.device)
             level_start_index = torch.cat((spatial_shapes.new_zeros((1, )), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
-            src_ref = self.get_reference_points(spatial_shapes, device=D1.device)
-
-            for i in range(len(self.encoder)):
-                src = self.encoder[i](src, src_pos, src_ref, spatial_shapes, level_start_index)
+            # src_ref = self.get_reference_points(spatial_shapes, device=D1.device)
+            #
+            # for i in range(len(self.encoder)):
+            #     src = self.encoder[i](src, src_pos, src_ref, spatial_shapes, level_start_index)
 
             flow_predictions = list()
             sparse_predictions = list()

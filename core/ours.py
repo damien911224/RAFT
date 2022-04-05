@@ -230,6 +230,8 @@ class RAFT(nn.Module):
             for i in range(len(self.keypoint_decoder)):
                 if i <= 0:
                     reference_points = init_reference_points
+                    correlation = D2
+                    context = D1
                 else:
                     query = keypoint
 
@@ -243,11 +245,11 @@ class RAFT(nn.Module):
 
                 # bs, n, c
                 correlation = self.correlation_decoder[i](keypoint, query_pos, reference_points.unsqueeze(2),
-                                                          D2, src_pos, spatial_shapes, level_start_index)
+                                                          correlation, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, c
                 context = self.context_decoder[i](correlation, query_pos, reference_points.unsqueeze(2),
-                                                  D1, src_pos, spatial_shapes, level_start_index)
+                                                  context, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, 2
                 flow_embed = self.flow_embed[i](correlation)

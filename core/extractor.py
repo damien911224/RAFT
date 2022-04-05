@@ -137,8 +137,8 @@ class BasicEncoder(nn.Module):
         self.down_layer1 = self._make_down_layer(base_channel, stride=1)
         self.down_layer2 = self._make_down_layer(round(base_channel * 1.5), stride=2)
         self.down_layer3 = self._make_down_layer(base_channel * 2, stride=2)
-        self.down_layer4 = self._make_down_layer(round(base_channel * 2 * 1.5), stride=2)
-        self.down_layer5 = self._make_down_layer(base_channel * 2 * 2, stride=2)
+        # self.down_layer4 = self._make_down_layer(round(base_channel * 2 * 1.5), stride=2)
+        # self.down_layer5 = self._make_down_layer(base_channel * 2 * 2, stride=2)
         self.down_dim = self.in_planes
         # self.up_layer1 = self._make_up_layer(round(base_channel * 1.5), scale=2.0)
         # self.up_layer2 = self._make_up_layer(base_channel * 2, scale=2.0)
@@ -147,24 +147,24 @@ class BasicEncoder(nn.Module):
         #     nn.Sequential(*(nn.Conv2d(base_channel * 2 * 2, round(base_channel * 2 * 1.5), kernel_size=1, padding=0),
         #                     self._get_norm_func(base_channel * 2, norm_fn=self.norm_fn)))
         self.up_top1 = \
-            nn.Sequential(*(nn.Conv2d(base_channel * 2 * 2, round(base_channel * 2 * 1.5), kernel_size=1, padding=0),
-                            self._get_norm_func(round(base_channel * 2 * 1.5), norm_fn=self.norm_fn)))
+            nn.Sequential(*(nn.Conv2d(base_channel * 2, round(base_channel * 1.5), kernel_size=1, padding=0),
+                            self._get_norm_func(round(base_channel * 1.5), norm_fn=self.norm_fn)))
         self.up_lateral1 = \
-            nn.Sequential(*(nn.Conv2d(round(base_channel * 2 * 1.5), round(base_channel * 2 * 1.5), kernel_size=1, padding=0),
-                            self._get_norm_func(round(base_channel * 2 * 1.5), norm_fn=self.norm_fn)))
+            nn.Sequential(*(nn.Conv2d(round(base_channel * 1.5), round(base_channel * 1.5), kernel_size=1, padding=0),
+                            self._get_norm_func(round(base_channel * 1.5), norm_fn=self.norm_fn)))
         self.up_smooth1 = \
-            nn.Sequential(*(nn.Conv2d(round(base_channel * 2 * 1.5), round(base_channel * 2 * 1.5), kernel_size=3, padding=1),
-                            self._get_norm_func(round(base_channel * 2 * 1.5), norm_fn=self.norm_fn),
+            nn.Sequential(*(nn.Conv2d(round(base_channel * 1.5), round(base_channel * 1.5), kernel_size=3, padding=1),
+                            self._get_norm_func(round(base_channel * 1.5), norm_fn=self.norm_fn),
                             nn.GELU()))
         self.up_top2 = \
-            nn.Sequential(*(nn.Conv2d(round(base_channel * 2 * 1.5), base_channel * 2, kernel_size=1, padding=0),
+            nn.Sequential(*(nn.Conv2d(round(base_channel * 1.5), base_channel, kernel_size=1, padding=0),
                             self._get_norm_func(base_channel * 2, norm_fn=self.norm_fn)))
         self.up_lateral2 = \
-            nn.Sequential(*(nn.Conv2d(base_channel * 2, base_channel * 2, kernel_size=1, padding=0),
-                            self._get_norm_func(base_channel * 2, norm_fn=self.norm_fn)))
+            nn.Sequential(*(nn.Conv2d(base_channel, base_channel, kernel_size=1, padding=0),
+                            self._get_norm_func(base_channel, norm_fn=self.norm_fn)))
         self.up_smooth2 = \
-            nn.Sequential(*(nn.Conv2d(base_channel * 2, base_channel * 2, kernel_size=3, padding=1),
-                            self._get_norm_func(base_channel * 2, norm_fn=self.norm_fn),
+            nn.Sequential(*(nn.Conv2d(base_channel, base_channel, kernel_size=3, padding=1),
+                            self._get_norm_func(base_channel, norm_fn=self.norm_fn),
                             nn.GELU()))
         self.up_dim = base_channel * 2
         # self.up_smooth2 = nn.Conv2d(base_channel * 2, base_channel * 2, kernel_size=3, padding=1)

@@ -194,7 +194,7 @@ class RAFT(nn.Module):
             _, C, H, W = U1.shape
             # bs, hw, c
             src_pos = self.get_embedding(D1, self.col_pos_embed, self.row_pos_embed).flatten(2).permute(0, 2, 1)
-            src_img_embed = self.img_pos_embed.weight[None, :, None]
+            src_img_embed = self.img_pos_embed.weight[None, :]
             src_pos = torch.cat((torch.cat((src_pos, src_pos), dim=1), src_img_embed.repeat((bs, h * w, 1))), dim=-1)
             # D1, D2 = self.extractor_projection(torch.cat((D1, D2), dim=0)).flatten(2).permute(0, 2, 1).split(bs, dim=0)
             D1 = torch.flatten(D1, 2).permute(0, 2, 1)

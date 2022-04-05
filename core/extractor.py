@@ -166,7 +166,7 @@ class BasicEncoder(nn.Module):
             nn.Sequential(*(nn.Conv2d(base_channel, base_channel, kernel_size=3, padding=1),
                             self._get_norm_func(base_channel, norm_fn=self.norm_fn),
                             nn.GELU()))
-        self.up_dim = base_channel * 2
+        self.up_dim = base_channel
         # self.up_smooth2 = nn.Conv2d(base_channel * 2, base_channel * 2, kernel_size=3, padding=1)
         # self.up_lateral2 = nn.Conv2d(base_channel * 2, base_channel * 2, kernel_size=1, padding=0)
         # self.up_layer3 = self._make_up_layer(base_channel * 2, scale=2.0)

@@ -197,7 +197,6 @@ class RAFT(nn.Module):
             src_img_embed = self.img_pos_embed.weight[None, :]
             src_pos = torch.cat((torch.cat((src_pos, src_pos), dim=1), src_img_embed.repeat(1, h * w, 1)), dim=-1)
             # D1, D2 = self.extractor_projection(torch.cat((D1, D2), dim=0)).flatten(2).permute(0, 2, 1).split(bs, dim=0)
-            print(src_pos.shape)
             D1 = torch.flatten(D1, 2).permute(0, 2, 1)
             D2 = torch.flatten(D2, 2).permute(0, 2, 1)
             src = torch.cat((D1, D2), dim=1)
@@ -240,7 +239,6 @@ class RAFT(nn.Module):
 
                 # bs, n, 2
                 flow_embed = self.flow_embed[i](query)
-                print(flow_embed.shape)
                 flow = inverse_sigmoid(reference_points.detach()) + flow_embed[..., :2]
                 flow = reference_points.detach() - flow.sigmoid()
                 # confidence = flow_embed[..., 2:].sigmoid()
@@ -249,8 +247,6 @@ class RAFT(nn.Module):
                 # flow = reference_points - flow.sigmoid()
                 # bs, n, c
                 context = self.context_embed[i](query)
-                print(context.shape)
-                print(U1.shape)
                 # bs, n, c
                 # reference_points = inverse_sigmoid(reference_points.detach()) + self.reference_embed[i](query)
                 # reference_points = reference_points.unsqueeze(2).sigmoid()

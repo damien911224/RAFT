@@ -209,6 +209,8 @@ class RAFT(nn.Module):
             query_pos = self.query_pos_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
             # reference_points = self.query_ref_embed.weight.unsqueeze(0).repeat(bs, 1, 1).unsqueeze(2)
 
+            init_reference_points = self.get_reference_points([(10, 10), ], device=D1.device)
+
             spatial_shapes = torch.as_tensor([(h, w), ] * 2, dtype=torch.long, device=D1.device)
             level_start_index = torch.cat((spatial_shapes.new_zeros((1, )), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
@@ -221,17 +223,18 @@ class RAFT(nn.Module):
             sparse_predictions = list()
             for i in range(len(self.decoder)):
                 # bs, n, 2
-                # if i <= 0:
-                #     reference_points = self.reference_embed[i](query).sigmoid()
-                # else:
-                #     reference_points = (inverse_sigmoid(reference_points.detach()) +
-                #                         self.reference_embed[i](query)).sigmoid()
+                if i <= 0:
+                    reference_points = (inverse_sigmoid(init_reference_points.detach()) +
+                                        self.reference_embed[i](query)).sigmoid()
+                else:
+                    reference_points = (inverse_sigmoid(reference_points.detach()) +
+                                        self.reference_embed[i](query)).sigmoid()
                 # if i <= 0:
                 #     reference_points = init_ref
                 # else:
                 #     reference_points = (inverse_sigmoid(reference_points.detach()) +
                 #                         self.reference_embed[i](query)).sigmoid()
-                reference_points = self.reference_embed[i](query).sigmoid()
+                # reference_points = self.reference_embed[i](query).sigmoid()
 
                 # bs, n, c
                 query = self.decoder[i](query, query_pos, reference_points.unsqueeze(2),

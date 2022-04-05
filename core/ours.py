@@ -56,9 +56,9 @@ class RAFT(nn.Module):
                            for _ in range(6)))
 
         h, w = args.image_size[0], args.image_size[1]
-        self.row_pos_embed = nn.Embedding(w // (2 ** 3), d_model)
-        self.col_pos_embed = nn.Embedding(h // (2 ** 3), d_model)
-        self.img_pos_embed = nn.Embedding(2, d_model)
+        self.row_pos_embed = nn.Embedding(w // (2 ** 3), d_model // 8 * 3)
+        self.col_pos_embed = nn.Embedding(h // (2 ** 3), d_model // 8 * 3)
+        self.img_pos_embed = nn.Embedding(2, d_model // 8 * 2)
 
         self.query_embed = nn.Embedding(100, d_model)
         self.query_pos_embed = nn.Embedding(100, d_model)
@@ -96,11 +96,12 @@ class RAFT(nn.Module):
         # nn.init.xavier_uniform_(self.confidence_embed.weight)
         # nn.init.constant_(self.confidence_embed.bias, 0)
 
-        nn.init.xavier_uniform_(self.row_pos_embed.weight)
-        nn.init.xavier_uniform_(self.col_pos_embed.weight)
+        nn.init.uniform_(self.row_pos_embed.weight)
+        nn.init.uniform_(self.col_pos_embed.weight)
+        nn.init.uniform_(self.img_pos_embed.weight)
         nn.init.xavier_uniform_(self.query_embed.weight)
         # nn.init.uniform_(self.query_ref_embed.weight)
-        nn.init.xavier_uniform_(self.query_pos_embed.weight)
+        nn.init.uniform_(self.query_pos_embed.weight)
 
     def _get_clones(self, module, N):
         return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
@@ -137,10 +138,10 @@ class RAFT(nn.Module):
         p_h, _ = col_embed.weight.size()
         p_w, _ = row_embed.weight.size()
 
-        # this_embed = torch.cat((col_embed.weight.unsqueeze(1).repeat(1, p_w, 1),
-        #                         row_embed.weight.unsqueeze(0).repeat(p_h, 1, 1)), dim=-1)
-        this_embed = col_embed.weight.unsqueeze(1).repeat(1, p_w, 1) + \
-                     row_embed.weight.unsqueeze(0).repeat(p_h, 1, 1)
+        this_embed = torch.cat((col_embed.weight.unsqueeze(1).repeat(1, p_w, 1),
+                                row_embed.weight.unsqueeze(0).repeat(p_h, 1, 1)), dim=-1)
+        # this_embed = col_embed.weight.unsqueeze(1).repeat(1, p_w, 1) + \
+        #              row_embed.weight.unsqueeze(0).repeat(p_h, 1, 1)
         this_embed = this_embed.permute(2, 0, 1).unsqueeze(0)
 
         if f_h != p_h:
@@ -194,7 +195,7 @@ class RAFT(nn.Module):
             # bs, hw, c
             src_pos = self.get_embedding(D1, self.col_pos_embed, self.row_pos_embed).flatten(2).permute(0, 2, 1)
             src_img_embed = self.img_pos_embed.weight[None, :, None]
-            src_pos = torch.flatten(torch.stack((src_pos, src_pos), dim=1) + src_img_embed, 1, 2)
+            src_pos = torch.cat((torch.cat((src_pos, src_pos), dim=1), src_img_embed.repeat((bs, h * w, 1))), dim=-1)
             # D1, D2 = self.extractor_projection(torch.cat((D1, D2), dim=0)).flatten(2).permute(0, 2, 1).split(bs, dim=0)
             D1 = torch.flatten(D1, 2).permute(0, 2, 1)
             D2 = torch.flatten(D2, 2).permute(0, 2, 1)

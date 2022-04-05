@@ -68,8 +68,8 @@ class RAFT(nn.Module):
                            for _ in range(6)))
 
         h, w = args.image_size[0], args.image_size[1]
-        self.row_pos_embed = nn.Embedding(w // (2 ** 3), d_model // 8 * 3)
-        self.col_pos_embed = nn.Embedding(h // (2 ** 3), d_model // 8 * 3)
+        self.row_pos_embed = nn.Embedding(w // (2 ** 3), d_model // 2)
+        self.col_pos_embed = nn.Embedding(h // (2 ** 3), d_model // 2)
         # self.img_pos_embed = nn.Embedding(2, d_model // 8 * 2)
 
         self.query_embed = nn.Embedding(100, d_model)
@@ -251,7 +251,7 @@ class RAFT(nn.Module):
 
                 # bs, n, 2
                 flow_embed = self.flow_embed[i](correlation)
-                flow = inverse_sigmoid(reference_points.detach()) + flow_embed[..., :2]
+                flow = inverse_sigmoid(reference_points.detach()) + flow_embed
                 flow = reference_points.detach() - flow.sigmoid()
                 # confidence = flow_embed[..., 2:].sigmoid()
                 sparse_predictions.append((reference_points, flow))

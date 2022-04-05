@@ -70,7 +70,7 @@ class RAFT(nn.Module):
         h, w = args.image_size[0], args.image_size[1]
         self.row_pos_embed = nn.Embedding(w // (2 ** 3), d_model // 8 * 3)
         self.col_pos_embed = nn.Embedding(h // (2 ** 3), d_model // 8 * 3)
-        self.img_pos_embed = nn.Embedding(2, d_model // 8 * 2)
+        # self.img_pos_embed = nn.Embedding(2, d_model // 8 * 2)
 
         self.query_embed = nn.Embedding(100, d_model)
         self.query_pos_embed = nn.Embedding(100, d_model)
@@ -109,7 +109,7 @@ class RAFT(nn.Module):
 
         nn.init.uniform_(self.row_pos_embed.weight)
         nn.init.uniform_(self.col_pos_embed.weight)
-        nn.init.uniform_(self.img_pos_embed.weight)
+        # nn.init.uniform_(self.img_pos_embed.weight)
         nn.init.xavier_uniform_(self.query_embed.weight)
         # nn.init.uniform_(self.query_ref_embed.weight)
         nn.init.uniform_(self.query_pos_embed.weight)

@@ -89,10 +89,10 @@ class RAFT(nn.Module):
         # nn.init.xavier_uniform_(self.extractor_projection[0].weight)
         # nn.init.constant_(self.extractor_projection[0].bias, 0)
 
-        nn.init.xavier_uniform_(self.flow_embed.weight)
-        nn.init.constant_(self.flow_embed.bias, 0)
-        nn.init.xavier_uniform_(self.reference_embed.weight)
-        nn.init.constant_(self.reference_embed.bias, 0)
+        # nn.init.xavier_uniform_(self.flow_embed.weight)
+        # nn.init.constant_(self.flow_embed.bias, 0)
+        # nn.init.xavier_uniform_(self.reference_embed.weight)
+        # nn.init.constant_(self.reference_embed.bias, 0)
         # nn.init.xavier_uniform_(self.confidence_embed.weight)
         # nn.init.constant_(self.confidence_embed.bias, 0)
 

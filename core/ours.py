@@ -63,11 +63,11 @@ class RAFT(nn.Module):
         self.query_embed = nn.Embedding(100, d_model)
         self.query_pos_embed = nn.Embedding(100, d_model)
         # self.query_ref_embed = nn.Embedding(50, 2)
-        self.flow_embed = MLP(d_model, d_model, 2, 3)
-        # self.flow_embed = nn.Linear(d_model, 2)
+        # self.flow_embed = MLP(d_model, d_model, 2, 3)
+        self.flow_embed = nn.Linear(d_model, 2)
         self.context_embed = MLP(d_model, self.extractor.up_dim, self.extractor.up_dim, 3, last_activate=True)
-        self.reference_embed = MLP(d_model, d_model, 2, 3)
-        # self.reference_embed = nn.Linear(d_model, 2)
+        # self.reference_embed = MLP(d_model, d_model, 2, 3)
+        self.reference_embed = nn.Linear(d_model, 2)
         # self.confidence_embed = nn.Linear(d_model, 1)
 
         iterations = 6
@@ -89,10 +89,10 @@ class RAFT(nn.Module):
         # nn.init.xavier_uniform_(self.extractor_projection[0].weight)
         # nn.init.constant_(self.extractor_projection[0].bias, 0)
 
-        # nn.init.xavier_uniform_(self.flow_embed.weight)
-        # nn.init.constant_(self.flow_embed.bias, 0)
-        # nn.init.xavier_uniform_(self.flow_embed.weight)
-        # nn.init.constant_(self.flow_embed.bias, 0)
+        nn.init.xavier_uniform_(self.flow_embed.weight)
+        nn.init.constant_(self.flow_embed.bias, 0)
+        nn.init.xavier_uniform_(self.reference_embed.weight)
+        nn.init.constant_(self.reference_embed.bias, 0)
         # nn.init.xavier_uniform_(self.confidence_embed.weight)
         # nn.init.constant_(self.confidence_embed.bias, 0)
 

@@ -205,8 +205,8 @@ class RAFT(nn.Module):
             _, C, H, W = U1.shape
             # bs, hw, c
             src_pos = self.get_embedding(D1, self.col_pos_embed, self.row_pos_embed).flatten(2).permute(0, 2, 1)
-            D1 = torch.flatten(D1, 2).permute(0, 2, 1) + src_pos
-            D2 = torch.flatten(D2, 2).permute(0, 2, 1) + src_pos
+            D1 = torch.flatten(D1, 2).permute(0, 2, 1)
+            D2 = torch.flatten(D2, 2).permute(0, 2, 1)
 
             # bs, HW, CU1
             U1 = torch.flatten(U1, 2).permute(0, 2, 1)
@@ -221,9 +221,10 @@ class RAFT(nn.Module):
             spatial_shapes = torch.as_tensor([(h, w), ] * 1, dtype=torch.long, device=D1.device)
             level_start_index = torch.cat((spatial_shapes.new_zeros((1, )), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
-            # src_ref = self.get_reference_points(spatial_shapes, device=D1.device)
-            # for i in range(len(self.encoder)):
-            #     src = self.encoder[i](src, src_pos, src_ref, spatial_shapes, level_start_index)
+            src_ref = self.get_reference_points(spatial_shapes, device=D1.device)
+            for i in range(len(self.encoder)):
+                D1 = self.encoder[i](D1, src_pos, src_ref, spatial_shapes, level_start_index)
+                D2 = self.encoder[i](D2, src_pos, src_ref, spatial_shapes, level_start_index)
 
             flow_predictions = list()
             sparse_predictions = list()

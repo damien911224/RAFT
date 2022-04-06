@@ -205,8 +205,8 @@ class RAFT(nn.Module):
             _, C, H, W = U1.shape
             # bs, hw, c
             src_pos = self.get_embedding(D1, self.col_pos_embed, self.row_pos_embed).flatten(2).permute(0, 2, 1)
-            D1 = torch.flatten(D1, 2).permute(0, 2, 1)
-            D2 = torch.flatten(D2, 2).permute(0, 2, 1)
+            D1 = torch.flatten(D1, 2).permute(0, 2, 1) + src_pos
+            D2 = torch.flatten(D2, 2).permute(0, 2, 1) + src_pos
 
             # bs, HW, CU1
             U1 = torch.flatten(U1, 2).permute(0, 2, 1)
@@ -238,7 +238,7 @@ class RAFT(nn.Module):
                                                     D1, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, 2
-                reference_points = (inverse_sigmoid(reference_points) +
+                reference_points = (inverse_sigmoid(reference_points.detach()) +
                                     self.reference_embed[i](keypoint)).sigmoid()
 
                 # bs, n, c
@@ -251,8 +251,8 @@ class RAFT(nn.Module):
 
                 # bs, n, 2
                 flow_embed = self.flow_embed[i](correlation)
-                flow = inverse_sigmoid(reference_points) + flow_embed
-                flow = reference_points - flow.sigmoid()
+                flow = inverse_sigmoid(reference_points.detach()) + flow_embed
+                flow = reference_points.detach() - flow.sigmoid()
                 # confidence = flow_embed[..., 2:].sigmoid()
                 sparse_predictions.append((reference_points, flow))
                 # flow = inverse_sigmoid(reference_points) + self.flow_embed[i](query)

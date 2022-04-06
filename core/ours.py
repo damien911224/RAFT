@@ -43,11 +43,11 @@ class RAFT(nn.Module):
         #     nn.Sequential(nn.Conv2d(self.extractor.down_dim, d_model, kernel_size=1),
         #     nn.GroupNorm(d_model // 8, d_model))
 
-        # self.encoder = \
-        #     nn.ModuleList((DeformableTransformerEncoderLayer(d_model=d_model, d_ffn=d_model * 4,
-        #                                                      dropout=0.1, activation="gelu",
-        #                                                      n_levels=2, n_heads=8, n_points=4)
-        #                    for _ in range(6)))
+        self.encoder = \
+            nn.ModuleList((DeformableTransformerEncoderLayer(d_model=d_model, d_ffn=d_model * 4,
+                                                             dropout=0.1, activation="gelu",
+                                                             n_levels=2, n_heads=8, n_points=4)
+                           for _ in range(6)))
 
         self.keypoint_decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,

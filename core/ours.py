@@ -246,7 +246,7 @@ class RAFT(nn.Module):
                                                           D2, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, c
-                context = self.context_decoder[i](correlation, query_pos, reference_points.unsqueeze(2),
+                context = self.context_decoder[i](keypoint, query_pos, reference_points.unsqueeze(2),
                                                   D1, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, 2

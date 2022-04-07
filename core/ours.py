@@ -67,7 +67,7 @@ class RAFT(nn.Module):
         # self.flow_embed = nn.Linear(d_model, 2)
         self.context_embed = MLP(d_model, self.extractor.up_dim, self.extractor.up_dim, 3, last_activate=True)
         self.reference_embed = MLP(d_model, d_model, 2, 3)
-        self.confidence_embed = MLP(d_model, d_model, 2, 3)
+        self.confidence_embed = MLP(d_model, d_model, 1, 3)
         # self.reference_embed = nn.Linear(d_model, 2)
         # self.confidence_embed = nn.Linear(d_model, 1)
 
@@ -243,7 +243,7 @@ class RAFT(nn.Module):
 
                 # bs, n, 2
                 flow_embed = self.flow_embed[i](query)
-                confidence = self.confidence_embed[i](query)
+                confidence = self.confidence_embed[i](query).sigmoid()
                 # flow = inverse_sigmoid(reference_points.detach()) + flow_embed
                 # flow = reference_points.detach() - flow.sigmoid()
                 flow = flow_embed.tanh()

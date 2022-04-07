@@ -13,7 +13,10 @@ import os.path as osp
 
 from utils import frame_utils
 from utils.augmentor import FlowAugmentor, SparseFlowAugmentor
+from utils.flow_segmentor import segment
 
+import PIL.ImageOps
+import PIL.Image
 
 class FlowDataset(data.Dataset):
     def __init__(self, aug_params=None, sparse=False):
@@ -56,6 +59,10 @@ class FlowDataset(data.Dataset):
             flow, valid = frame_utils.readFlowKITTI(self.flow_list[index])
         else:
             flow = frame_utils.read_gen(self.flow_list[index])
+
+        # flow = PIL.ImageOps.autocontrast(PIL.Image.fromarray(flow))
+        # flow = np.asarray(flow)
+        # mask = segment(flow)
 
         img1 = frame_utils.read_gen(self.image_list[index][0])
         img2 = frame_utils.read_gen(self.image_list[index][1])

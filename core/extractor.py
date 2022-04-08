@@ -254,7 +254,7 @@ class BasicEncoder(nn.Module):
         # D1_x1 = self.up_lateral2(D1_x1)
         # U2 = self.up_smooth2(F.gelu(F.upsample(T2, scale_factor=2.0, mode="bilinear") + D1_x1))
 
-        U1 = self.up_layer1(D3_x1)
+        U1 = self.up_layer1(D3_x1.detach())
 
         return D3_x1, D3_x2, U1
 

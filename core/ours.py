@@ -251,7 +251,7 @@ class RAFT(nn.Module):
                 # flow = inverse_sigmoid(reference_points) + self.flow_embed[i](query)
                 # flow = reference_points - flow.sigmoid()
                 # bs, n, c
-                context = self.context_embed[i](query)
+                context = self.context_embed[i](query.detach())
                 # bs, n, c
                 # reference_points = inverse_sigmoid(reference_points.detach()) + self.reference_embed[i](query)
                 # reference_points = reference_points.unsqueeze(2).sigmoid()

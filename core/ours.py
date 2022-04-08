@@ -56,9 +56,9 @@ class RAFT(nn.Module):
                            for _ in range(6)))
 
         h, w = args.image_size[0], args.image_size[1]
-        self.row_pos_embed = nn.Embedding(w // (2 ** 3), d_model // 8 * 3)
-        self.col_pos_embed = nn.Embedding(h // (2 ** 3), d_model // 8 * 3)
-        self.img_pos_embed = nn.Embedding(2, d_model // 8 * 2)
+        self.row_pos_embed = nn.Embedding(w // (2 ** 3), d_model // 2)
+        self.col_pos_embed = nn.Embedding(h // (2 ** 3), d_model // 2)
+        self.img_pos_embed = nn.Embedding(2, d_model)
 
         self.query_embed = nn.Embedding(100, d_model)
         self.query_pos_embed = nn.Embedding(100, d_model)
@@ -67,7 +67,7 @@ class RAFT(nn.Module):
         # self.flow_embed = nn.Linear(d_model, 2)
         self.context_embed = MLP(d_model, self.extractor.up_dim, self.extractor.up_dim, 3, last_activate=True)
         self.reference_embed = MLP(d_model, d_model, 2, 3)
-        self.confidence_embed = MLP(d_model, d_model, 1, 3)
+        # self.confidence_embed = MLP(d_model, d_model, 1, 3)
         # self.reference_embed = nn.Linear(d_model, 2)
         # self.confidence_embed = nn.Linear(d_model, 1)
 
@@ -78,7 +78,7 @@ class RAFT(nn.Module):
         self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(iterations)])
         self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(iterations)])
         self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(iterations)])
-        self.confidence_embed = nn.ModuleList([copy.deepcopy(self.confidence_embed) for _ in range(iterations)])
+        # self.confidence_embed = nn.ModuleList([copy.deepcopy(self.confidence_embed) for _ in range(iterations)])
 
         self.reset_parameters()
 
@@ -196,7 +196,7 @@ class RAFT(nn.Module):
             # bs, hw, c
             src_pos = self.get_embedding(D1, self.col_pos_embed, self.row_pos_embed).flatten(2).permute(0, 2, 1)
             src_img_embed = self.img_pos_embed.weight[None, :]
-            src_pos = torch.cat((torch.cat((src_pos, src_pos), dim=1), src_img_embed.repeat(1, h * w, 1)), dim=-1)
+            src_pos = torch.cat((src_pos, src_pos), dim=1) + src_img_embed
             # D1, D2 = self.extractor_projection(torch.cat((D1, D2), dim=0)).flatten(2).permute(0, 2, 1).split(bs, dim=0)
             D1 = torch.flatten(D1, 2).permute(0, 2, 1)
             D2 = torch.flatten(D2, 2).permute(0, 2, 1)
@@ -243,10 +243,10 @@ class RAFT(nn.Module):
 
                 # bs, n, 2
                 flow_embed = self.flow_embed[i](query)
-                confidence = self.confidence_embed[i](query).sigmoid()
-                # flow = inverse_sigmoid(reference_points.detach()) + flow_embed
-                # flow = reference_points.detach() - flow.sigmoid()
-                flow = flow_embed.tanh()
+                # confidence = self.confidence_embed[i](query).sigmoid()
+                flow = inverse_sigmoid(reference_points.detach()) + flow_embed
+                flow = reference_points.detach() - flow.sigmoid()
+                # flow = flow_embed.tanh()
                 sparse_predictions.append((reference_points, flow))
                 # flow = inverse_sigmoid(reference_points) + self.flow_embed[i](query)
                 # flow = reference_points - flow.sigmoid()
@@ -258,7 +258,7 @@ class RAFT(nn.Module):
 
                 # bs, HW, n
                 # context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
-                context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1))) * confidence.permute(0, 2, 1)
+                context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
                 # bs, HW, 2
                 context_flow = torch.bmm(context_flow, flow)
                 # bs, 2, H, W

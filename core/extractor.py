@@ -172,6 +172,7 @@ class BasicEncoder(nn.Module):
         # self.up_smooth2 = nn.Conv2d(base_channel * 2, base_channel * 2, kernel_size=3, padding=1)
         # self.up_lateral2 = nn.Conv2d(base_channel * 2, base_channel * 2, kernel_size=1, padding=0)
         # self.up_layer3 = self._make_up_layer(base_channel * 2, scale=2.0)
+        self.in_planes = base_channel * 2
         self.up_layer1 = self._make_up_layer(base_channel, scale=2.0)
         self.up_dim = self.in_planes
 
@@ -254,8 +255,8 @@ class BasicEncoder(nn.Module):
         # D1_x1 = self.up_lateral2(D1_x1)
         # U2 = self.up_smooth2(F.gelu(F.upsample(T2, scale_factor=2.0, mode="bilinear") + D1_x1))
 
-        U1 = self.up_layer1(D3_x1.detach())
-        # U2 = self.up_layer2(U1.detach())
+        U1 = self.up_layer1(D3_x1)
+        # U2 = self.up_layer2(U1)
 
         X1 = (D3_x1, D4_x1, D5_x1)
         X2 = (D3_x2, D4_x2, D5_x2)

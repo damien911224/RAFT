@@ -239,8 +239,8 @@ class BasicEncoder(nn.Module):
         # U1 = self.up_layer1(D5_x1)
         # U2 = self.up_layer2(U1)
 
-        # D1_x1, D1_x2 = torch.split(D1, D1.shape[0] // 2, dim=0)
-        # D2_x1, D2_x2 = torch.split(D2, D2.shape[0] // 2, dim=0)
+        D1_x1, D1_x2 = torch.split(D1, D1.shape[0] // 2, dim=0)
+        D2_x1, D2_x2 = torch.split(D2, D2.shape[0] // 2, dim=0)
         D3_x1, D3_x2 = torch.split(D3, D3.shape[0] // 2, dim=0)
         # D4_x1, D4_x2 = torch.split(D4, D4.shape[0] // 2, dim=0)
         # D5_x1, D5_x2 = torch.split(D5, D5.shape[0] // 2, dim=0)
@@ -256,7 +256,10 @@ class BasicEncoder(nn.Module):
 
         U1 = self.up_layer1(D3_x1.detach())
 
-        return D3_x1, D3_x2, U1
+        X1 = (D1_x1, D2_x1, D3_x1)
+        X2 = (D1_x2, D2_x2, D3_x2)
+
+        return X1, X2, U1
 
 
 class SmallEncoder(nn.Module):

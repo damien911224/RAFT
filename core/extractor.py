@@ -137,8 +137,8 @@ class BasicEncoder(nn.Module):
         self.down_layer1 = self._make_down_layer(base_channel, stride=1)
         self.down_layer2 = self._make_down_layer(round(base_channel * 1.5), stride=2)
         self.down_layer3 = self._make_down_layer(base_channel * 2, stride=2)
-        # self.down_layer4 = self._make_down_layer(round(base_channel * 2 * 1.5), stride=2)
-        # self.down_layer5 = self._make_down_layer(base_channel * 2 * 2, stride=2)
+        self.down_layer4 = self._make_down_layer(round(base_channel * 2 * 1.5), stride=2)
+        self.down_layer5 = self._make_down_layer(base_channel * 2 * 2, stride=2)
         self.down_dim = self.in_planes
         # self.up_layer1 = self._make_up_layer(round(base_channel * 1.5), scale=2.0)
         # self.up_layer2 = self._make_up_layer(base_channel * 2, scale=2.0)
@@ -231,19 +231,19 @@ class BasicEncoder(nn.Module):
         D1 = self.down_layer1(x)
         D2 = self.down_layer2(D1)
         D3 = self.down_layer3(D2)
-        # D4 = self.down_layer4(D3)
-        # D5 = self.down_layer5(D4)
+        D4 = self.down_layer4(D3)
+        D5 = self.down_layer5(D4)
 
         # D5_x1, D5_x2 = torch.split(D5, D5.shape[0] // 2, dim=0)
 
         # U1 = self.up_layer1(D5_x1)
         # U2 = self.up_layer2(U1)
 
-        D1_x1, D1_x2 = torch.split(D1, D1.shape[0] // 2, dim=0)
-        D2_x1, D2_x2 = torch.split(D2, D2.shape[0] // 2, dim=0)
+        # D1_x1, D1_x2 = torch.split(D1, D1.shape[0] // 2, dim=0)
+        # D2_x1, D2_x2 = torch.split(D2, D2.shape[0] // 2, dim=0)
         D3_x1, D3_x2 = torch.split(D3, D3.shape[0] // 2, dim=0)
-        # D4_x1, D4_x2 = torch.split(D4, D4.shape[0] // 2, dim=0)
-        # D5_x1, D5_x2 = torch.split(D5, D5.shape[0] // 2, dim=0)
+        D4_x1, D4_x2 = torch.split(D4, D4.shape[0] // 2, dim=0)
+        D5_x1, D5_x2 = torch.split(D5, D5.shape[0] // 2, dim=0)
 
         # T = self.top_layer(D5_x1)
 
@@ -255,9 +255,10 @@ class BasicEncoder(nn.Module):
         # U2 = self.up_smooth2(F.gelu(F.upsample(T2, scale_factor=2.0, mode="bilinear") + D1_x1))
 
         U1 = self.up_layer1(D3_x1.detach())
+        # U2 = self.up_layer2(U1.detach())
 
-        X1 = (D1_x1, D2_x1, D3_x1)
-        X2 = (D1_x2, D2_x2, D3_x2)
+        X1 = (D3_x1, D4_x1, D5_x1)
+        X2 = (D3_x2, D4_x2, D5_x2)
 
         return X1, X2, U1
 

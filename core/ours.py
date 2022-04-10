@@ -39,14 +39,14 @@ class RAFT(nn.Module):
 
         base_channel = 64
         self.extractor = BasicEncoder(base_channel=base_channel, norm_fn="batch")
-        d_model = self.extractor.down_dim
+        d_model = base_channel * 2
         self.num_feature_levels = 3
         # self.extractor_projection = \
         #     nn.Sequential(nn.Conv2d(self.extractor.down_dim, d_model, kernel_size=1),
         #     nn.GroupNorm(d_model // 8, d_model))
 
         input_proj_list = []
-        channels = (base_channel, round(base_channel * 1.5), base_channel * 2)
+        channels = (base_channel * 2, round(base_channel * 2 * 1.5), base_channel * 2 * 2)
         for l_i in range(self.num_feature_levels):
             in_channels = channels[l_i]
             input_proj_list.append(nn.Sequential(
@@ -88,8 +88,8 @@ class RAFT(nn.Module):
                                             for i in range(1, self.num_feature_levels + 1)])
         self.lvl_pos_embed = nn.Embedding(self.num_feature_levels, d_model)
 
-        self.query_embed = nn.Embedding(20, d_model)
-        self.query_pos_embed = nn.Embedding(20, d_model)
+        self.query_embed = nn.Embedding(25, d_model)
+        self.query_pos_embed = nn.Embedding(25, d_model)
         self.flow_embed = MLP(d_model, d_model, 2, 3)
         # self.flow_embed = nn.Linear(d_model, 2)
         self.context_embed = MLP(d_model, self.extractor.up_dim, self.extractor.up_dim, 3, last_activate=True)
@@ -218,7 +218,7 @@ class RAFT(nn.Module):
             query = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
             query_pos = self.query_pos_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
 
-            init_reference_points = self.get_reference_points([(10, 10), ], device=src.device).squeeze(2)
+            init_reference_points = self.get_reference_points([(5, 5), ], device=src.device).squeeze(2)
 
             spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1], dtype=torch.long, device=src.device)
             level_start_index = torch.cat((spatial_shapes.new_zeros((1, )), spatial_shapes.prod(1).cumsum(0)[:-1]))

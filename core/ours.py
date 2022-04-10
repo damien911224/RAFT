@@ -218,9 +218,9 @@ class RAFT(nn.Module):
             query = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
             query_pos = self.query_pos_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
 
-            init_reference_points = self.get_reference_points([(10, 10), ], device=D1.device).squeeze(2)
+            init_reference_points = self.get_reference_points([(10, 10), ], device=src.device).squeeze(2)
 
-            spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1], dtype=torch.long, device=D1.device)
+            spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1], dtype=torch.long, device=src.device)
             level_start_index = torch.cat((spatial_shapes.new_zeros((1, )), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
             src_ref = self.get_reference_points(spatial_shapes, device=src.device)

@@ -173,7 +173,7 @@ class BasicEncoder(nn.Module):
         # self.up_lateral2 = nn.Conv2d(base_channel * 2, base_channel * 2, kernel_size=1, padding=0)
         # self.up_layer3 = self._make_up_layer(base_channel * 2, scale=2.0)
         self.in_planes = base_channel * 2
-        self.up_layer1 = self._make_up_layer(base_channel, scale=2.0)
+        self.up_layer1 = self._make_up_layer(round(base_channel * 1.5), scale=2.0)
         self.up_dim = self.in_planes
 
         for m in self.modules():

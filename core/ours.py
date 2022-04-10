@@ -122,9 +122,10 @@ class RAFT(nn.Module):
         # nn.init.xavier_uniform_(self.confidence_embed.weight)
         # nn.init.constant_(self.confidence_embed.bias, 0)
 
-        nn.init.uniform_(self.row_pos_embed.weight)
-        nn.init.uniform_(self.col_pos_embed.weight)
-        nn.init.uniform_(self.lvl_pos_embed.weight)
+        for embed in self.row_pos_embed:
+            nn.init.uniform_(embed.weight)
+        for embed in self.col_pos_embed:
+            nn.init.uniform_(embed.weight)
         nn.init.xavier_uniform_(self.query_embed.weight)
         nn.init.uniform_(self.query_pos_embed.weight)
 

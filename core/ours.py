@@ -181,10 +181,10 @@ class RAFT(nn.Module):
         f_n, _, f_h, f_w = target_feat.size()
 
         col_embed = (torch.arange(f_h) + 0.5) / f_h
-        col_embed = self.pos_embed(col_embed)
+        col_embed = self.pos_embed(col_embed[:, None])
         print(col_embed.shape)
         row_embed = (torch.arange(f_w) + 0.5) / f_w
-        row_embed = self.pos_embed(row_embed)
+        row_embed = self.pos_embed(row_embed[:, None])
         print(row_embed.shape)
         exit()
 

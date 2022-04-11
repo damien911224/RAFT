@@ -250,8 +250,8 @@ class RAFT(nn.Module):
                                                           D2, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, c
-                # context = self.context_decoder[i](keypoint, query_pos, reference_points.unsqueeze(2),
-                #                                   D1, src_pos, spatial_shapes, level_start_index)
+                context = self.context_decoder[i](keypoint, query_pos, reference_points.unsqueeze(2),
+                                                  D1, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, 2
                 flow_embed = self.flow_embed[i](correlation)
@@ -262,7 +262,7 @@ class RAFT(nn.Module):
                 # flow = inverse_sigmoid(reference_points) + self.flow_embed[i](query)
                 # flow = reference_points - flow.sigmoid()
                 # bs, n, c
-                context = self.context_embed[i](keypoint)
+                context = self.context_embed[i](context)
                 # bs, n, c
                 # reference_points = inverse_sigmoid(reference_points.detach()) + self.reference_embed[i](query)
                 # reference_points = reference_points.unsqueeze(2).sigmoid()

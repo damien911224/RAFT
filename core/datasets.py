@@ -13,7 +13,7 @@ import os.path as osp
 
 from utils import frame_utils
 from utils.augmentor import FlowAugmentor, SparseFlowAugmentor
-from utils.flow_segmentor import segment
+# from utils.flow_segmentor import segment
 
 import PIL.ImageOps
 import PIL.Image

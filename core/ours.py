@@ -221,12 +221,12 @@ class RAFT(nn.Module):
             _, C, H, W = U1.shape
             # bs, hw, c
             # src_pos = self.get_embedding(D1, self.col_pos_embed, self.row_pos_embed).flatten(2).permute(0, 2, 1)
-            # src_pos = [self.get_embedding(feat, col_embed, row_embed) + self.lvl_pos_embed.weight[i]
-            #            for i, (feat, col_embed, row_embed)
-            #            in enumerate(zip(D1, self.col_pos_embed, self.row_pos_embed))]
-            src_pos = [self.get_sine_embedding(feat) + self.lvl_pos_embed.weight[i]
+            src_pos = [self.get_embedding(feat, col_embed, row_embed) + self.lvl_pos_embed.weight[i]
                        for i, (feat, col_embed, row_embed)
                        in enumerate(zip(D1, self.col_pos_embed, self.row_pos_embed))]
+            # src_pos = [self.get_sine_embedding(feat) + self.lvl_pos_embed.weight[i]
+            #            for i, (feat, col_embed, row_embed)
+            #            in enumerate(zip(D1, self.col_pos_embed, self.row_pos_embed))]
             src_pos = torch.cat(src_pos, dim=1)
             src = [self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1)
                    for i, (feat1, feat2) in enumerate(zip(D1, D2))]

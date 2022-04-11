@@ -55,11 +55,11 @@ class RAFT(nn.Module):
                 nn.GroupNorm(d_model // 2, d_model)))
         self.input_proj = nn.ModuleList(input_proj_list)
 
-        # self.encoder = \
-        #     nn.ModuleList((DeformableTransformerEncoderLayer(d_model=d_model, d_ffn=d_model * 4,
-        #                                                      dropout=0.1, activation="gelu",
-        #                                                      n_levels=self.num_feature_levels, n_heads=8, n_points=4)
-        #                    for _ in range(6)))
+        self.encoder = \
+            nn.ModuleList((DeformableTransformerEncoderLayer(d_model=d_model, d_ffn=d_model * 4,
+                                                             dropout=0.1, activation="gelu",
+                                                             n_levels=self.num_feature_levels, n_heads=8, n_points=4)
+                           for _ in range(6)))
 
         self.keypoint_decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,

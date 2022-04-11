@@ -39,7 +39,7 @@ class RAFT(nn.Module):
             self.args.dropout = 0
 
         base_channel = 64
-        self.extractor = BasicEncoder(base_channel=base_channel, norm_fn="batch")
+        self.extractor = BasicEncoder(base_channel=base_channel, norm_fn="instance")
         d_model = base_channel * 2
         self.num_feature_levels = 3
         # self.extractor_projection = \

@@ -55,11 +55,11 @@ class RAFT(nn.Module):
                 nn.GroupNorm(d_model // 2, d_model)))
         self.input_proj = nn.ModuleList(input_proj_list)
 
-        self.encoder = \
-            nn.ModuleList((DeformableTransformerEncoderLayer(d_model=d_model, d_ffn=d_model * 4,
-                                                             dropout=0.1, activation="gelu",
-                                                             n_levels=self.num_feature_levels, n_heads=8, n_points=4)
-                           for _ in range(6)))
+        # self.encoder = \
+        #     nn.ModuleList((DeformableTransformerEncoderLayer(d_model=d_model, d_ffn=d_model * 4,
+        #                                                      dropout=0.1, activation="gelu",
+        #                                                      n_levels=self.num_feature_levels, n_heads=8, n_points=4)
+        #                    for _ in range(6)))
 
         self.keypoint_decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
@@ -75,12 +75,12 @@ class RAFT(nn.Module):
                                                              self_deformable=False)
                            for _ in range(6)))
 
-        self.context_decoder = \
-            nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
-                                                             dropout=0.1, activation="gelu",
-                                                             n_levels=self.num_feature_levels, n_heads=8, n_points=4,
-                                                             self_deformable=False)
-                           for _ in range(6)))
+        # self.context_decoder = \
+        #     nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
+        #                                                      dropout=0.1, activation="gelu",
+        #                                                      n_levels=self.num_feature_levels, n_heads=8, n_points=4,
+        #                                                      self_deformable=False)
+        #                    for _ in range(6)))
 
         h, w = args.image_size[0], args.image_size[1]
         self.pos_embed = NerfPositionalEncoding(depth=d_model // 4)
@@ -271,8 +271,8 @@ class RAFT(nn.Module):
                                                           D2, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, c
-                context = self.context_decoder[i](keypoint, query_pos, reference_points.unsqueeze(2),
-                                                  D1, src_pos, spatial_shapes, level_start_index)
+                # context = self.context_decoder[i](keypoint, query_pos, reference_points.unsqueeze(2),
+                #                                   D1, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, 2
                 flow_embed = self.flow_embed[i](correlation)
@@ -283,7 +283,7 @@ class RAFT(nn.Module):
                 # flow = inverse_sigmoid(reference_points) + self.flow_embed[i](query)
                 # flow = reference_points - flow.sigmoid()
                 # bs, n, c
-                context = self.context_embed[i](context)
+                context = self.context_embed[i](keypoint)
                 # bs, n, c
                 # reference_points = inverse_sigmoid(reference_points.detach()) + self.reference_embed[i](query)
                 # reference_points = reference_points.unsqueeze(2).sigmoid()

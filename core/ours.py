@@ -83,7 +83,7 @@ class RAFT(nn.Module):
         #                    for _ in range(6)))
 
         h, w = args.image_size[0], args.image_size[1]
-        self.pos_embed = NerfPositionalEncoding(depth=d_model // 4)
+        # self.pos_embed = NerfPositionalEncoding(depth=d_model // 4)
         self.row_pos_embed = nn.ModuleList([nn.Embedding(w // (2 ** i), d_model // 2)
                                             for i in range(3, self.num_feature_levels + 3)])
         self.col_pos_embed = nn.ModuleList([nn.Embedding(h // (2 ** i), d_model // 2)
@@ -255,21 +255,24 @@ class RAFT(nn.Module):
             flow_predictions = list()
             sparse_predictions = list()
             for i in range(len(self.keypoint_decoder)):
-                if i <= 0:
-                    reference_points = init_reference_points
-                else:
-                    query = keypoint
+                # if i <= 0:
+                #     reference_points = init_reference_points
+                # else:
+                #     query = keypoint
+
+                # bs, n, 2
+                reference_points = self.reference_embed[i](query).sigmoid()
 
                 # bs, n, c
-                keypoint = self.keypoint_decoder[i](query, query_pos, reference_points.unsqueeze(2),
+                query = self.keypoint_decoder[i](query, query_pos, reference_points.unsqueeze(2),
                                                     D1, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, 2
-                reference_points = (inverse_sigmoid(reference_points.detach()) +
-                                    self.reference_embed[i](keypoint)).sigmoid()
+                # reference_points = (inverse_sigmoid(reference_points.detach()) +
+                #                     self.reference_embed[i](keypoint)).sigmoid()
 
                 # bs, n, c
-                correlation = self.correlation_decoder[i](keypoint, query_pos, reference_points.unsqueeze(2),
+                correlation = self.correlation_decoder[i](query, query_pos, reference_points.unsqueeze(2),
                                                           D2, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, c
@@ -285,7 +288,7 @@ class RAFT(nn.Module):
                 # flow = inverse_sigmoid(reference_points) + self.flow_embed[i](query)
                 # flow = reference_points - flow.sigmoid()
                 # bs, n, c
-                context = self.context_embed[i](keypoint)
+                context = self.context_embed[i](query)
                 # bs, n, c
                 # reference_points = inverse_sigmoid(reference_points.detach()) + self.reference_embed[i](query)
                 # reference_points = reference_points.unsqueeze(2).sigmoid()

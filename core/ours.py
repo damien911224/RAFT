@@ -242,7 +242,7 @@ class RAFT(nn.Module):
             init_reference_points = self.get_reference_points([(5, 5), ], device=src.device).squeeze(2)
 
             spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1], dtype=torch.long, device=src.device)
-            level_start_index = torch.cat((spatial_shapes.new_zeros((1, )), spatial_shapes.prod(1).cumsum(0)[:-1]))
+            level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
             src_ref = self.get_reference_points(spatial_shapes, device=src.device)
             for i in range(len(self.encoder)):
@@ -341,9 +341,9 @@ class NerfPositionalEncoding(nn.Module):
         '''
         super().__init__()
         if sine_type == 'lin_sine':
-            self.bases = [i+1 for i in range(depth)]
+            self.bases = [i + 1 for i in range(depth)]
         elif sine_type == 'exp_sine':
-            self.bases = [2**i for i in range(depth)]
+            self.bases = [2 ** i for i in range(depth)]
         print(f'using {sine_type} as positional encoding')
 
     @torch.no_grad()
@@ -352,6 +352,7 @@ class NerfPositionalEncoding(nn.Module):
                         [torch.cos(i * math.pi * inputs) for i in self.bases], dim=-1)
         assert not torch.isnan(out).any()
         return out
+
 
 if __name__ == "__main__":
     import argparse

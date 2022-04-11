@@ -12,6 +12,7 @@ from update import Decoder, PositionEmbedding
 from deformable import DeformableTransformerEncoderLayer, DeformableTransformerDecoderLayer
 from utils.misc import inverse_sigmoid
 import copy
+import math
 
 try:
     autocast = torch.cuda.amp.autocast
@@ -82,6 +83,7 @@ class RAFT(nn.Module):
                            for _ in range(6)))
 
         h, w = args.image_size[0], args.image_size[1]
+        self.pos_embed = NerfPositionalEncoding(depth=d_model // 4)
         self.row_pos_embed = nn.ModuleList([nn.Embedding(w // (2 ** i), d_model // 2)
                                             for i in range(3, self.num_feature_levels + 3)])
         self.col_pos_embed = nn.ModuleList([nn.Embedding(h // (2 ** i), d_model // 2)
@@ -175,6 +177,22 @@ class RAFT(nn.Module):
 
         return this_embed
 
+    def get_sine_embedding(self, target_feat):
+        f_n, _, f_h, f_w = target_feat.size()
+
+        col_embed = (torch.arange(f_h) + 0.5) / f_h
+        col_embed = self.pos_embed(col_embed)
+        row_embed = (torch.arange(f_w) + 0.5) / f_w
+        row_embed = self.pos_embed(row_embed)
+
+        this_embed = torch.cat((col_embed.weight.unsqueeze(1).repeat(1, f_w, 1),
+                                row_embed.weight.unsqueeze(0).repeat(f_h, 1, 1)), dim=-1)
+        this_embed = this_embed.permute(2, 0, 1).unsqueeze(0)
+
+        this_embed = this_embed.flatten(2).permute(0, 2, 1)
+
+        return this_embed
+
     def get_reference_points(self, spatial_shapes, device):
         reference_points_list = []
         for lvl, (H_, W_) in enumerate(spatial_shapes):
@@ -203,7 +221,10 @@ class RAFT(nn.Module):
             _, C, H, W = U1.shape
             # bs, hw, c
             # src_pos = self.get_embedding(D1, self.col_pos_embed, self.row_pos_embed).flatten(2).permute(0, 2, 1)
-            src_pos = [self.get_embedding(feat, col_embed, row_embed) + self.lvl_pos_embed.weight[i]
+            # src_pos = [self.get_embedding(feat, col_embed, row_embed) + self.lvl_pos_embed.weight[i]
+            #            for i, (feat, col_embed, row_embed)
+            #            in enumerate(zip(D1, self.col_pos_embed, self.row_pos_embed))]
+            src_pos = [self.get_sine_embedding(feat) + self.lvl_pos_embed.weight[i]
                        for i, (feat, col_embed, row_embed)
                        in enumerate(zip(D1, self.col_pos_embed, self.row_pos_embed))]
             src_pos = torch.cat(src_pos, dim=1)
@@ -309,6 +330,25 @@ class MLP(nn.Module):
         x = x.permute(0, 2, 1)
         return x
 
+
+class NerfPositionalEncoding(nn.Module):
+    def __init__(self, depth=10, sine_type='lin_sine'):
+        '''
+        out_dim = in_dim * depth * 2
+        '''
+        super().__init__()
+        if sine_type == 'lin_sine':
+            self.bases = [i+1 for i in range(depth)]
+        elif sine_type == 'exp_sine':
+            self.bases = [2**i for i in range(depth)]
+        print(f'using {sine_type} as positional encoding')
+
+    @torch.no_grad()
+    def forward(self, inputs):
+        out = torch.cat([torch.sin(i * math.pi * inputs) for i in self.bases] +
+                        [torch.cos(i * math.pi * inputs) for i in self.bases], dim=-1)
+        assert not torch.isnan(out).any()
+        return out
 
 if __name__ == "__main__":
     import argparse

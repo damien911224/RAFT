@@ -242,6 +242,8 @@ class RAFT(nn.Module):
             init_reference_points = self.get_reference_points([(5, 5), ], device=src.device).squeeze(2)
 
             spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1], dtype=torch.long, device=src.device)
+            print(spatial_shapes)
+            exit()
             level_start_index = torch.cat((spatial_shapes.new_zeros((1, )), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
             # src_ref = self.get_reference_points(spatial_shapes, device=src.device)

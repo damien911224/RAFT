@@ -371,8 +371,7 @@ class DeformableTransformerDecoder(nn.Module):
             else:
                 assert reference_points.shape[-1] == 2
                 reference_points_input = reference_points[:, :, None]
-            output, scores = \
-                layer(output, query_pos, reference_points_input, src, src_spatial_shapes, src_level_start_index)
+            output = layer(output, query_pos, reference_points_input, src, src_spatial_shapes, src_level_start_index)
 
             # hack implementation for iterative bounding box refinement
             if self.flow_embed is not None:

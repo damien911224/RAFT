@@ -187,7 +187,7 @@ class RAFT(nn.Module):
 
         this_embed = torch.cat((col_embed.unsqueeze(1).repeat(1, f_w, 1),
                                 row_embed.unsqueeze(0).repeat(f_h, 1, 1)), dim=-1)
-        this_embed = this_embed.permute(2, 0, 1).unsqueeze(0)
+        this_embed = this_embed.permute(2, 0, 1).unsqueeze(0).to(target_feat.device)
 
         this_embed = this_embed.flatten(2).permute(0, 2, 1)
 

@@ -219,15 +219,15 @@ class RAFT(nn.Module):
 
             # D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
             features = self.extractor(torch.cat((image1, image2), dim=0))
+            U1 = features["0"].split(bs, dim=0)
+            _, C, H, W = U1.shape
             D1 = list()
             D2 = list()
             for f_i in range(len(features)):
                 x1, x2 = self.input_proj[f_i](features["{}".format(f_i)].flatten(2)).permute(0, 2, 1).split(bs, dim=0)
                 D1.append(x1)
                 D2.append(x2)
-            U1 = D1[0]
-            _, c, h, w = D1[-1].shape
-            _, C, H, W = U1.shape
+            # _, c, h, w = D1[-1].shape
             D1 = torch.cat(D1, dim=1)
             D2 = torch.cat(D2, dim=1)
             # bs, hw, c
@@ -245,7 +245,7 @@ class RAFT(nn.Module):
             src = torch.cat((D1, D2), dim=0)
 
             # bs, HW, CU1
-            # U1 = torch.flatten(U1, 2).permute(0, 2, 1)
+            U1 = torch.flatten(U1, 2).permute(0, 2, 1)
 
             # bs, n, c
             query = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)

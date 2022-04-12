@@ -95,7 +95,7 @@ class RAFT(nn.Module):
         self.query_pos_embed = nn.Embedding(25, d_model)
         self.flow_embed = MLP(d_model, d_model, 2, 3)
         # self.flow_embed = nn.Linear(d_model, 2)
-        self.context_embed = MLP(512, d_model, d_model, 3, last_activate=True)
+        self.context_embed = MLP(d_model, d_model, 512, 3, last_activate=True)
         self.reference_embed = MLP(d_model, d_model, 2, 3)
         # self.reference_embed = nn.Linear(d_model, 2)
 
@@ -219,9 +219,15 @@ class RAFT(nn.Module):
 
             # D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
             features = self.extractor(torch.cat((image1, image2), dim=0))
-            for feat in features:
-                print(feat.shape)
-            exit()
+            D1 = list()
+            D2 = list()
+            for f_i in range(len(features)):
+                x1, x2 = features["{}".format(f_i)].flatten(2).permute(0, 2, 1).split(bs, dim=0)
+                D1.append(x1)
+                D2.append(x2)
+            U1 = D1[0]
+            D1 = torch.cat(D1, dim=1)
+            D2 = torch.cat(D2, dim=1)
 
             _, c, h, w = D1[-1].shape
             _, C, H, W = U1.shape
@@ -239,7 +245,7 @@ class RAFT(nn.Module):
             src = torch.cat(src, dim=1)
 
             # bs, HW, CU1
-            U1 = torch.flatten(U1, 2).permute(0, 2, 1)
+            # U1 = torch.flatten(U1, 2).permute(0, 2, 1)
 
             # bs, n, c
             query = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)

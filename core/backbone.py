@@ -137,3 +137,12 @@ def build_backbone(args):
     backbone = Backbone(args.backbone, train_backbone, return_interm_layers, args.dilation)
     model = Joiner(backbone, position_embedding)
     return model
+
+if __name__ == "__main__":
+
+    model = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
+    import numpy as np
+    dummy = torch.Tensor(np.zeros(dtype=np.uint8, shape=(2, 3, 224, 224)))
+
+    out = model(dummy)
+    print()

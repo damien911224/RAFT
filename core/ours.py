@@ -219,7 +219,7 @@ class RAFT(nn.Module):
 
             # D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
             features = self.extractor(torch.cat((image1, image2), dim=0))
-            U1 = features["0"].split(bs, dim=0)
+            U1, _ = features["0"].split(bs, dim=0)
             _, C, H, W = U1.shape
             D1 = list()
             D2 = list()

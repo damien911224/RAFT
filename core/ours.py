@@ -226,11 +226,10 @@ class RAFT(nn.Module):
                 D1.append(x1)
                 D2.append(x2)
             U1 = D1[0]
-            D1 = torch.cat(D1, dim=1)
-            D2 = torch.cat(D2, dim=1)
-
             _, c, h, w = D1[-1].shape
             _, C, H, W = U1.shape
+            D1 = torch.cat(D1, dim=1)
+            D2 = torch.cat(D2, dim=1)
             # bs, hw, c
             # src_pos = self.get_embedding(D1, self.col_pos_embed, self.row_pos_embed).flatten(2).permute(0, 2, 1)
             src_pos = [self.get_embedding(feat, col_embed, row_embed) + self.lvl_pos_embed.weight[i]

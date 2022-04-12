@@ -242,7 +242,7 @@ class RAFT(nn.Module):
             src_pos = torch.cat(src_pos, dim=1).unsqueeze(1) + self.img_pos_embed.weight[None, :, None]
             src = [self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1)
                    for i, (feat1, feat2) in enumerate(zip(D1, D2))]
-            src = torch.cat(src, dim=1).split(bs, dim=0).cat(dim=1)
+            src = torch.cat(torch.cat(src, dim=1).split(bs, dim=0), dim=1)
 
             # bs, HW, CU1
             U1 = D1[0]

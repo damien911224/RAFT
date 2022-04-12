@@ -321,7 +321,7 @@ class RAFT(nn.Module):
                 context_flow = context_flow * \
                                torch.tensor((I_W, I_H), dtype=torch.float32).view(1, 2, 1, 1).to(context_flow.device)
                 if I_H != H or I_W != W:
-                    context_flow = F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=True)
+                    context_flow = F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
 
                 flow_predictions.append(context_flow)
 

@@ -300,6 +300,7 @@ class RAFT(nn.Module):
                 flow_embed = self.flow_embed[i](query)
                 flow = inverse_sigmoid(reference_points.detach()) + flow_embed
                 flow = reference_points.detach() - flow.sigmoid()
+                print(flow.shape)
                 # confidence = flow_embed[..., 2:].sigmoid()
                 sparse_predictions.append((reference_points, flow))
                 # flow = inverse_sigmoid(reference_points) + self.flow_embed[i](query)

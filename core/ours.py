@@ -257,7 +257,7 @@ class RAFT(nn.Module):
             query_pos = self.query_pos_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
 
             init_reference_points = self.get_reference_points([(5, 5), ], device=src.device).squeeze(2)
-            init_reference_points.repeat(bs, 1, 1)
+            init_reference_points = init_reference_points.repeat(bs, 1, 1)
 
             spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 2, dtype=torch.long, device=src.device)
             level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
@@ -300,8 +300,6 @@ class RAFT(nn.Module):
                 flow_embed = self.flow_embed[i](query)
                 flow = inverse_sigmoid(reference_points.detach()) + flow_embed
                 flow = reference_points.detach() - flow.sigmoid()
-                print(flow.shape)
-                print(reference_points.shape)
                 # confidence = flow_embed[..., 2:].sigmoid()
                 sparse_predictions.append((reference_points, flow))
                 # flow = inverse_sigmoid(reference_points) + self.flow_embed[i](query)

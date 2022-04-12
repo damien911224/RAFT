@@ -222,7 +222,7 @@ class RAFT(nn.Module):
             D1 = list()
             D2 = list()
             for f_i in range(len(features)):
-                x1, x2 = self.input_proj[f_i](features["{}".format(f_i)]).flatten(2).permute(0, 2, 1).split(bs, dim=0)
+                x1, x2 = self.input_proj[f_i](features["{}".format(f_i)].flatten(2)).permute(0, 2, 1).split(bs, dim=0)
                 D1.append(x1)
                 D2.append(x2)
             U1 = D1[0]

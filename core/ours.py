@@ -222,7 +222,7 @@ class RAFT(nn.Module):
             D1 = list()
             D2 = list()
             for f_i in range(len(features)):
-                x1, x2 = features["{}".format(f_i)].flatten(2).permute(0, 2, 1).split(bs, dim=0)
+                x1, x2 = self.input_proj[f_i](features["{}".format(f_i)]).flatten(2).permute(0, 2, 1).split(bs, dim=0)
                 D1.append(x1)
                 D2.append(x2)
             U1 = D1[0]
@@ -240,9 +240,9 @@ class RAFT(nn.Module):
             #            for i, (feat, col_embed, row_embed)
             #            in enumerate(zip(D1, self.col_pos_embed, self.row_pos_embed))]
             src_pos = torch.cat(src_pos, dim=1)
-            src = [self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1)
-                   for i, (feat1, feat2) in enumerate(zip(D1, D2))]
-            src = torch.cat(src, dim=1)
+            # src = [self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1)
+            #        for i, (feat1, feat2) in enumerate(zip(D1, D2))]
+            src = torch.cat((D1, D2), dim=1)
 
             # bs, HW, CU1
             # U1 = torch.flatten(U1, 2).permute(0, 2, 1)

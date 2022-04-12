@@ -5,6 +5,7 @@ import torch.nn.functional as F
 
 from update import BasicUpdateBlock, SmallUpdateBlock
 from extractor import BasicEncoder, SmallEncoder
+from backbone import Backbone
 from corr import CorrBlock, AlternateCorrBlock
 from utils.utils import bilinear_sampler, coords_grid, upflow8
 from update import Decoder, PositionEmbedding
@@ -38,16 +39,16 @@ class RAFT(nn.Module):
         if "dropout" not in self.args:
             self.args.dropout = 0
 
-        base_channel = 64
-        self.extractor = BasicEncoder(base_channel=base_channel, norm_fn="instance")
-        d_model = base_channel * 2
+        # self.extractor = BasicEncoder(base_channel=base_channel, norm_fn="instance")
+        self.extractor = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
+        d_model = 256
         self.num_feature_levels = 3
         # self.extractor_projection = \
         #     nn.Sequential(nn.Conv2d(self.extractor.down_dim, d_model, kernel_size=1),
         #     nn.GroupNorm(d_model // 8, d_model))
 
         input_proj_list = []
-        channels = (base_channel * 2, round(base_channel * 2 * 1.5), base_channel * 2 * 2)
+        channels = (512, 1024, 2048)
         for l_i in range(self.num_feature_levels):
             in_channels = channels[l_i]
             input_proj_list.append(nn.Sequential(
@@ -214,10 +215,15 @@ class RAFT(nn.Module):
 
             image1 = image1.contiguous()
             image2 = image2.contiguous()
-            _, _, I_H, I_W = image1.shape
+            bs, _, I_H, I_W = image1.shape
 
-            D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
-            bs, c, h, w = D1[-1].shape
+            # D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
+            features = self.extractor(torch.cat((image1, image2), dim=0))
+            for feat in features:
+                print(feat.shape)
+            exit()
+
+            _, c, h, w = D1[-1].shape
             _, C, H, W = U1.shape
             # bs, hw, c
             # src_pos = self.get_embedding(D1, self.col_pos_embed, self.row_pos_embed).flatten(2).permute(0, 2, 1)

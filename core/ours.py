@@ -247,9 +247,10 @@ class RAFT(nn.Module):
             src = torch.cat(torch.cat(src, dim=1).split(bs, dim=0), dim=1)
 
             # bs, HW, CU1
-            U1 = self.extractor_embed(D1[0])
+            U1 = D1[0]
             _, C, H, W = U1.shape
             U1 = torch.flatten(U1, 2).permute(0, 2, 1)
+            U1 = self.extractor_embed(U1)
 
             # bs, n, c
             query = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)

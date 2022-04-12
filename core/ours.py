@@ -219,17 +219,13 @@ class RAFT(nn.Module):
 
             # D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
             features = self.extractor(torch.cat((image1, image2), dim=0))
-            U1, _ = features["0"].split(bs, dim=0)
-            _, C, H, W = U1.shape
             D1 = list()
             D2 = list()
             for f_i in range(len(features)):
-                x1, x2 = self.input_proj[f_i](features["{}".format(f_i)].flatten(2)).permute(0, 2, 1).split(bs, dim=0)
+                x1, x2 = features["{}".format(f_i)].split(bs, dim=0)
                 D1.append(x1)
                 D2.append(x2)
-            # _, c, h, w = D1[-1].shape
-            D1 = torch.cat(D1, dim=1)
-            D2 = torch.cat(D2, dim=1)
+            _, c, h, w = D1[-1].shape
             # bs, hw, c
             # src_pos = self.get_embedding(D1, self.col_pos_embed, self.row_pos_embed).flatten(2).permute(0, 2, 1)
             src_pos = [self.get_embedding(feat, col_embed, row_embed) + self.lvl_pos_embed.weight[i]
@@ -239,12 +235,13 @@ class RAFT(nn.Module):
             #            for i, (feat, col_embed, row_embed)
             #            in enumerate(zip(D1, self.col_pos_embed, self.row_pos_embed))]
             src_pos = torch.cat(src_pos, dim=1)
-            # src = [self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1)
-            #        for i, (feat1, feat2) in enumerate(zip(D1, D2))]
-            # src = torch.cat(src, dim=1)
-            src = torch.cat((D1, D2), dim=0)
+            src = [self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1)
+                   for i, (feat1, feat2) in enumerate(zip(D1, D2))]
+            src = torch.cat(src, dim=1)
 
             # bs, HW, CU1
+            U1 = D1[0]
+            _, C, H, W = U1.shape
             U1 = torch.flatten(U1, 2).permute(0, 2, 1)
 
             # bs, n, c

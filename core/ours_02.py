@@ -168,8 +168,8 @@ class RAFT(nn.Module):
                 # bs, 2, n
                 reg = self.flow_embed(corr_hs.permute(0, 2, 1))
                 # bs, 2, h, w
-                flow = torch.bmm(reg, corr).view(bs, 2, h, w)
-                # flow *= torch.tensor((i_h, i_w), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
+                flow = torch.bmm(reg, corr).view(bs, 2, h, w).tanh()
+                flow *= torch.tensor((i_w, i_h), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
                 flow = F.interpolate(flow, size=(i_h, i_w), mode="bilinear", align_corners=True)
                 flow_predictions.append(flow)
 

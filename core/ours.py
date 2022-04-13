@@ -39,8 +39,8 @@ class RAFT(nn.Module):
         if "dropout" not in self.args:
             self.args.dropout = 0
 
-        # self.extractor = BasicEncoder(base_channel=base_channel, norm_fn="instance")
-        self.extractor = Backbone("resnet50", train_backbone=True, return_interm_layers=True, dilation=False)
+        # self.extractor = BasicEncoder(base_channel=64, norm_fn="bach")
+        self.extractor = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
         # self.context_extractor = Backbone("resnet50", train_backbone=True, return_interm_layers=True, dilation=False)
         d_model = 256
         self.num_feature_levels = 3
@@ -49,6 +49,7 @@ class RAFT(nn.Module):
         #     nn.GroupNorm(d_model // 8, d_model))
 
         input_proj_list = []
+        # channels = (512, 1024, 2048)
         channels = (512, 1024, 2048)
         for l_i in range(self.num_feature_levels):
             in_channels = channels[l_i]
@@ -109,12 +110,12 @@ class RAFT(nn.Module):
         self.extractor_embed = MLP(512, d_model, d_model, 3)
 
         iterations = 6
-        self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(iterations)])
-        self.context_embed = nn.ModuleList([self.context_embed for _ in range(iterations)])
-        self.reference_embed = nn.ModuleList([self.reference_embed for _ in range(iterations)])
-        # self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(iterations)])
-        # self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(iterations)])
-        # self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(iterations)])
+        # self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(iterations)])
+        # self.context_embed = nn.ModuleList([self.context_embed for _ in range(iterations)])
+        # self.reference_embed = nn.ModuleList([self.reference_embed for _ in range(iterations)])
+        self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(iterations)])
+        self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(iterations)])
+        self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(iterations)])
         # self.confidence_embed = nn.ModuleList([copy.deepcopy(self.confidence_embed) for _ in range(iterations)])
 
         self.reset_parameters()

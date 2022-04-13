@@ -353,7 +353,8 @@ class MLP(nn.Module):
 
     def forward(self, x):
         # x = x.permute(0, 2, 1)
-        for i, (layer, norm) in enumerate(zip(self.layers, self.norms)):
+        # for i, (layer, norm) in enumerate(zip(self.layers, self.norms)):
+        for i, layer in enumerate(self.layers):
             x = F.relu(layer(x)) if i < self.num_layers - 1 else layer(x)
             # x = F.relu(norm(layer(x))) if i < self.num_layers - 1 else layer(x)
             # x = F.gelu(norm(layer(x))) if (i < self.num_layers - 1) or self.last_activate else layer(x)

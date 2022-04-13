@@ -161,12 +161,12 @@ class RAFT(nn.Module):
                 corr_hs = self.corr_decoder[lid](tgt_embeds.permute(1, 0, 2),
                                                  features_02.permute(1, 0, 2)).permute(1, 0, 2)
                 # bs, n, c
-                corr_embed = self.corr_embed(corr_hs.permute(0, 2, 1)).permute(0, 2, 1)
+                corr_embed = self.corr_embed(corr_hs)
                 _, n, c = corr_embed.shape
                 # bs, n, h * w
                 corr = torch.sigmoid(torch.bmm(corr_embed, context_embed.permute(0, 2, 1)))
                 # bs, 2, n
-                reg = self.flow_embed(corr_hs.permute(0, 2, 1)).tanh()
+                reg = self.flow_embed(corr_hs).permute(0, 2, 1).tanh()
                 # bs, 2, h, w
                 flow = torch.bmm(reg, corr).view(bs, 2, h, w)
                 flow = flow * torch.tensor((i_w, i_h), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)

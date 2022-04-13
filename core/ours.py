@@ -101,7 +101,7 @@ class RAFT(nn.Module):
                                             for i in range(3, self.num_feature_levels + 3)])
         self.col_pos_embed = nn.ModuleList([nn.Embedding(h // (2 ** i), d_model // 2)
                                             for i in range(3, self.num_feature_levels + 3)])
-        # self.lvl_pos_embed = nn.Embedding(self.num_feature_levels, d_model)
+        self.lvl_pos_embed = nn.Embedding(self.num_feature_levels, d_model)
         # self.img_pos_embed = nn.Embedding(2, d_model)
 
         self.query_embed = nn.Embedding(25, d_model)
@@ -145,7 +145,7 @@ class RAFT(nn.Module):
             nn.init.normal_(embed.weight)
         nn.init.xavier_uniform_(self.query_embed.weight)
         nn.init.normal_(self.query_pos_embed.weight)
-        # nn.init.normal_(self.lvl_pos_embed.weight)
+        nn.init.normal_(self.lvl_pos_embed.weight)
         # nn.init.normal_(self.img_pos_embed.weight)
 
     def _get_clones(self, module, N):

@@ -155,7 +155,7 @@ class RAFT(nn.Module):
             tgt_embeds = self.query_decoder(query_embeds.permute(1, 0, 2),
                                             features_01.permute(1, 0, 2)).permute(1, 0, 2)
 
-            i_h, i_w = h * 8, w * 8
+            bs, _, i_h, i_w = image1.shape
             flow_predictions = list()
             for lid in range(len(self.corr_decoder)):
                 corr_hs = self.corr_decoder[lid](tgt_embeds.permute(1, 0, 2),
@@ -170,7 +170,8 @@ class RAFT(nn.Module):
                 # bs, 2, h, w
                 flow = torch.tanh(torch.bmm(reg, corr).view(bs, 2, h, w))
                 flow = flow * torch.tensor((i_w, i_h), dtype=torch.float32).view(1, 2, 1, 1).to(flow.device)
-                flow = F.interpolate(flow, size=(i_h, i_w), mode="bilinear", align_corners=True)
+                if h != i_h or w != i_w:
+                    flow = F.interpolate(flow, size=(i_h, i_w), mode="bilinear", align_corners=True)
                 flow_predictions.append(flow)
 
             if test_mode:

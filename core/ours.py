@@ -68,7 +68,7 @@ class RAFT(nn.Module):
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
                                                              dropout=0.1, activation="gelu",
                                                              n_levels=self.num_feature_levels * 2,
-                                                             n_heads=8, n_points=8, self_deformable=False)
+                                                             n_heads=8, n_points=4, self_deformable=False)
                            for _ in range(6)))
 
         # self.keypoint_decoder = \
@@ -104,8 +104,8 @@ class RAFT(nn.Module):
         self.flow_embed = MLP(d_model, d_model, 2, 3)
         # self.flow_embed = nn.Linear(d_model, 2)
         self.context_embed = MLP(d_model, d_model, d_model, 3)
-        # self.reference_embed = MLP(d_model, d_model, 2, 3)
-        self.reference_embed = nn.Linear(d_model, 2)
+        self.reference_embed = MLP(d_model, d_model, 2, 3)
+        # self.reference_embed = nn.Linear(d_model, 2)
         self.extractor_embed = MLP(512, d_model, d_model, 3)
 
         iterations = 6
@@ -267,8 +267,8 @@ class RAFT(nn.Module):
             query = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
             query_pos = self.query_pos_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
 
-            # init_reference_points = self.get_reference_points([(5, 5), ], device=src.device).squeeze(2)
-            # init_reference_points = init_reference_points.repeat(bs, 1, 1)
+            init_reference_points = self.get_reference_points([(5, 5), ], device=src.device).squeeze(2)
+            init_reference_points = init_reference_points.repeat(bs, 1, 1)
 
             spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 2, dtype=torch.long, device=src.device)
             level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
@@ -288,7 +288,8 @@ class RAFT(nn.Module):
                 #     query = keypoint
 
                 # bs, n, 2
-                reference_points = self.reference_embed[i](query + query_pos).sigmoid()
+                # reference_points = self.reference_embed[i](query + query_pos).sigmoid()
+                reference_points = init_reference_points
                 # reference_points = init_reference_points
 
                 # bs, n, c

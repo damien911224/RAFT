@@ -64,11 +64,16 @@ class RAFT(nn.Module):
                                                              n_heads=8, n_points=4)
                            for _ in range(6)))
 
+        # self.keypoint_decoder = \
+        #     nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
+        #                                                      dropout=0.1, activation="gelu",
+        #                                                      n_levels=self.num_feature_levels * 2,
+        #                                                      n_heads=8, n_points=4, self_deformable=False)
+        #                    for _ in range(6)))
+
         self.keypoint_decoder = \
-            nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
-                                                             dropout=0.1, activation="gelu",
-                                                             n_levels=self.num_feature_levels * 2,
-                                                             n_heads=8, n_points=4, self_deformable=False)
+            nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4,
+                                                      nhead=8, dropout=0.1, activation="gelu")
                            for _ in range(6)))
 
         # self.correlation_decoder = \
@@ -287,8 +292,9 @@ class RAFT(nn.Module):
                 # reference_points = init_reference_points
 
                 # bs, n, c
-                query = self.keypoint_decoder[i](query, query_pos, reference_points.unsqueeze(2),
-                                                 src, src_pos, spatial_shapes, level_start_index)
+                # query = self.keypoint_decoder[i](query, query_pos, reference_points.unsqueeze(2),
+                #                                  src, src_pos, spatial_shapes, level_start_index)
+                query = self.keypoint_decoder[i](query, query_pos, src, src_pos)
 
                 # bs, n, 2
                 # reference_points = (inverse_sigmoid(reference_points.detach()) +
@@ -304,9 +310,9 @@ class RAFT(nn.Module):
 
                 # bs, n, 2
                 flow_embed = self.flow_embed[i](query)
-                # flow = inverse_sigmoid(reference_points.detach()) + flow_embed
-                # flow = reference_points.detach() - flow.sigmoid()
-                flow = flow_embed.tanh()
+                flow = inverse_sigmoid(reference_points) + flow_embed
+                flow = reference_points - flow.sigmoid()
+                # flow = flow_embed.tanh()
                 # confidence = flow_embed[..., 2:].sigmoid()
                 sparse_predictions.append((reference_points, flow))
                 # flow = inverse_sigmoid(reference_points) + self.flow_embed[i](query)

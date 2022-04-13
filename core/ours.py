@@ -41,7 +41,7 @@ class RAFT(nn.Module):
 
         # self.extractor = BasicEncoder(base_channel=base_channel, norm_fn="instance")
         self.extractor = Backbone("resnet50", train_backbone=True, return_interm_layers=True, dilation=False)
-        self.context_extractor = Backbone("resnet50", train_backbone=True, return_interm_layers=True, dilation=False)
+        # self.context_extractor = Backbone("resnet50", train_backbone=True, return_interm_layers=True, dilation=False)
         d_model = 256
         self.num_feature_levels = 3
         # self.extractor_projection = \
@@ -252,8 +252,8 @@ class RAFT(nn.Module):
             src = torch.cat(torch.cat(src, dim=1).split(bs, dim=0), dim=1)
 
             # bs, HW, CU1
-            # U1 = D1[0]
-            U1 = self.context_extractor(image1)["0"]
+            U1 = D1[0]
+            # U1 = self.context_extractor(image1)["0"]
             _, C, H, W = U1.shape
             U1 = torch.flatten(U1, 2).permute(0, 2, 1)
             U1 = self.extractor_embed(U1)

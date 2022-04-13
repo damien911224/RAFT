@@ -41,6 +41,7 @@ class RAFT(nn.Module):
 
         # self.extractor = BasicEncoder(base_channel=base_channel, norm_fn="instance")
         self.extractor = Backbone("resnet50", train_backbone=True, return_interm_layers=True, dilation=False)
+        self.context_extractor = Backbone("resnet50", train_backbone=True, return_interm_layers=True, dilation=False)
         d_model = 256
         self.num_feature_levels = 3
         # self.extractor_projection = \
@@ -223,13 +224,15 @@ class RAFT(nn.Module):
             bs, _, I_H, I_W = image1.shape
 
             # D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
-            features = self.extractor(torch.cat((image1, image2), dim=0))
-            D1 = list()
-            D2 = list()
-            for f_i in range(len(features)):
-                x1, x2 = features["{}".format(f_i)].split(bs, dim=0)
-                D1.append(x1)
-                D2.append(x2)
+            # features = self.extractor(torch.cat((image1, image2), dim=0))
+            # D1 = list()
+            # D2 = list()
+            # for f_i in range(len(features)):
+            #     x1, x2 = features["{}".format(f_i)].split(bs, dim=0)
+            #     D1.append(x1)
+            #     D2.append(x2)
+            D1 = [f["{}".format(i)] for i, f in enumerate(self.extractor(image1))]
+            D2 = [f["{}".format(i)] for i, f in enumerate(self.extractor(image2))]
             _, c, h, w = D1[-1].shape
             # bs, hw, c
             # src_pos = self.get_embedding(D1, self.col_pos_embed, self.row_pos_embed).flatten(2).permute(0, 2, 1)
@@ -247,7 +250,8 @@ class RAFT(nn.Module):
             src = torch.cat(torch.cat(src, dim=1).split(bs, dim=0), dim=1)
 
             # bs, HW, CU1
-            U1 = D1[0]
+            # U1 = D1[0]
+            U1 = self.context_extractor(image1)["0"]
             _, C, H, W = U1.shape
             U1 = torch.flatten(U1, 2).permute(0, 2, 1)
             U1 = self.extractor_embed(U1)

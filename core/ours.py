@@ -346,8 +346,8 @@ class MLP(nn.Module):
         self.num_layers = num_layers
         self.last_activate = last_activate
         h = [hidden_dim] * (num_layers - 1)
-        # self.layers = nn.ModuleList(nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
-        self.layers = nn.ModuleList(nn.Conv1d(n, k, kernel_size=1) for n, k in zip([input_dim] + h, h + [output_dim]))
+        self.layers = nn.ModuleList(nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
+        # self.layers = nn.ModuleList(nn.Conv1d(n, k, kernel_size=1) for n, k in zip([input_dim] + h, h + [output_dim]))
         self.norms = nn.ModuleList([nn.BatchNorm1d(c) if c is not None else None
                                     for c in [hidden_dim] + h + [output_dim]])
 

@@ -288,7 +288,7 @@ class RAFT(nn.Module):
                 #     query = keypoint
 
                 # bs, n, 2
-                reference_points = self.reference_embed[i](query).sigmoid()
+                reference_points = self.reference_embed[i](query + query_pos).sigmoid()
                 # reference_points = init_reference_points
 
                 # bs, n, c

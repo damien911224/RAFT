@@ -64,17 +64,17 @@ class RAFT(nn.Module):
                                                              n_heads=8, n_points=4)
                            for _ in range(6)))
 
-        # self.keypoint_decoder = \
-        #     nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
-        #                                                      dropout=0.1, activation="gelu",
-        #                                                      n_levels=self.num_feature_levels * 2,
-        #                                                      n_heads=8, n_points=4, self_deformable=False)
-        #                    for _ in range(6)))
-
         self.keypoint_decoder = \
-            nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4,
-                                                      nhead=8, dropout=0.1, activation="gelu")
+            nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
+                                                             dropout=0.1, activation="gelu",
+                                                             n_levels=self.num_feature_levels * 2,
+                                                             n_heads=8, n_points=4, self_deformable=False)
                            for _ in range(6)))
+
+        # self.keypoint_decoder = \
+        #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4,
+        #                                               nhead=8, dropout=0.1, activation="gelu")
+        #                    for _ in range(6)))
 
         # self.correlation_decoder = \
         #     nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
@@ -104,8 +104,8 @@ class RAFT(nn.Module):
         self.flow_embed = MLP(d_model, d_model, 2, 3)
         # self.flow_embed = nn.Linear(d_model, 2)
         self.context_embed = MLP(d_model, d_model, d_model, 3)
-        self.reference_embed = MLP(d_model, d_model, 2, 3)
-        # self.reference_embed = nn.Linear(d_model, 2)
+        # self.reference_embed = MLP(d_model, d_model, 2, 3)
+        self.reference_embed = nn.Linear(d_model, 2)
         self.extractor_embed = MLP(512, d_model, d_model, 3)
 
         iterations = 6
@@ -292,10 +292,10 @@ class RAFT(nn.Module):
                 # reference_points = init_reference_points
 
                 # bs, n, c
-                # query = self.keypoint_decoder[i](query, query_pos, reference_points.unsqueeze(2),
-                #                                  src, src_pos, spatial_shapes, level_start_index)
-                query = self.keypoint_decoder[i]((query + query_pos).permute(1, 0, 2),
-                                                 (src + src_pos).permute(1, 0, 2)).permute(1, 0, 2)
+                query = self.keypoint_decoder[i](query, query_pos, reference_points.unsqueeze(2),
+                                                 src, src_pos, spatial_shapes, level_start_index)
+                # query = self.keypoint_decoder[i]((query + query_pos).permute(1, 0, 2),
+                #                                  (src + src_pos).permute(1, 0, 2)).permute(1, 0, 2)
 
                 # bs, n, 2
                 # reference_points = (inverse_sigmoid(reference_points.detach()) +

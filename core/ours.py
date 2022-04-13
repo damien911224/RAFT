@@ -40,7 +40,7 @@ class RAFT(nn.Module):
             self.args.dropout = 0
 
         # self.extractor = BasicEncoder(base_channel=base_channel, norm_fn="instance")
-        self.extractor = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
+        self.extractor = Backbone("resnet50", train_backbone=True, return_interm_layers=True, dilation=False)
         d_model = 256
         self.num_feature_levels = 3
         # self.extractor_projection = \

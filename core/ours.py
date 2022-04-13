@@ -231,8 +231,10 @@ class RAFT(nn.Module):
             #     x1, x2 = features["{}".format(f_i)].split(bs, dim=0)
             #     D1.append(x1)
             #     D2.append(x2)
-            D1 = [f["{}".format(i)] for i, (k, f) in enumerate(self.extractor(image1).items())]
-            D2 = [f["{}".format(i)] for i, (k, f) in enumerate(self.extractor(image2).items())]
+            features_01 = self.extractor(image1)
+            features_02 = self.extractor(image2)
+            D1 = [features_01["{}".format(i)] for i in range(len(features_01))]
+            D2 = [features_02["{}".format(i)] for i in range(len(features_02))]
             _, c, h, w = D1[-1].shape
             # bs, hw, c
             # src_pos = self.get_embedding(D1, self.col_pos_embed, self.row_pos_embed).flatten(2).permute(0, 2, 1)

@@ -135,13 +135,13 @@ class RAFT(nn.Module):
         # nn.init.constant_(self.confidence_embed.bias, 0)
 
         for embed in self.row_pos_embed:
-            nn.init.uniform_(embed.weight)
+            nn.init.normal_(embed.weight)
         for embed in self.col_pos_embed:
-            nn.init.uniform_(embed.weight)
+            nn.init.normal_(embed.weight)
         nn.init.xavier_uniform_(self.query_embed.weight)
-        nn.init.uniform_(self.query_pos_embed.weight)
-        nn.init.uniform_(self.lvl_pos_embed.weight)
-        nn.init.uniform_(self.img_pos_embed.weight)
+        nn.init.normal_(self.query_pos_embed.weight)
+        nn.init.normal_(self.lvl_pos_embed.weight)
+        nn.init.normal_(self.img_pos_embed.weight)
 
     def _get_clones(self, module, N):
         return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
@@ -316,7 +316,6 @@ class RAFT(nn.Module):
                 flow = reference_points.detach() - flow.sigmoid()
                 # flow = flow_embed.tanh()
                 # confidence = flow_embed[..., 2:].sigmoid()
-                sparse_predictions.append((reference_points, flow))
                 # flow = inverse_sigmoid(reference_points) + self.flow_embed[i](query)
                 # flow = reference_points - flow.sigmoid()
                 # bs, n, c
@@ -327,6 +326,7 @@ class RAFT(nn.Module):
 
                 # bs, HW, n
                 context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
+                scores = torch.max(context_flow, dim=1)
                 # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
                 # bs, HW, 2
                 context_flow = torch.bmm(context_flow, flow)
@@ -339,6 +339,7 @@ class RAFT(nn.Module):
                     context_flow = F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
 
                 flow_predictions.append(context_flow)
+                sparse_predictions.append((reference_points, flow, scores))
 
             if test_mode:
                 return flow_predictions[-1], flow_predictions[-1]

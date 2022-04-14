@@ -290,7 +290,7 @@ class RAFT(nn.Module):
             sparse_predictions = list()
             for i in range(len(self.keypoint_decoder)):
                 # bs, n, 2
-                reference_points = self.reference_embed[i](query_pos).sigmoid()
+                reference_points = self.reference_embed[i](query + query_pos).sigmoid()
                 # reference_points = init_reference_points
 
                 # bs, n, c

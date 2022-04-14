@@ -104,8 +104,8 @@ class RAFT(nn.Module):
                                             for i in range(3, self.num_feature_levels + 3)])
         self.lvl_pos_embed = nn.Embedding(self.num_feature_levels, d_model)
         self.img_pos_embed = nn.Embedding(2, d_model)
-        self.context_row_pos_embed = nn.Embedding(w // (2 ** 2), self.extractor.up_dim)
-        self.context_col_pos_embed = nn.Embedding(h // (2 ** 2), self.extractor.up_dim)
+        self.context_row_pos_embed = nn.Embedding(w // (2 ** 2), self.extractor.up_dim // 2)
+        self.context_col_pos_embed = nn.Embedding(h // (2 ** 2), self.extractor.up_dim // 2)
 
         self.query_embed = nn.Embedding(25, d_model)
         self.query_pos_embed = nn.Embedding(25, d_model)

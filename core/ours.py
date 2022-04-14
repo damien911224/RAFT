@@ -54,7 +54,7 @@ class RAFT(nn.Module):
         for l_i in range(self.num_feature_levels):
             in_channels = channels[l_i]
             input_proj_list.append(nn.Sequential(
-                nn.Conv1d(in_channels, d_model, kernel_size=1),
+                nn.Conv1d(in_channels, d_model, kernel_size=1, padding=0),
                 nn.GroupNorm(32, d_model)))
         self.input_proj = nn.ModuleList(input_proj_list)
 

@@ -100,23 +100,25 @@ class RAFT(nn.Module):
 
         h, w = args.image_size[0], args.image_size[1]
         # self.pos_embed = NerfPositionalEncoding(depth=d_model // 4)
-        self.row_pos_embed = nn.ModuleList([nn.Embedding(w // (2 ** i), d_model // 2)
-                                            for i in range(3, self.num_feature_levels + 3)])
-        self.col_pos_embed = nn.ModuleList([nn.Embedding(h // (2 ** i), d_model // 2)
-                                            for i in range(3, self.num_feature_levels + 3)])
+        # self.row_pos_embed = nn.ModuleList([nn.Embedding(w // (2 ** i), d_model // 2)
+        #                                     for i in range(3, self.num_feature_levels + 3)])
+        # self.col_pos_embed = nn.ModuleList([nn.Embedding(h // (2 ** i), d_model // 2)
+        #                                     for i in range(3, self.num_feature_levels + 3)])
         self.lvl_pos_embed = nn.Embedding(self.num_feature_levels, d_model)
         self.img_pos_embed = nn.Embedding(2, d_model)
-        self.context_row_pos_embed = nn.Embedding(w // (2 ** 2), self.extractor.up_dim // 2)
-        self.context_col_pos_embed = nn.Embedding(h // (2 ** 2), self.extractor.up_dim // 2)
+        # self.context_row_pos_embed = nn.Embedding(w // (2 ** 2), self.extractor.up_dim // 2)
+        # self.context_col_pos_embed = nn.Embedding(h // (2 ** 2), self.extractor.up_dim // 2)
+        self.row_pos_embed = nn.Embedding(w // (2 ** 2), d_model // 2)
+        self.col_pos_embed = nn.Embedding(h // (2 ** 2), d_model // 2)
 
         self.query_embed = nn.Embedding(25, d_model)
         self.query_pos_embed = nn.Embedding(25, d_model)
         self.flow_embed = MLP(d_model, d_model, 2, 3)
         # self.flow_embed = nn.Linear(d_model, 2)
-        self.context_embed = MLP(d_model, self.extractor.up_dim, self.extractor.up_dim, 3, last_activate=True)
+        self.context_embed = MLP(d_model, d_model, d_model, 3)
         self.reference_embed = MLP(d_model, d_model, 2, 3)
         # self.reference_embed = nn.Linear(d_model, 2)
-        # self.extractor_embed = MLP(512, d_model, d_model, 3)
+        self.extractor_embed = MLP(self.extractor.up_dim, d_model, d_model, 3)
 
         # self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(iterations)])
         # self.context_embed = nn.ModuleList([self.context_embed for _ in range(iterations)])
@@ -143,16 +145,16 @@ class RAFT(nn.Module):
         # nn.init.xavier_uniform_(self.confidence_embed.weight)
         # nn.init.constant_(self.confidence_embed.bias, 0)
 
-        for embed in self.row_pos_embed:
-            nn.init.normal_(embed.weight)
-        for embed in self.col_pos_embed:
-            nn.init.normal_(embed.weight)
+        # for embed in self.row_pos_embed:
+        #     nn.init.normal_(embed.weight)
+        # for embed in self.col_pos_embed:
+        #     nn.init.normal_(embed.weight)
         nn.init.xavier_uniform_(self.query_embed.weight)
         nn.init.normal_(self.query_pos_embed.weight)
         nn.init.normal_(self.lvl_pos_embed.weight)
         nn.init.normal_(self.img_pos_embed.weight)
-        nn.init.normal_(self.context_row_pos_embed.weight)
-        nn.init.normal_(self.context_col_pos_embed.weight)
+        nn.init.normal_(self.row_pos_embed.weight)
+        nn.init.normal_(self.col_pos_embed.weight)
 
     def _get_clones(self, module, N):
         return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
@@ -254,10 +256,12 @@ class RAFT(nn.Module):
             _, c, h, w = D1[-1].shape
             # bs, hw, c
             # src_pos = self.get_embedding(D1, self.col_pos_embed, self.row_pos_embed).flatten(2).permute(0, 2, 1)
-            src_pos = [self.get_embedding(feat, col_embed, row_embed) + self.lvl_pos_embed.weight[i]
-                       for i, (feat, col_embed, row_embed)
-                       in enumerate(zip(D1, self.col_pos_embed, self.row_pos_embed))]
-            context_pos = self.get_embedding(U1, self.context_col_pos_embed, self.context_row_pos_embed)
+            # src_pos = [self.get_embedding(feat, col_embed, row_embed) + self.lvl_pos_embed.weight[i]
+            #            for i, (feat, col_embed, row_embed)
+            #            in enumerate(zip(D1, self.col_pos_embed, self.row_pos_embed))]
+            src_pos = [self.get_embedding(feat, self.col_pos_embed, self.row_pos_embed) + self.lvl_pos_embed.weight[i]
+                       for i, feat in enumerate(D1)]
+            context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed)
             # src_pos = [self.get_sine_embedding(feat) + self.lvl_pos_embed.weight[i]
             #            for i, (feat, col_embed, row_embed)
             #            in enumerate(zip(D1, self.col_pos_embed, self.row_pos_embed))]

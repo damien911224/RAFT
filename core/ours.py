@@ -278,8 +278,8 @@ class RAFT(nn.Module):
             # U1 = D1[0]
             # U1 = self.context_extractor(image1)["0"]
             _, C, H, W = U1.shape
-            U1 = torch.flatten(U1, 2).permute(0, 2, 1) + context_pos
-            U1 = self.extractor_embed(U1)
+            U1 = torch.flatten(U1, 2).permute(0, 2, 1)
+            U1 = self.extractor_embed(U1) + context_pos
 
             # bs, n, c
             query = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)

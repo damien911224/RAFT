@@ -63,14 +63,14 @@ class RAFT(nn.Module):
         self.encoder = \
             nn.ModuleList((DeformableTransformerEncoderLayer(d_model=d_model, d_ffn=d_model * 4,
                                                              dropout=0.1, activation="gelu",
-                                                             n_levels=self.num_feature_levels * 1,
+                                                             n_levels=self.num_feature_levels * 2,
                                                              n_heads=8, n_points=4)
                            for _ in range(iterations)))
 
         self.keypoint_decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
                                                              dropout=0.1, activation="gelu",
-                                                             n_levels=self.num_feature_levels * 1,
+                                                             n_levels=self.num_feature_levels * 2,
                                                              n_heads=8, n_points=4, self_deformable=False)
                            for _ in range(iterations)))
 
@@ -82,7 +82,7 @@ class RAFT(nn.Module):
         self.correlation_decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
                                                              dropout=0.1, activation="gelu",
-                                                             n_levels=self.num_feature_levels * 1,
+                                                             n_levels=self.num_feature_levels * 2,
                                                              n_heads=8, n_points=4, self_deformable=False)
                            for _ in range(iterations)))
 
@@ -273,20 +273,20 @@ class RAFT(nn.Module):
             #            in enumerate(zip(D1, self.col_pos_embed, self.row_pos_embed))]
             src_pos = [self.get_embedding(feat, self.col_pos_embed, self.row_pos_embed) + self.lvl_pos_embed.weight[i]
                        for i, feat in enumerate(D1)]
-            # context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed) + \
-            #               self.img_pos_embed.weight[None, -1, None]
-            context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed)
+            context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed) + \
+                          self.img_pos_embed.weight[None, -1, None]
+            # context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed)
             # src_pos = [self.get_sine_embedding(feat) + self.lvl_pos_embed.weight[i]
             #            for i, (feat, col_embed, row_embed)
             #            in enumerate(zip(D1, self.col_pos_embed, self.row_pos_embed))]
             # src_pos = torch.cat(src_pos, dim=1)
-            # src_pos = torch.flatten(torch.cat(src_pos, dim=1).unsqueeze(1) + self.img_pos_embed.weight[None, :2, None],
-            #                         start_dim=1, end_dim=2)
-            src_pos = torch.cat(src_pos, dim=1)
+            src_pos = torch.flatten(torch.cat(src_pos, dim=1).unsqueeze(1) + self.img_pos_embed.weight[None, :2, None],
+                                    start_dim=1, end_dim=2)
+            # src_pos = torch.cat(src_pos, dim=1)
             src = [self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1)
                    for i, (feat1, feat2) in enumerate(zip(D1, D2))]
-            # src = torch.cat(torch.cat(src, dim=1).split(bs, dim=0), dim=1)
-            src = torch.cat(src, dim=1)
+            src = torch.cat(torch.cat(src, dim=1).split(bs, dim=0), dim=1)
+            # src = torch.cat(src, dim=1)
 
             # bs, HW, CU1
             # U1 = D1[0]
@@ -302,14 +302,14 @@ class RAFT(nn.Module):
             reference_points = self.get_reference_points([(5, 5), ], device=src.device).squeeze(2)
             reference_points = reference_points.repeat(bs, 1, 1)
 
-            spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 1, dtype=torch.long, device=src.device)
+            spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 2, dtype=torch.long, device=src.device)
             level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
             src_ref = self.get_reference_points(spatial_shapes, device=src.device)
             for i in range(len(self.encoder)):
                 src = self.encoder[i](src, src_pos, src_ref, spatial_shapes, level_start_index)
 
-            D1, D2 = src.split(bs, dim=0)
+            # D1, D2 = src.split(bs, dim=0)
 
             keypoint = query
 
@@ -326,7 +326,7 @@ class RAFT(nn.Module):
                 # keypoint = self.keypoint_decoder[i]((keypoint + query_pos).permute(1, 0, 2),
                 #                                     (D1 + src_pos).permute(1, 0, 2)).permute(1, 0, 2)
                 keypoint = self.keypoint_decoder[i](keypoint, query_pos, reference_points.unsqueeze(2),
-                                                    D1, src_pos, spatial_shapes, level_start_index)
+                                                    src, src_pos, spatial_shapes, level_start_index)
                 # reference_points = self.reference_embed[i](keypoint).sigmoid()
                 reference_points = (inverse_sigmoid(reference_points.detach()) +
                                     self.reference_embed[i](keypoint)).sigmoid()
@@ -337,7 +337,7 @@ class RAFT(nn.Module):
 
                 # bs, n, c
                 correlation = self.correlation_decoder[i](keypoint, query_pos, reference_points.unsqueeze(2),
-                                                          D2, src_pos, spatial_shapes, level_start_index)
+                                                          src, src_pos, spatial_shapes, level_start_index)
                 # correlation = self.correlation_decoder[i](keypoint.permute(1, 0, 2),
                 #                                           (D2 + src_pos).permute(1, 0, 2)).permute(1, 0, 2)
 

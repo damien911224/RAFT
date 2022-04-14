@@ -111,7 +111,7 @@ class RAFT(nn.Module):
         self.query_pos_embed = nn.Embedding(25, d_model)
         self.flow_embed = MLP(d_model, d_model, 2, 3)
         # self.flow_embed = nn.Linear(d_model, 2)
-        self.context_embed = MLP(d_model, d_model, self.extractor.up_dim, 3)
+        self.context_embed = MLP(d_model, d_model, self.extractor.up_dim, 3, last_activate=True)
         self.reference_embed = MLP(d_model, d_model, 2, 3)
         # self.reference_embed = nn.Linear(d_model, 2)
         # self.extractor_embed = MLP(512, d_model, d_model, 3)

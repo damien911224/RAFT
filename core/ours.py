@@ -39,7 +39,7 @@ class RAFT(nn.Module):
         if "dropout" not in self.args:
             self.args.dropout = 0
 
-        self.extractor = BasicEncoder(base_channel=64, norm_fn="bach")
+        self.extractor = BasicEncoder(base_channel=64, norm_fn="batch")
         # self.extractor = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
         # self.context_extractor = Backbone("resnet50", train_backbone=True, return_interm_layers=True, dilation=False)
         d_model = 128

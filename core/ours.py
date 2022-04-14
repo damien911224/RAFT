@@ -341,7 +341,7 @@ class RAFT(nn.Module):
                 # reference_points = reference_points.unsqueeze(2).sigmoid()
 
                 # bs, HW, n
-                context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
+                context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
                 scores = torch.max(context_flow, dim=1)[0]
                 # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
                 # bs, HW, 2

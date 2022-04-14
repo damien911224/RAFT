@@ -55,7 +55,7 @@ class RAFT(nn.Module):
             in_channels = channels[l_i]
             input_proj_list.append(nn.Sequential(
                 nn.Conv1d(in_channels, d_model, kernel_size=1),
-                nn.GroupNorm(d_model // 2, d_model)))
+                nn.GroupNorm(32, d_model)))
         self.input_proj = nn.ModuleList(input_proj_list)
 
         self.encoder = \
@@ -368,8 +368,8 @@ class MLP(nn.Module):
         # self.layers = nn.ModuleList(nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
         self.layers = nn.ModuleList(nn.Conv1d(n, k, kernel_size=1, padding=0)
                                     for n, k in zip([input_dim] + h, h + [output_dim]))
-        self.norms = nn.ModuleList([nn.GroupNorm(k // 2, k)
-                                    for n, k in zip([input_dim] + h, h + [output_dim]))
+        self.norms = nn.ModuleList(nn.GroupNorm(32, k)
+                                   for n, k in zip([input_dim] + h, h + [output_dim]))
 
     def forward(self, x):
         x = x.permute(0, 2, 1)

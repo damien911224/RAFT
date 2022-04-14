@@ -123,8 +123,8 @@ class RAFT(nn.Module):
         self.row_pos_embed = nn.Embedding(w // (2 ** 2), d_model // 2)
         self.col_pos_embed = nn.Embedding(h // (2 ** 2), d_model // 2)
 
-        self.query_embed = nn.Embedding(100, d_model)
-        self.query_pos_embed = nn.Embedding(100, d_model)
+        self.query_embed = nn.Embedding(25, d_model)
+        self.query_pos_embed = nn.Embedding(25, d_model)
         self.flow_embed = MLP(d_model, d_model, 2, 3)
         # self.flow_embed = nn.Linear(d_model, 2)
         self.context_embed = MLP(d_model, d_model, d_model, 3)

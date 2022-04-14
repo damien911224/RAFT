@@ -284,7 +284,7 @@ class RAFT(nn.Module):
             for i in range(len(self.encoder)):
                 src = self.encoder[i](src, src_pos, src_ref, spatial_shapes, level_start_index)
 
-            D1, D2 = src.split(bs, dim=0)
+            # D1, D2 = src.split(bs, dim=0)
 
             flow_predictions = list()
             sparse_predictions = list()

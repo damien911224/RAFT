@@ -326,7 +326,7 @@ class RAFT(nn.Module):
                 # keypoint = self.keypoint_decoder[i]((keypoint + query_pos).permute(1, 0, 2),
                 #                                     (D1 + src_pos).permute(1, 0, 2)).permute(1, 0, 2)
                 keypoint = self.keypoint_decoder[i](keypoint, query_pos, reference_points.unsqueeze(2),
-                                                    src, src_pos, spatial_shapes, level_start_index)
+                                                    D1, src_pos, spatial_shapes, level_start_index)
                 # reference_points = self.reference_embed[i](keypoint).sigmoid()
                 reference_points = (inverse_sigmoid(reference_points.detach()) +
                                     self.reference_embed[i](keypoint)).sigmoid()

@@ -290,7 +290,7 @@ class RAFT(nn.Module):
             sparse_predictions = list()
             for i in range(len(self.keypoint_decoder)):
                 # bs, n, 2
-                reference_points = self.reference_embed[i](query + query_pos).sigmoid()
+                reference_points = self.reference_embed[i](query_pos).sigmoid()
                 # reference_points = init_reference_points
 
                 # bs, n, c
@@ -338,7 +338,7 @@ class RAFT(nn.Module):
                 context_flow = context_flow.permute(0, 2, 1).view(bs, 2, H, W)
 
                 context_flow = context_flow * \
-                               torch.tensor((I_W, I_H), dtype=torch.float32).view(1, 2, 1, 1).to(context_flow.device)
+                               torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
                 if I_H != H or I_W != W:
                     context_flow = F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
 

@@ -58,19 +58,21 @@ class RAFT(nn.Module):
                 nn.GroupNorm(32, d_model)))
         self.input_proj = nn.ModuleList(input_proj_list)
 
+        iterations = 6
+
         self.encoder = \
             nn.ModuleList((DeformableTransformerEncoderLayer(d_model=d_model, d_ffn=d_model * 4,
                                                              dropout=0.1, activation="gelu",
                                                              n_levels=self.num_feature_levels * 2,
                                                              n_heads=8, n_points=4)
-                           for _ in range(6)))
+                           for _ in range(iterations)))
 
         self.keypoint_decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
                                                              dropout=0.1, activation="gelu",
                                                              n_levels=self.num_feature_levels * 2,
                                                              n_heads=8, n_points=4, self_deformable=False)
-                           for _ in range(6)))
+                           for _ in range(iterations)))
 
         # self.keypoint_decoder = \
         #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4,
@@ -116,7 +118,6 @@ class RAFT(nn.Module):
         # self.reference_embed = nn.Linear(d_model, 2)
         # self.extractor_embed = MLP(512, d_model, d_model, 3)
 
-        iterations = 6
         # self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(iterations)])
         # self.context_embed = nn.ModuleList([self.context_embed for _ in range(iterations)])
         # self.reference_embed = nn.ModuleList([self.reference_embed for _ in range(iterations)])

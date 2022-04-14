@@ -105,7 +105,7 @@ class RAFT(nn.Module):
         # self.col_pos_embed = nn.ModuleList([nn.Embedding(h // (2 ** i), d_model // 2)
         #                                     for i in range(3, self.num_feature_levels + 3)])
         self.lvl_pos_embed = nn.Embedding(self.num_feature_levels, d_model)
-        self.img_pos_embed = nn.Embedding(2, d_model)
+        self.img_pos_embed = nn.Embedding(3, d_model)
         # self.context_row_pos_embed = nn.Embedding(w // (2 ** 2), self.extractor.up_dim // 2)
         # self.context_col_pos_embed = nn.Embedding(h // (2 ** 2), self.extractor.up_dim // 2)
         self.row_pos_embed = nn.Embedding(w // (2 ** 2), d_model // 2)
@@ -261,12 +261,13 @@ class RAFT(nn.Module):
             #            in enumerate(zip(D1, self.col_pos_embed, self.row_pos_embed))]
             src_pos = [self.get_embedding(feat, self.col_pos_embed, self.row_pos_embed) + self.lvl_pos_embed.weight[i]
                        for i, feat in enumerate(D1)]
-            context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed)
+            context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed) + \
+                          self.img_pos_embed.weight[None, -1, None]
             # src_pos = [self.get_sine_embedding(feat) + self.lvl_pos_embed.weight[i]
             #            for i, (feat, col_embed, row_embed)
             #            in enumerate(zip(D1, self.col_pos_embed, self.row_pos_embed))]
             # src_pos = torch.cat(src_pos, dim=1)
-            src_pos = torch.flatten(torch.cat(src_pos, dim=1).unsqueeze(1) + self.img_pos_embed.weight[None, :, None],
+            src_pos = torch.flatten(torch.cat(src_pos, dim=1).unsqueeze(1) + self.img_pos_embed.weight[None, :2, None],
                                     start_dim=1, end_dim=2)
             # src_pos = torch.cat(src_pos, dim=1)
             src = [self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1)

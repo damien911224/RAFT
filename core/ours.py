@@ -39,17 +39,18 @@ class RAFT(nn.Module):
         if "dropout" not in self.args:
             self.args.dropout = 0
 
-        # self.extractor = BasicEncoder(base_channel=64, norm_fn="bach")
-        self.extractor = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
+        self.extractor = BasicEncoder(base_channel=64, norm_fn="bach")
+        # self.extractor = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
         # self.context_extractor = Backbone("resnet50", train_backbone=True, return_interm_layers=True, dilation=False)
-        d_model = 256
+        d_model = 128
         self.num_feature_levels = 3
         # self.extractor_projection = \
         #     nn.Sequential(nn.Conv2d(self.extractor.down_dim, d_model, kernel_size=1),
         #     nn.GroupNorm(d_model // 8, d_model))
 
         input_proj_list = []
-        channels = (512, 1024, 2048)
+        # channels = (512, 1024, 2048)
+        channels = (128, 192, 256)
         for l_i in range(self.num_feature_levels):
             in_channels = channels[l_i]
             input_proj_list.append(nn.Sequential(
@@ -103,6 +104,8 @@ class RAFT(nn.Module):
                                             for i in range(3, self.num_feature_levels + 3)])
         self.lvl_pos_embed = nn.Embedding(self.num_feature_levels, d_model)
         self.img_pos_embed = nn.Embedding(2, d_model)
+        self.context_row_pos_embed = nn.Embedding(w // (2 ** 3), d_model)
+        self.context_col_pos_embed = nn.Embedding(h // (2 ** 3), d_model)
 
         self.query_embed = nn.Embedding(25, d_model)
         self.query_pos_embed = nn.Embedding(25, d_model)
@@ -111,7 +114,7 @@ class RAFT(nn.Module):
         self.context_embed = MLP(d_model, d_model, d_model, 3)
         self.reference_embed = MLP(d_model, d_model, 2, 3)
         # self.reference_embed = nn.Linear(d_model, 2)
-        self.extractor_embed = MLP(512, d_model, d_model, 3)
+        # self.extractor_embed = MLP(512, d_model, d_model, 3)
 
         iterations = 6
         self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(iterations)])
@@ -147,6 +150,8 @@ class RAFT(nn.Module):
         nn.init.normal_(self.query_pos_embed.weight)
         nn.init.normal_(self.lvl_pos_embed.weight)
         nn.init.normal_(self.img_pos_embed.weight)
+        nn.init.normal_(self.context_row_pos_embed.weight)
+        nn.init.normal_(self.context_col_pos_embed.weight)
 
     def _get_clones(self, module, N):
         return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
@@ -233,14 +238,14 @@ class RAFT(nn.Module):
             image2 = image2.contiguous()
             bs, _, I_H, I_W = image1.shape
 
-            # D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
-            features = self.extractor(torch.cat((image1, image2), dim=0))
-            D1 = list()
-            D2 = list()
-            for f_i in range(len(features)):
-                x1, x2 = features["{}".format(f_i)].split(bs, dim=0)
-                D1.append(x1)
-                D2.append(x2)
+            D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
+            # features = self.extractor(torch.cat((image1, image2), dim=0))
+            # D1 = list()
+            # D2 = list()
+            # for f_i in range(len(features)):
+            #     x1, x2 = features["{}".format(f_i)].split(bs, dim=0)
+            #     D1.append(x1)
+            #     D2.append(x2)
             # features_01 = self.extractor(image1)
             # features_02 = self.extractor(image2)
             # D1 = [features_01["{}".format(i)] for i in range(len(features_01))]
@@ -251,6 +256,7 @@ class RAFT(nn.Module):
             src_pos = [self.get_embedding(feat, col_embed, row_embed) + self.lvl_pos_embed.weight[i]
                        for i, (feat, col_embed, row_embed)
                        in enumerate(zip(D1, self.col_pos_embed, self.row_pos_embed))]
+            context_pos = self.get_embedding(U1, self.context_col_pos_embed, self.context_row_pos_embed)
             # src_pos = [self.get_sine_embedding(feat) + self.lvl_pos_embed.weight[i]
             #            for i, (feat, col_embed, row_embed)
             #            in enumerate(zip(D1, self.col_pos_embed, self.row_pos_embed))]
@@ -264,18 +270,18 @@ class RAFT(nn.Module):
             # src = torch.cat(src, dim=1)
 
             # bs, HW, CU1
-            U1 = D1[0]
+            # U1 = D1[0]
             # U1 = self.context_extractor(image1)["0"]
             _, C, H, W = U1.shape
-            U1 = torch.flatten(U1, 2).permute(0, 2, 1)
-            U1 = self.extractor_embed(U1)
+            U1 = torch.flatten(U1, 2).permute(0, 2, 1) + context_pos
+            # U1 = self.extractor_embed(U1)
 
             # bs, n, c
             query = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
             query_pos = self.query_pos_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
 
-            init_reference_points = self.get_reference_points([(5, 5), ], device=src.device).squeeze(2)
-            init_reference_points = init_reference_points.repeat(bs, 1, 1)
+            # init_reference_points = self.get_reference_points([(5, 5), ], device=src.device).squeeze(2)
+            # init_reference_points = init_reference_points.repeat(bs, 1, 1)
 
             spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 2, dtype=torch.long, device=src.device)
             level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))

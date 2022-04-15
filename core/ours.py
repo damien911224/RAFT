@@ -58,21 +58,24 @@ class RAFT(nn.Module):
                 nn.GroupNorm(32, d_model)))
         self.input_proj = nn.ModuleList(input_proj_list)
 
-        iterations = 3
+        self.encoder_iterations = 1
+        self.outer_iterations = 6
+        self.inner_iterations = 6
+        self.num_keypoints = 100
 
         self.encoder = \
             nn.ModuleList((DeformableTransformerEncoderLayer(d_model=d_model, d_ffn=d_model * 4,
                                                              dropout=0.1, activation="gelu",
                                                              n_levels=self.num_feature_levels * 2,
                                                              n_heads=8, n_points=4)
-                           for _ in range(1)))
+                           for _ in range(self.encoder_iterations)))
 
         self.keypoint_decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
                                                              dropout=0.1, activation="gelu",
                                                              n_levels=self.num_feature_levels * 2,
                                                              n_heads=8, n_points=4, self_deformable=False)
-                           for _ in range(iterations)))
+                           for _ in range(self.outer_iterations)))
 
         # self.keypoint_decoder = \
         #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4,
@@ -84,7 +87,7 @@ class RAFT(nn.Module):
                                                              dropout=0.1, activation="gelu",
                                                              n_levels=self.num_feature_levels * 2,
                                                              n_heads=8, n_points=4, self_deformable=False)
-                           for _ in range(iterations)))
+                           for _ in range(self.outer_iterations)))
 
         # self.keypoint_decoder = \
         #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4,
@@ -123,8 +126,8 @@ class RAFT(nn.Module):
         self.row_pos_embed = nn.Embedding(w // (2 ** 2), d_model // 2)
         self.col_pos_embed = nn.Embedding(h // (2 ** 2), d_model // 2)
 
-        self.query_embed = nn.Embedding(100, d_model)
-        self.query_pos_embed = nn.Embedding(100, d_model)
+        self.query_embed = nn.Embedding(self.num_keypoints, d_model)
+        self.query_pos_embed = nn.Embedding(self.num_keypoints, d_model)
         self.flow_embed = MLP(d_model, d_model, 2, 3)
         # self.flow_embed = nn.Linear(d_model, 2)
         self.context_embed = MLP(d_model, d_model, d_model, 3)
@@ -299,7 +302,8 @@ class RAFT(nn.Module):
             query = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
             query_pos = self.query_pos_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
 
-            reference_points = self.get_reference_points([(10, 10), ], device=src.device).squeeze(2)
+            root = round(math.sqrt(self.num_keypoints))
+            reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
             reference_points = reference_points.repeat(bs, 1, 1)
 
             spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 2, dtype=torch.long, device=src.device)
@@ -315,7 +319,7 @@ class RAFT(nn.Module):
 
             flow_predictions = list()
             sparse_predictions = list()
-            for i in range(len(self.keypoint_decoder)):
+            for o_i in range(self.outer_iterations):
                 # bs, n, 2
                 # reference_points = (inverse_sigmoid(reference_points.detach()) +
                 #                         self.reference_embed[i](keypoint + query_pos)).sigmoid()
@@ -325,57 +329,50 @@ class RAFT(nn.Module):
                 #                                  src, src_pos, spatial_shapes, level_start_index)
                 # keypoint = self.keypoint_decoder[i]((keypoint + query_pos).permute(1, 0, 2),
                 #                                     (D1 + src_pos).permute(1, 0, 2)).permute(1, 0, 2)
-                keypoint = self.keypoint_decoder[i](keypoint, query_pos, reference_points.unsqueeze(2),
+                keypoint = self.keypoint_decoder[o_i](keypoint, query_pos, reference_points.unsqueeze(2),
                                                     src, src_pos, spatial_shapes, level_start_index)
-                # reference_points = self.reference_embed[i](keypoint).sigmoid()
                 reference_points = (inverse_sigmoid(reference_points.detach()) +
-                                    self.reference_embed[i](keypoint)).sigmoid()
-
-                # bs, n, 2
-                # reference_points = (inverse_sigmoid(reference_points.detach()) +
-                #                     self.reference_embed[i](keypoint)).sigmoid()
+                                    self.reference_embed[o_i](keypoint)).sigmoid()
+                context = self.context_embed[o_i](keypoint)
 
                 # bs, n, c
-                correlation = self.correlation_decoder[i](keypoint, query_pos, reference_points.unsqueeze(2),
-                                                          src, src_pos, spatial_shapes, level_start_index)
-                # correlation = self.correlation_decoder[i](keypoint.permute(1, 0, 2),
-                #                                           (D2 + src_pos).permute(1, 0, 2)).permute(1, 0, 2)
+                corr_ref_points = reference_points
+                for i_i in range(self.inner_iterations):
+                    correlation = self.correlation_decoder[o_i](keypoint, query_pos, corr_ref_points.unsqueeze(2),
+                                                              src, src_pos, spatial_shapes, level_start_index)
 
-                # bs, n, c
-                # context = self.context_decoder[i](keypoint, query_pos, reference_points.unsqueeze(2),
-                #                                   D1, src_pos, spatial_shapes, level_start_index)
+                    # bs, n, 2
+                    flow_embed = self.flow_embed[o_i](correlation)
+                    new_corr_ref_points = (inverse_sigmoid(corr_ref_points.detach()) + flow_embed).sigmoid()
+                    # flow = inverse_sigmoid(reference_points.detach()) + flow_embed
+                    flow = corr_ref_points.detach() - new_corr_ref_points.sigmoid()
+                    corr_ref_points = new_corr_ref_points
+                    # flow = flow_embed.tanh()
+                    # confidence = flow_embed[..., 2:].sigmoid()
+                    # flow = inverse_sigmoid(reference_points) + self.flow_embed[i](query)
+                    # flow = reference_points - flow.sigmoid()
+                    # bs, n, c
+                    # bs, n, c
+                    # reference_points = inverse_sigmoid(reference_points.detach()) + self.reference_embed[i](query)
+                    # reference_points = reference_points.unsqueeze(2).sigmoid()
 
-                # bs, n, 2
-                flow_embed = self.flow_embed[i](correlation)
-                flow = inverse_sigmoid(reference_points.detach()) + flow_embed
-                flow = reference_points.detach() - flow.sigmoid()
-                # flow = flow_embed.tanh()
-                # confidence = flow_embed[..., 2:].sigmoid()
-                # flow = inverse_sigmoid(reference_points) + self.flow_embed[i](query)
-                # flow = reference_points - flow.sigmoid()
-                # bs, n, c
-                context = self.context_embed[i](keypoint)
-                # bs, n, c
-                # reference_points = inverse_sigmoid(reference_points.detach()) + self.reference_embed[i](query)
-                # reference_points = reference_points.unsqueeze(2).sigmoid()
+                    # bs, HW, n
+                    context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
+                    # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
+                    scores = torch.max(context_flow, dim=1)[0]
+                    # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
+                    # bs, HW, 2
+                    context_flow = torch.bmm(context_flow, flow)
+                    # bs, 2, H, W
+                    context_flow = context_flow.permute(0, 2, 1).view(bs, 2, H, W)
 
-                # bs, HW, n
-                context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
-                # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
-                scores = torch.max(context_flow, dim=1)[0]
-                # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
-                # bs, HW, 2
-                context_flow = torch.bmm(context_flow, flow)
-                # bs, 2, H, W
-                context_flow = context_flow.permute(0, 2, 1).view(bs, 2, H, W)
+                    context_flow = context_flow * \
+                                   torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
+                    if I_H != H or I_W != W:
+                        context_flow = F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
 
-                context_flow = context_flow * \
-                               torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
-                if I_H != H or I_W != W:
-                    context_flow = F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
-
-                flow_predictions.append(context_flow)
-                sparse_predictions.append((reference_points, flow, scores))
+                    flow_predictions.append(context_flow)
+                    sparse_predictions.append((reference_points, flow, scores))
 
             if test_mode:
                 return flow_predictions[-1], flow_predictions[-1]

@@ -138,9 +138,9 @@ class RAFT(nn.Module):
         # self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(iterations)])
         # self.context_embed = nn.ModuleList([self.context_embed for _ in range(iterations)])
         # self.reference_embed = nn.ModuleList([self.reference_embed for _ in range(iterations)])
-        self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(iterations)])
-        self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(iterations)])
-        self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(iterations)])
+        self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(self.outer_iterations)])
+        self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(self.outer_iterations)])
+        self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(self.outer_iterations)])
         # self.confidence_embed = nn.ModuleList([copy.deepcopy(self.confidence_embed) for _ in range(iterations)])
 
         self.reset_parameters()
@@ -339,7 +339,7 @@ class RAFT(nn.Module):
                 corr_ref_points = reference_points
                 for i_i in range(self.inner_iterations):
                     correlation = self.correlation_decoder[o_i](keypoint, query_pos, corr_ref_points.unsqueeze(2),
-                                                              src, src_pos, spatial_shapes, level_start_index)
+                                                                src, src_pos, spatial_shapes, level_start_index)
 
                     # bs, n, 2
                     flow_embed = self.flow_embed[o_i](correlation)

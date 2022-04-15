@@ -337,6 +337,7 @@ class RAFT(nn.Module):
 
                 # bs, n, c
                 corr_ref_points = reference_points
+                flow = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2))
                 for i_i in range(self.inner_iterations):
                     correlation = self.correlation_decoder[o_i](keypoint, query_pos, corr_ref_points.unsqueeze(2),
                                                                 src, src_pos, spatial_shapes, level_start_index)
@@ -345,7 +346,7 @@ class RAFT(nn.Module):
                     flow_embed = self.flow_embed[o_i](correlation)
                     new_corr_ref_points = (inverse_sigmoid(corr_ref_points.detach()) + flow_embed).sigmoid()
                     # flow = inverse_sigmoid(reference_points.detach()) + flow_embed
-                    flow = corr_ref_points.detach() - new_corr_ref_points.sigmoid()
+                    flow = flow.detach() + (corr_ref_points.detach() - new_corr_ref_points.sigmoid())
                     corr_ref_points = new_corr_ref_points
                     # flow = flow_embed.tanh()
                     # confidence = flow_embed[..., 2:].sigmoid()

@@ -58,7 +58,7 @@ class RAFT(nn.Module):
                 nn.GroupNorm(32, d_model)))
         self.input_proj = nn.ModuleList(input_proj_list)
 
-        iterations = 1
+        iterations = 3
 
         self.encoder = \
             nn.ModuleList((DeformableTransformerEncoderLayer(d_model=d_model, d_ffn=d_model * 4,

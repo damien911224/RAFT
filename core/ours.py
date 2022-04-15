@@ -337,7 +337,7 @@ class RAFT(nn.Module):
 
                 # bs, n, c
                 corr_ref_points = reference_points
-                flow = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2))
+                flow = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2), device=src.device)
                 for i_i in range(self.inner_iterations):
                     correlation = self.correlation_decoder[o_i](keypoint, query_pos, corr_ref_points.unsqueeze(2),
                                                                 src, src_pos, spatial_shapes, level_start_index)

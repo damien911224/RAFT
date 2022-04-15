@@ -333,20 +333,21 @@ class RAFT(nn.Module):
                                                     src, src_pos, spatial_shapes, level_start_index)
                 reference_points = (inverse_sigmoid(reference_points.detach()) +
                                     self.reference_embed[o_i](keypoint)).sigmoid()
-                context = self.context_embed[o_i](keypoint)
+                # context = self.context_embed[o_i](keypoint)
 
                 # bs, n, c
                 corr_ref_points = reference_points
-                flow = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2), device=src.device)
+                # flow = torch.zeros(dtype=torch.float32, size=(bs, 2, I_H, I_W), device=src.device)
                 for i_i in range(self.inner_iterations):
                     correlation = self.correlation_decoder[o_i](keypoint, query_pos, corr_ref_points.unsqueeze(2),
                                                                 src, src_pos, spatial_shapes, level_start_index)
 
+                    context = self.context_embed[o_i](correlation)
                     # bs, n, 2
                     flow_embed = self.flow_embed[o_i](correlation)
                     new_corr_ref_points = (inverse_sigmoid(corr_ref_points.detach()) + flow_embed).sigmoid()
                     # flow = inverse_sigmoid(reference_points.detach()) + flow_embed
-                    flow = flow.detach() + (corr_ref_points.detach() - new_corr_ref_points.sigmoid())
+                    n_flow = corr_ref_points.detach() - new_corr_ref_points.sigmoid()
                     corr_ref_points = new_corr_ref_points
                     # flow = flow_embed.tanh()
                     # confidence = flow_embed[..., 2:].sigmoid()
@@ -363,17 +364,17 @@ class RAFT(nn.Module):
                     scores = torch.max(context_flow, dim=1)[0]
                     # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
                     # bs, HW, 2
-                    context_flow = torch.bmm(context_flow, flow)
+                    flow = torch.bmm(context_flow, n_flow)
                     # bs, 2, H, W
-                    context_flow = context_flow.permute(0, 2, 1).view(bs, 2, H, W)
+                    flow = flow.permute(0, 2, 1).view(bs, 2, H, W)
 
-                    context_flow = context_flow * \
-                                   torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
+                    flow = flow * \
+                           torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
                     if I_H != H or I_W != W:
-                        context_flow = F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
+                        flow = F.interpolate(flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
 
-                    flow_predictions.append(context_flow)
-                    sparse_predictions.append((reference_points, flow, scores))
+                    flow_predictions.append(flow)
+                    sparse_predictions.append((reference_points, n_flow, scores))
 
             if test_mode:
                 return flow_predictions[-1], flow_predictions[-1]

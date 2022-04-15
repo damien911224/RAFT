@@ -70,7 +70,7 @@ class RAFT(nn.Module):
                                                              n_heads=8, n_points=4)
                            for _ in range(self.encoder_iterations)))
 
-        self.keypoint_decoder = \
+        self.decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
                                                              dropout=0.1, activation="gelu",
                                                              n_levels=self.num_feature_levels * 2,
@@ -78,16 +78,23 @@ class RAFT(nn.Module):
                            for _ in range(self.outer_iterations)))
 
         # self.keypoint_decoder = \
+        #     nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
+        #                                                      dropout=0.1, activation="gelu",
+        #                                                      n_levels=self.num_feature_levels * 2,
+        #                                                      n_heads=8, n_points=4, self_deformable=False)
+        #                    for _ in range(self.outer_iterations)))
+
+        # self.keypoint_decoder = \
         #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4,
         #                                               nhead=8, dropout=0.1, activation="gelu")
         #                    for _ in range(iterations)))
 
-        self.correlation_decoder = \
-            nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
-                                                             dropout=0.1, activation="gelu",
-                                                             n_levels=self.num_feature_levels * 2,
-                                                             n_heads=8, n_points=4, self_deformable=False)
-                           for _ in range(self.outer_iterations)))
+        # self.correlation_decoder = \
+        #     nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
+        #                                                      dropout=0.1, activation="gelu",
+        #                                                      n_levels=self.num_feature_levels * 2,
+        #                                                      n_heads=8, n_points=4, self_deformable=False)
+        #                    for _ in range(self.outer_iterations)))
 
         # self.keypoint_decoder = \
         #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4,
@@ -315,40 +322,39 @@ class RAFT(nn.Module):
 
             # D1, D2 = src.split(bs, dim=0)
 
-            keypoint = query
+            # keypoint = query
 
             flow_predictions = list()
             sparse_predictions = list()
             for o_i in range(self.outer_iterations):
-                # bs, n, 2
-                # reference_points = (inverse_sigmoid(reference_points.detach()) +
-                #                         self.reference_embed[i](keypoint + query_pos)).sigmoid()
-
-                # bs, n, c
-                # query = self.keypoint_decoder[i](query, query_pos, reference_points.unsqueeze(2),
-                #                                  src, src_pos, spatial_shapes, level_start_index)
-                # keypoint = self.keypoint_decoder[i]((keypoint + query_pos).permute(1, 0, 2),
-                #                                     (D1 + src_pos).permute(1, 0, 2)).permute(1, 0, 2)
-                keypoint = self.keypoint_decoder[o_i](keypoint, query_pos, reference_points.unsqueeze(2),
-                                                    src, src_pos, spatial_shapes, level_start_index)
-                reference_points = (inverse_sigmoid(reference_points.detach()) +
-                                    self.reference_embed[o_i](keypoint)).sigmoid()
-                # context = self.context_embed[o_i](keypoint)
-
-                # bs, n, c
-                corr_ref_points = reference_points
-                flow = torch.zeros(dtype=torch.float32, size=(bs, 2, I_H, I_W), device=src.device)
                 for i_i in range(self.inner_iterations):
-                    correlation = self.correlation_decoder[o_i](keypoint, query_pos, corr_ref_points.unsqueeze(2),
-                                                                src, src_pos, spatial_shapes, level_start_index)
-
-                    context = self.context_embed[o_i](correlation)
                     # bs, n, 2
-                    flow_embed = self.flow_embed[o_i](correlation)
-                    new_corr_ref_points = (inverse_sigmoid(corr_ref_points.detach()) + flow_embed).sigmoid()
+                    reference_points = (inverse_sigmoid(reference_points.detach()) +
+                                        self.reference_embed[i](query + query_pos)).sigmoid()
+
+                    query = self.keypoint_decoder[o_i](query, query_pos, reference_points.unsqueeze(2),
+                                                       src, src_pos, spatial_shapes, level_start_index)
+
+                    # keypoint = self.keypoint_decoder[o_i](keypoint, query_pos, reference_points.unsqueeze(2),
+                    #                                     src, src_pos, spatial_shapes, level_start_index)
+                    # reference_points = (inverse_sigmoid(reference_points.detach()) +
+                    #                     self.reference_embed[o_i](keypoint)).sigmoid()
+                    # context = self.context_embed[o_i](keypoint)
+
+                    # bs, n, c
+
+                    # correlation = self.correlation_decoder[o_i](keypoint, query_pos, corr_ref_points.unsqueeze(2),
+                    #                                             src, src_pos, spatial_shapes, level_start_index)
+
+                    context = self.context_embed[o_i](query)
+                    # bs, n, 2
+                    flow_embed = self.flow_embed[o_i](query)
+                    key_flow = inverse_sigmoid(reference_points.detach()) + flow_embed
+                    key_flow = reference_points - key_flow.sigmoid()
+                    # new_corr_ref_points = (inverse_sigmoid(corr_ref_points.detach()) + flow_embed).sigmoid()
                     # flow = inverse_sigmoid(reference_points.detach()) + flow_embed
-                    n_flow = corr_ref_points.detach() - new_corr_ref_points.sigmoid()
-                    corr_ref_points = new_corr_ref_points
+                    # n_flow = corr_ref_points.detach() - new_corr_ref_points.sigmoid()
+                    # corr_ref_points = new_corr_ref_points
                     # flow = flow_embed.tanh()
                     # confidence = flow_embed[..., 2:].sigmoid()
                     # flow = inverse_sigmoid(reference_points) + self.flow_embed[i](query)
@@ -364,19 +370,17 @@ class RAFT(nn.Module):
                     scores = torch.max(context_flow, dim=1)[0]
                     # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
                     # bs, HW, 2
-                    context_flow = torch.bmm(context_flow, n_flow)
+                    context_flow = torch.bmm(context_flow, key_flow)
                     # bs, 2, H, W
                     context_flow = context_flow.permute(0, 2, 1).view(bs, 2, H, W)
 
                     context_flow = context_flow * \
                                    torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
                     if I_H != H or I_W != W:
-                        context_flow = F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear",
-                                                     align_corners=False)
-                    flow = flow + context_flow
+                        flow = F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
 
                     flow_predictions.append(flow)
-                    sparse_predictions.append((reference_points, n_flow, scores))
+                    sparse_predictions.append((reference_points, key_flow, scores))
 
             if test_mode:
                 return flow_predictions[-1], flow_predictions[-1]

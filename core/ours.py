@@ -337,7 +337,7 @@ class RAFT(nn.Module):
 
                 # bs, n, c
                 corr_ref_points = reference_points
-                # flow = torch.zeros(dtype=torch.float32, size=(bs, 2, I_H, I_W), device=src.device)
+                flow = torch.zeros(dtype=torch.float32, size=(bs, 2, I_H, I_W), device=src.device)
                 for i_i in range(self.inner_iterations):
                     correlation = self.correlation_decoder[o_i](keypoint, query_pos, corr_ref_points.unsqueeze(2),
                                                                 src, src_pos, spatial_shapes, level_start_index)
@@ -364,14 +364,16 @@ class RAFT(nn.Module):
                     scores = torch.max(context_flow, dim=1)[0]
                     # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
                     # bs, HW, 2
-                    flow = torch.bmm(context_flow, n_flow)
+                    context_flow = torch.bmm(context_flow, n_flow)
                     # bs, 2, H, W
-                    flow = flow.permute(0, 2, 1).view(bs, 2, H, W)
+                    context_flow = context_flow.permute(0, 2, 1).view(bs, 2, H, W)
 
-                    flow = flow * \
-                           torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
+                    context_flow = context_flow * \
+                                   torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
                     if I_H != H or I_W != W:
-                        flow = F.interpolate(flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
+                        context_flow = F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear",
+                                                     align_corners=False)
+                    flow = flow + context_flow
 
                     flow_predictions.append(flow)
                     sparse_predictions.append((reference_points, n_flow, scores))

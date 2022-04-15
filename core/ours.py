@@ -123,8 +123,8 @@ class RAFT(nn.Module):
         self.row_pos_embed = nn.Embedding(w // (2 ** 2), d_model // 2)
         self.col_pos_embed = nn.Embedding(h // (2 ** 2), d_model // 2)
 
-        self.query_embed = nn.Embedding(25, d_model)
-        self.query_pos_embed = nn.Embedding(25, d_model)
+        self.query_embed = nn.Embedding(100, d_model)
+        self.query_pos_embed = nn.Embedding(100, d_model)
         self.flow_embed = MLP(d_model, d_model, 2, 3)
         # self.flow_embed = nn.Linear(d_model, 2)
         self.context_embed = MLP(d_model, d_model, d_model, 3)
@@ -299,7 +299,7 @@ class RAFT(nn.Module):
             query = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
             query_pos = self.query_pos_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
 
-            reference_points = self.get_reference_points([(5, 5), ], device=src.device).squeeze(2)
+            reference_points = self.get_reference_points([(10, 10), ], device=src.device).squeeze(2)
             reference_points = reference_points.repeat(bs, 1, 1)
 
             spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 2, dtype=torch.long, device=src.device)
@@ -360,7 +360,7 @@ class RAFT(nn.Module):
                 # reference_points = reference_points.unsqueeze(2).sigmoid()
 
                 # bs, HW, n
-                context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
+                context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
                 scores = torch.max(context_flow, dim=1)[0]
                 # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
                 # bs, HW, 2

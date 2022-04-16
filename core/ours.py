@@ -329,8 +329,9 @@ class RAFT(nn.Module):
             for o_i in range(self.outer_iterations):
                 for i_i in range(self.inner_iterations):
                     # bs, n, 2
-                    reference_points = (inverse_sigmoid(reference_points.detach()) +
-                                        self.reference_embed[o_i](query + query_pos)).sigmoid()
+                    # reference_points = (inverse_sigmoid(reference_points.detach()) +
+                    #                     self.reference_embed[o_i](query + query_pos)).sigmoid()
+                    reference_points = self.reference_embed[o_i](query + query_pos).sigmoid()
 
                     query = self.decoder[o_i](query, query_pos, reference_points.unsqueeze(2),
                                               src, src_pos, spatial_shapes, level_start_index)

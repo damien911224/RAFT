@@ -330,7 +330,7 @@ class RAFT(nn.Module):
                 for i_i in range(self.inner_iterations):
                     # bs, n, 2
                     reference_points = (inverse_sigmoid(reference_points.detach()) +
-                                        self.reference_embed[i](query + query_pos)).sigmoid()
+                                        self.reference_embed[o_i](query + query_pos)).sigmoid()
 
                     query = self.decoder[o_i](query, query_pos, reference_points.unsqueeze(2),
                                               src, src_pos, spatial_shapes, level_start_index)
@@ -346,7 +346,6 @@ class RAFT(nn.Module):
                     # correlation = self.correlation_decoder[o_i](keypoint, query_pos, corr_ref_points.unsqueeze(2),
                     #                                             src, src_pos, spatial_shapes, level_start_index)
 
-                    context = self.context_embed[o_i](query)
                     # bs, n, 2
                     flow_embed = self.flow_embed[o_i](query)
                     key_flow = inverse_sigmoid(reference_points.detach()) + flow_embed
@@ -365,6 +364,7 @@ class RAFT(nn.Module):
                     # reference_points = reference_points.unsqueeze(2).sigmoid()
 
                     # bs, HW, n
+                    context = self.context_embed[o_i](query)
                     context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
                     # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
                     scores = torch.max(context_flow, dim=1)[0]

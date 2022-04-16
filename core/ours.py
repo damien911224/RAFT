@@ -40,6 +40,7 @@ class RAFT(nn.Module):
             self.args.dropout = 0
 
         self.extractor = BasicEncoder(base_channel=64, norm_fn="batch")
+        self.context_extractor = BasicEncoder(base_channel=64, norm_fn="batch")
         # self.extractor = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
         # self.context_extractor = Backbone("resnet50", train_backbone=True, return_interm_layers=True, dilation=False)
         d_model = 128
@@ -263,7 +264,8 @@ class RAFT(nn.Module):
             image2 = image2.contiguous()
             bs, _, I_H, I_W = image1.shape
 
-            D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
+            D1, D2, _ = self.extractor(torch.cat((image1, image2), dim=0))
+            _, _, U1 = self.context_extractor(torch.cat((image1, image2), dim=0))
             # features = self.extractor(torch.cat((image1, image2), dim=0))
             # D1 = list()
             # D2 = list()

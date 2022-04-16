@@ -135,12 +135,12 @@ class RAFT(nn.Module):
 
         self.query_embed = nn.Embedding(self.num_keypoints, d_model)
         self.query_pos_embed = nn.Embedding(self.num_keypoints, d_model)
-        self.flow_embed = MLP(d_model, d_model, 2, 3)
-        # self.flow_embed = nn.Linear(d_model, 2)
-        self.context_embed = MLP(d_model, d_model, d_model, 3)
-        self.reference_embed = MLP(d_model, d_model, 2, 3)
-        # self.reference_embed = nn.Linear(d_model, 2)
-        self.extractor_embed = MLP(self.extractor.up_dim, d_model, d_model, 3)
+        # self.flow_embed = MLP(d_model, d_model, 2, 3)
+        self.flow_embed = nn.Linear(d_model, 2)
+        self.context_embed = MLP(d_model, self.extractor.up_dim, self.extractor.up_dim, 3)
+        # self.reference_embed = MLP(d_model, d_model, 2, 3)
+        self.reference_embed = nn.Linear(d_model, 2)
+        # self.extractor_embed = MLP(self.extractor.up_dim, d_model, d_model, 3)
 
         self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(self.outer_iterations)])
         self.context_embed = nn.ModuleList([self.context_embed for _ in range(self.outer_iterations)])
@@ -303,15 +303,16 @@ class RAFT(nn.Module):
             # U1 = self.context_extractor(image1)["0"]
             _, C, H, W = U1.shape
             U1 = torch.flatten(U1, 2).permute(0, 2, 1)
-            U1 = self.extractor_embed(U1) + context_pos
+            # U1 = self.extractor_embed(U1) + context_pos
+            U1 = U1 + context_pos
 
             # bs, n, c
             query = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
             query_pos = self.query_pos_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
 
-            root = round(math.sqrt(self.num_keypoints))
-            reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
-            reference_points = reference_points.repeat(bs, 1, 1)
+            # root = round(math.sqrt(self.num_keypoints))
+            # reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
+            # reference_points = reference_points.repeat(bs, 1, 1)
 
             spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 2, dtype=torch.long, device=src.device)
             level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))

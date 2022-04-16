@@ -60,7 +60,7 @@ class RAFT(nn.Module):
 
         self.encoder_iterations = 1
         self.outer_iterations = 3
-        self.inner_iterations = 3
+        self.inner_iterations = 1
         self.num_keypoints = 100
 
         self.encoder = \

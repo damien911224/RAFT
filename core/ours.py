@@ -141,6 +141,7 @@ class RAFT(nn.Module):
         # self.reference_embed = MLP(d_model, d_model, 2, 3)
         self.reference_embed = nn.Linear(d_model, 2)
         # self.extractor_embed = MLP(self.extractor.up_dim, d_model, d_model, 3)
+        self.extractor_pos_embed = nn.Linear(d_model, self.extractor.up_dim)
 
         self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(self.outer_iterations)])
         self.context_embed = nn.ModuleList([self.context_embed for _ in range(self.outer_iterations)])
@@ -304,7 +305,7 @@ class RAFT(nn.Module):
             _, C, H, W = U1.shape
             U1 = torch.flatten(U1, 2).permute(0, 2, 1)
             # U1 = self.extractor_embed(U1) + context_pos
-            U1 = U1 + context_pos
+            U1 = U1 + self.extractor_pos_embed(context_pos)
 
             # bs, n, c
             query = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)

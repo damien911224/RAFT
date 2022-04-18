@@ -328,7 +328,7 @@ class RAFT(nn.Module):
 
             flow_predictions = list()
             sparse_predictions = list()
-            flow = torch.zeros(dtype=torch.float32, size=(1, 2, I_H, I_W))
+            flow = torch.zeros(dtype=torch.float32, size=(1, 2, I_H, I_W), device=src.device)
             for o_i in range(self.outer_iterations):
                 for i_i in range(self.inner_iterations):
                     # bs, n, 2

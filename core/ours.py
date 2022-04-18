@@ -42,7 +42,7 @@ class RAFT(nn.Module):
         self.extractor = BasicEncoder(base_channel=64, norm_fn="batch")
         # self.extractor = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
         # self.context_extractor = Backbone("resnet50", train_backbone=True, return_interm_layers=True, dilation=False)
-        d_model = 64
+        d_model = 128
         self.num_feature_levels = 3
         # self.extractor_projection = \
         #     nn.Sequential(nn.Conv2d(self.extractor.down_dim, d_model, kernel_size=1),
@@ -59,8 +59,8 @@ class RAFT(nn.Module):
         self.input_proj = nn.ModuleList(input_proj_list)
 
         self.encoder_iterations = 1
-        self.outer_iterations = 3
-        self.inner_iterations = 2
+        self.outer_iterations = 6
+        self.inner_iterations = 1
         self.num_keypoints = 100
 
         self.encoder = \
@@ -328,7 +328,7 @@ class RAFT(nn.Module):
 
             flow_predictions = list()
             sparse_predictions = list()
-            flow = torch.zeros(dtype=torch.float32, size=(1, 2, I_H, I_W), device=src.device)
+            # flow = torch.zeros(dtype=torch.float32, size=(1, 2, I_H, I_W), device=src.device)
             for o_i in range(self.outer_iterations):
                 for i_i in range(self.inner_iterations):
                     # bs, n, 2
@@ -381,8 +381,9 @@ class RAFT(nn.Module):
                     context_flow = context_flow * \
                                    torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
                     if I_H != H or I_W != W:
-                        flow = flow.detach() + \
-                               F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
+                        flow = F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
+                        # flow = flow.detach() + \
+                        #        F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
 
                     flow_predictions.append(flow)
                     sparse_predictions.append((reference_points, key_flow, scores))

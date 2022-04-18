@@ -352,7 +352,7 @@ class RAFT(nn.Module):
                     # bs, n, 2
                     flow_embed = self.flow_embed[o_i](query)
                     key_flow = inverse_sigmoid(reference_points.detach()) + flow_embed
-                    key_flow = reference_points - key_flow.sigmoid()
+                    key_flow = reference_points.detach() - key_flow.sigmoid()
                     # new_corr_ref_points = (inverse_sigmoid(corr_ref_points.detach()) + flow_embed).sigmoid()
                     # flow = inverse_sigmoid(reference_points.detach()) + flow_embed
                     # n_flow = corr_ref_points.detach() - new_corr_ref_points.sigmoid()
@@ -368,8 +368,8 @@ class RAFT(nn.Module):
 
                     # bs, HW, n
                     context = self.context_embed[o_i](query)
-                    # context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
-                    context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
+                    context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
+                    # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
                     scores = torch.max(context_flow, dim=1)[0]
                     # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
                     # bs, HW, 2

@@ -143,12 +143,12 @@ class RAFT(nn.Module):
         # self.extractor_embed = MLP(self.extractor.up_dim, d_model, d_model, 3)
         self.extractor_pos_embed = nn.Linear(d_model, self.extractor.up_dim)
 
-        self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(self.outer_iterations)])
-        self.context_embed = nn.ModuleList([self.context_embed for _ in range(self.outer_iterations)])
-        self.reference_embed = nn.ModuleList([self.reference_embed for _ in range(self.outer_iterations)])
-        # self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(self.outer_iterations)])
-        # self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(self.outer_iterations)])
-        # self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(self.outer_iterations)])
+        # self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(self.outer_iterations)])
+        # self.context_embed = nn.ModuleList([self.context_embed for _ in range(self.outer_iterations)])
+        # self.reference_embed = nn.ModuleList([self.reference_embed for _ in range(self.outer_iterations)])
+        self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(self.outer_iterations)])
+        self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(self.outer_iterations)])
+        self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(self.outer_iterations)])
         # self.confidence_embed = nn.ModuleList([copy.deepcopy(self.confidence_embed) for _ in range(iterations)])
 
         self.reset_parameters()

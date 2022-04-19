@@ -171,10 +171,10 @@ class Logger:
         target_img = flow_vis.flow_to_color(target, convert_to_bgr=False)
         pred_img = list()
         for p_i in range(len(pred[0])):
-            ref, sparse_flow, scores = pred[1][p_i].squeeze(0)
-            coords = torch.round(ref * scale).long()
+            ref, sparse_flow, scores = pred[1][p_i]
+            coords = torch.round(ref.squeeze(0) * scale).long()
             coords = coords.detach().cpu().numpy()
-            confidence = np.squeeze(scores.detach().cpu().numpy())
+            confidence = np.squeeze(scores.squeeze(0).detach().cpu().numpy())
             ref_img = cv2.cvtColor(np.array(image1, dtype=np.uint8), cv2.COLOR_RGB2BGR)
             for k_i in range(len(coords)):
                 coord = coords[k_i]

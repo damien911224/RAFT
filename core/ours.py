@@ -288,8 +288,7 @@ class RAFT(nn.Module):
             #            for i, feat in enumerate(D1)]
             # context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed) + \
             #               self.img_pos_embed.weight[None, -1, None]
-            context_pos = self.get_embedding(U1, self.context_col_pos_embed, self.context_row_pos_embed) + \
-                          self.img_pos_embed.weight[None, -1, None]
+            context_pos = self.get_embedding(U1, self.context_col_pos_embed, self.context_row_pos_embed)
             # src_pos = [self.get_sine_embedding(feat) + self.lvl_pos_embed.weight[i]
             #            for i, (feat, col_embed, row_embed)
             #            in enumerate(zip(D1, self.col_pos_embed, self.row_pos_embed))]

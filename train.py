@@ -338,7 +338,7 @@ def train(args):
     logger = Logger(model, scheduler)
 
     # VAL_FREQ = 5000
-    # VAL_FREQ = 10
+    VAL_FREQ = 10
     IMAGE_FREQ = 10
     add_noise = True
 

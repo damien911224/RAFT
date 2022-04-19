@@ -77,7 +77,7 @@ def validate_chairs(model, logger=None, iters=24):
     epe_list = []
 
     val_dataset = datasets.FlyingChairs(split='validation')
-    random_idx = random.sample(len(val_dataset), 10)
+    random_idx = random.sample(range(len(val_dataset)), 10)
     for val_id in range(len(val_dataset)):
         image1, image2, flow_gt, _ = val_dataset[val_id]
         image1 = image1[None].cuda()

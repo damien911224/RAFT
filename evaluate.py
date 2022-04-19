@@ -94,7 +94,7 @@ def validate_chairs(model, logger=None, iters=24):
 
 
 @torch.no_grad()
-def validate_sintel(model, iters=32):
+def validate_sintel(model, logger=None, iters=32):
     """ Peform validation using the Sintel (train) split """
     model.eval()
     results = {}
@@ -129,7 +129,7 @@ def validate_sintel(model, iters=32):
 
 
 @torch.no_grad()
-def validate_kitti(model, iters=24):
+def validate_kitti(model, logger=None, iters=24):
     """ Peform validation using the KITTI-2015 (train) split """
     model.eval()
     val_dataset = datasets.KITTI(split='training')

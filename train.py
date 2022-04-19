@@ -251,7 +251,7 @@ class Logger:
             top_k = len(preds[0])
             # top_k_indices = np.argsort(-confidence)[:top_k]
             masks = masks[n_i].detach().cpu().numpy()
-            top_k_indices = np.argsort(-np.sum(masks, axis=-1))[:top_k]
+            top_k_indices = np.argsort(-np.sum(masks, axis=(1, 2)))[:top_k]
             for m_i in top_k_indices:
                 coord = coords[m_i]
                 # ref_img = cv2.circle(ref_img, coord, 10, (255, 0, 0), 10)

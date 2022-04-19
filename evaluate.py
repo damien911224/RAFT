@@ -79,6 +79,7 @@ def validate_chairs(model, logger=None, iters=24):
 
     val_dataset = datasets.FlyingChairs(split='validation')
     random_idx = random.sample(range(len(val_dataset)), 10)
+    image_idx = 0
     for val_id in range(len(val_dataset)):
         image1, image2, flow_gt, _ = val_dataset[val_id]
         image1 = image1[None].cuda()
@@ -89,7 +90,8 @@ def validate_chairs(model, logger=None, iters=24):
         epe_list.append(epe.view(-1).numpy())
 
         if val_id in random_idx:
-            logger.write_image(image1.squeeze(0), image2.squeeze(0), flow_gt, preds, phase="V", idx=val_id)
+            logger.write_image(image1.squeeze(0), image2.squeeze(0), flow_gt, preds, phase="V", idx=image_idx)
+            image_idx += 1
 
     epe = np.mean(np.concatenate(epe_list))
     print("Validation Chairs EPE: %f" % epe)

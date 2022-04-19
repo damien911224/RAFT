@@ -211,7 +211,6 @@ class Logger:
             this_image2 = image2[n_i]
             target_img = flow_vis.flow_to_color(targets[n_i], convert_to_bgr=False)
             pred_img = list()
-            mask_img = list()
             for p_i in range(len(preds[0])):
                 ref, sparse_flow, masks, scores = preds[1][p_i]
                 coords = torch.round(ref * scale).long()
@@ -230,7 +229,8 @@ class Logger:
                 this_pred = flow_vis.flow_to_color(this_pred, convert_to_bgr=False)
                 pred_img.append(this_pred)
 
-            top_k = 3 + len(preds[0])
+            mask_img = list()
+            top_k = 3 + len(preds[0]) * 2
             top_k_indices = np.argsort(-confidence)[:top_k]
             masks = masks[n_i].detach().cpu().numpy()
             for m_i in top_k_indices:

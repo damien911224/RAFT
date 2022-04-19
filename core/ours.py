@@ -389,6 +389,7 @@ class RAFT(nn.Module):
                         flow = F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
                         masks = masks.reshape(bs * self.num_keypoints, H, W, 1)
                         masks = F.interpolate(masks, size=(I_H, I_W), mode="bilinear", align_corners=False)
+                        print(masks.shape)
                         masks = masks.reshape(bs, self.num_keypoints, I_H, I_W)
                         # flow = flow.detach() + \
                         #        F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)

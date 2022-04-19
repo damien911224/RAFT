@@ -388,6 +388,7 @@ class RAFT(nn.Module):
                     if I_H != H or I_W != W:
                         flow = F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
                         masks = masks.reshape(bs * self.num_keypoints, H, W, 1)
+                        print(masks.shape)
                         masks = F.interpolate(masks, size=(I_H, I_W), mode="bilinear", align_corners=False)
                         print(masks.shape)
                         masks = masks.reshape(bs, self.num_keypoints, I_H, I_W)

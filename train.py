@@ -230,7 +230,7 @@ class Logger:
                 pred_img.append(this_pred)
 
             mask_img = list()
-            top_k = 3 + len(preds[0]) * 2
+            top_k = len(preds[0])
             top_k_indices = np.argsort(-confidence)[:top_k]
             masks = masks[n_i].detach().cpu().numpy()
             for m_i in top_k_indices:
@@ -245,7 +245,7 @@ class Logger:
             pred_img = np.concatenate(pred_img, axis=1)
             mask_img = np.concatenate(mask_img, axis=1)
             image = np.concatenate((np.concatenate((this_image1, this_image2, target_img, pred_img), axis=1),
-                                    mask_img), axis=0)
+                                    np.concatenate((this_image1, this_image2, target_img, mask_img), axis=1)), axis=0)
             image = image.astype(np.uint8)
 
             self.writer.add_image("{}_Image_{:02d}".format(phase, n_i + 1), image, self.total_steps, dataformats='HWC')

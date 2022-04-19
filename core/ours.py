@@ -387,8 +387,7 @@ class RAFT(nn.Module):
                                    torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
                     if I_H != H or I_W != W:
                         flow = F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
-                        masks = F.interpolate(masks[..., None], size=(I_H, I_W), mode="bilinear", align_corners=False)
-                        masks = masks.squeeze(-1)
+                        masks = F.interpolate(masks.view(H, W), size=(I_H, I_W), mode="bilinear", align_corners=False)
                         # flow = flow.detach() + \
                         #        F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
 

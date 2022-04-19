@@ -345,6 +345,8 @@ def train(args):
             if total_steps % IMAGE_FREQ == IMAGE_FREQ - 1:
                 logger.write_images(image1, image2, flow, flow_predictions, phase="T")
 
+            exit()
+
             if total_steps % VAL_FREQ == VAL_FREQ - 1:
                 PATH = 'checkpoints/%d_%s.pth' % (total_steps+1, args.name)
                 torch.save(model.state_dict(), PATH)

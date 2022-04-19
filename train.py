@@ -189,7 +189,7 @@ class Logger:
         mask_img = list()
         top_k = len(pred[0])
         top_k_indices = np.argsort(-confidence)[:top_k]
-        masks = masks.detach().cpu().numpy()
+        masks = masks.squeeze(0).detach().cpu().numpy()
         for m_i in top_k_indices:
             coord = coords[m_i]
             # ref_img = cv2.circle(ref_img, coord, 10, (255, 0, 0), 10)

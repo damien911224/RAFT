@@ -375,6 +375,7 @@ class RAFT(nn.Module):
                     context = self.context_embed[o_i](query)
                     context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
                     # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
+                    masks = context_flow.permute(0, 2, 1)
                     scores = torch.max(context_flow, dim=1)[0]
                     # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
                     # bs, HW, 2
@@ -390,7 +391,7 @@ class RAFT(nn.Module):
                         #        F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
 
                     flow_predictions.append(flow)
-                    sparse_predictions.append((reference_points, key_flow, scores))
+                    sparse_predictions.append((reference_points, key_flow, masks, scores))
 
             if test_mode:
                 return flow_predictions, sparse_predictions

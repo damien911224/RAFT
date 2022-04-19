@@ -171,7 +171,7 @@ class Logger:
         target_img = flow_vis.flow_to_color(target, convert_to_bgr=False)
         pred_img = list()
         for p_i in range(len(pred[0])):
-            ref, sparse_flow, scores = pred[1][p_i]
+            ref, sparse_flow, masks, scores = pred[1][p_i]
             coords = torch.round(ref.squeeze(0) * scale).long()
             coords = coords.detach().cpu().numpy()
             confidence = np.squeeze(scores.squeeze(0).detach().cpu().numpy())
@@ -211,8 +211,63 @@ class Logger:
             this_image2 = image2[n_i]
             target_img = flow_vis.flow_to_color(targets[n_i], convert_to_bgr=False)
             pred_img = list()
+            mask_img = list()
             for p_i in range(len(preds[0])):
-                ref, sparse_flow, scores = preds[1][p_i]
+                ref, sparse_flow, masks, scores = preds[1][p_i]
+                coords = torch.round(ref * scale).long()
+                coords = coords.detach().cpu().numpy()[n_i]
+                confidence = np.squeeze(scores.detach().cpu().numpy()[n_i])
+                ref_img = cv2.cvtColor(np.array(this_image1, dtype=np.uint8), cv2.COLOR_RGB2BGR)
+                for k_i in range(len(coords)):
+                    coord = coords[k_i]
+                    # ref_img = cv2.circle(ref_img, coord, 10, (255, 0, 0), 10)
+                    ref_img = cv2.circle(ref_img, coord, 10, (round(255 * confidence[k_i]), 0, 0), 10)
+                ref_img = cv2.cvtColor(np.array(ref_img, dtype=np.uint8), cv2.COLOR_BGR2RGB)
+                pred_img.append(ref_img)
+
+                this_pred = preds[0][p_i].detach().cpu().numpy()[n_i]
+                this_pred = np.transpose(this_pred, (1, 2, 0))
+                pred_img.append(flow_vis.flow_to_color(this_pred, convert_to_bgr=False))
+
+                top_k = 3 + len(preds[0])
+                top_k_indices = np.argsort(-confidence)[:top_k]
+                for m_i in top_k_indices:
+                    coord = coords[m_i]
+                    # ref_img = cv2.circle(ref_img, coord, 10, (255, 0, 0), 10)
+                    ref_img = cv2.cvtColor(np.array(this_image1, dtype=np.uint8), cv2.COLOR_RGB2BGR)
+                    ref_img = cv2.circle(ref_img, coord, 10, (round(255 * confidence[m_i]), 0, 0), 10)
+                    mask_img.append(ref_img)
+                    masked_flow = flow_vis.flow_to_color(masks[m_i] * this_pred, convert_to_bgr=False)
+                    mask_img.append(masked_flow)
+
+            pred_img = np.concatenate(pred_img, axis=1)
+            mask_img = np.concatenate(mask_img, axis=1)
+            image = np.concatenate((np.concatenate((this_image1, this_image2, target_img, pred_img), axis=1),
+                                    mask_img), axis=0)
+            image = image.astype(np.uint8)
+
+            self.writer.add_image("{}_Image_{:02d}".format(phase, n_i + 1), image, self.total_steps, dataformats='HWC')
+
+    def write_seg_images(self, image1, image2, targets, preds, phase="T"):
+        if self.writer is None:
+            self.writer = SummaryWriter()
+
+        _, _, I_H, I_W = image1.shape
+        scale = torch.tensor((I_W, I_H), dtype=torch.float32).view(1, 1, 2).to(image1.device)
+
+        image1 = image1.detach().cpu().numpy()
+        image1 = np.transpose(image1, (0, 2, 3, 1))
+        image2 = image2.detach().cpu().numpy()
+        image2 = np.transpose(image2, (0, 2, 3, 1))
+        targets = targets.detach().cpu().numpy()
+        targets = np.transpose(targets, (0, 2, 3, 1))
+        for n_i in range(len(targets)):
+            this_image1 = image1[n_i]
+            this_image2 = image2[n_i]
+            target_img = flow_vis.flow_to_color(targets[n_i], convert_to_bgr=False)
+            pred_img = list()
+            for p_i in range(len(preds[0])):
+                ref, sparse_flow, masks, scores = preds[1][p_i]
                 coords = torch.round(ref * scale).long()
                 coords = coords.detach().cpu().numpy()[n_i]
                 confidence = np.squeeze(scores.detach().cpu().numpy()[n_i])
@@ -260,8 +315,8 @@ def train(args):
     scaler = GradScaler(enabled=args.mixed_precision)
     logger = Logger(model, scheduler)
 
-    VAL_FREQ = 5000
-    # VAL_FREQ = 100
+    # VAL_FREQ = 5000
+    VAL_FREQ = 10
     IMAGE_FREQ = 100
     add_noise = True
 

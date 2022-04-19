@@ -227,7 +227,8 @@ class Logger:
 
                 this_pred = preds[0][p_i].detach().cpu().numpy()[n_i]
                 this_pred = np.transpose(this_pred, (1, 2, 0))
-                pred_img.append(flow_vis.flow_to_color(this_pred, convert_to_bgr=False))
+                this_pred = flow_vis.flow_to_color(this_pred, convert_to_bgr=False)
+                pred_img.append(this_pred)
 
             top_k = 3 + len(preds[0])
             top_k_indices = np.argsort(-confidence)[:top_k]
@@ -238,7 +239,7 @@ class Logger:
                 ref_img = cv2.cvtColor(np.array(this_image1, dtype=np.uint8), cv2.COLOR_RGB2BGR)
                 ref_img = cv2.circle(ref_img, coord, 10, (round(255 * confidence[m_i]), 0, 0), 10)
                 mask_img.append(ref_img)
-                masked_flow = flow_vis.flow_to_color(masks[m_i].view(I_H, I_W) * this_pred, convert_to_bgr=False)
+                masked_flow = masks[m_i].view(I_H, I_W) * this_pred
                 mask_img.append(masked_flow)
 
             pred_img = np.concatenate(pred_img, axis=1)

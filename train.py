@@ -186,8 +186,24 @@ class Logger:
             this_pred = np.transpose(this_pred, (1, 2, 0))
             pred_img.append(flow_vis.flow_to_color(this_pred, convert_to_bgr=False))
 
+        mask_img = list()
+        top_k = len(pred[0])
+        top_k_indices = np.argsort(-confidence)[:top_k]
+        masks = masks.detach().cpu().numpy()
+        for m_i in top_k_indices:
+            coord = coords[m_i]
+            # ref_img = cv2.circle(ref_img, coord, 10, (255, 0, 0), 10)
+            ref_img = cv2.cvtColor(np.array(image1, dtype=np.uint8), cv2.COLOR_RGB2BGR)
+            ref_img = cv2.circle(ref_img, coord, 10, (round(255 * confidence[m_i]), 0, 0), 10)
+            ref_img = cv2.cvtColor(np.array(ref_img, dtype=np.uint8), cv2.COLOR_BGR2RGB)
+            mask_img.append(ref_img)
+            masked_flow = masks[m_i].reshape(I_H, I_W, 1) * this_pred
+            mask_img.append(masked_flow)
+
         pred_img = np.concatenate(pred_img, axis=1)
-        image = np.concatenate((image1, image2, target_img, pred_img), axis=1)
+        mask_img = np.concatenate(mask_img, axis=1)
+        image = np.concatenate((np.concatenate((image1, image2, target_img, pred_img), axis=1),
+                                np.concatenate((image1, image2, target_img, mask_img), axis=1)), axis=0)
 
         image = image.astype(np.uint8)
 
@@ -238,6 +254,7 @@ class Logger:
                 # ref_img = cv2.circle(ref_img, coord, 10, (255, 0, 0), 10)
                 ref_img = cv2.cvtColor(np.array(this_image1, dtype=np.uint8), cv2.COLOR_RGB2BGR)
                 ref_img = cv2.circle(ref_img, coord, 10, (round(255 * confidence[m_i]), 0, 0), 10)
+                ref_img = cv2.cvtColor(np.array(ref_img, dtype=np.uint8), cv2.COLOR_BGR2RGB)
                 mask_img.append(ref_img)
                 masked_flow = masks[m_i].reshape(I_H, I_W, 1) * this_pred
                 mask_img.append(masked_flow)
@@ -317,9 +334,9 @@ def train(args):
     scaler = GradScaler(enabled=args.mixed_precision)
     logger = Logger(model, scheduler)
 
-    VAL_FREQ = 5000
-    # VAL_FREQ = 10
-    IMAGE_FREQ = 10
+    # VAL_FREQ = 5000
+    VAL_FREQ = 10
+    IMAGE_FREQ = 100
     add_noise = True
 
     should_keep_training = True
@@ -347,8 +364,6 @@ def train(args):
             if total_steps % IMAGE_FREQ == IMAGE_FREQ - 1:
                 logger.write_images(image1, image2, flow, flow_predictions, phase="T")
 
-                exit()
-
             if total_steps % VAL_FREQ == VAL_FREQ - 1:
                 PATH = 'checkpoints/%d_%s.pth' % (total_steps+1, args.name)
                 torch.save(model.state_dict(), PATH)
@@ -367,6 +382,8 @@ def train(args):
                 model.train()
                 if args.stage != 'chairs':
                     model.module.freeze_bn()
+
+                exit()
             
             total_steps += 1
 

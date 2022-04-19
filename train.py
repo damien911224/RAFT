@@ -191,7 +191,7 @@ class Logger:
         top_k = len(pred[0])
         # top_k_indices = np.argsort(-confidence)[:top_k]
         masks = masks.squeeze(0).detach().cpu().numpy()
-        top_k_indices = np.argsort(-np.sum(masks, axis=-1))[:top_k]
+        top_k_indices = np.argsort(-np.sum(masks, axis=(1, 2)))[:top_k]
         for m_i in top_k_indices:
             coord = coords[m_i]
             # ref_img = cv2.circle(ref_img, coord, 10, (255, 0, 0), 10)
@@ -199,7 +199,7 @@ class Logger:
             ref_img = cv2.circle(ref_img, coord, 10, (round(255 * confidence[m_i]), 0, 0), 10)
             ref_img = cv2.cvtColor(np.array(ref_img, dtype=np.uint8), cv2.COLOR_BGR2RGB)
             mask_img.append(ref_img)
-            masked_flow = masks[m_i].reshape(I_H, I_W, 1) * this_pred
+            masked_flow = np.expand_dims(masks[m_i], axis=-1) * this_pred
             mask_img.append(masked_flow)
 
         pred_img = np.concatenate(pred_img, axis=1)
@@ -259,7 +259,7 @@ class Logger:
                 ref_img = cv2.circle(ref_img, coord, 10, (round(255 * confidence[m_i]), 0, 0), 10)
                 ref_img = cv2.cvtColor(np.array(ref_img, dtype=np.uint8), cv2.COLOR_BGR2RGB)
                 mask_img.append(ref_img)
-                masked_flow = masks[m_i].reshape(I_H, I_W, 1) * this_pred
+                masked_flow = np.expand_dims(masks[m_i], axis=-1) * this_pred
                 mask_img.append(masked_flow)
 
             pred_img = np.concatenate(pred_img, axis=1)

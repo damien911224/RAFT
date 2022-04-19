@@ -239,7 +239,7 @@ class Logger:
                 ref_img = cv2.cvtColor(np.array(this_image1, dtype=np.uint8), cv2.COLOR_RGB2BGR)
                 ref_img = cv2.circle(ref_img, coord, 10, (round(255 * confidence[m_i]), 0, 0), 10)
                 mask_img.append(ref_img)
-                masked_flow = masks[m_i].reshape(I_H, I_W).expand_dims(-1) * this_pred
+                masked_flow = masks[m_i].reshape(I_H, I_W, 1) * this_pred
                 mask_img.append(masked_flow)
 
             pred_img = np.concatenate(pred_img, axis=1)

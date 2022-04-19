@@ -335,8 +335,8 @@ def train(args):
     scaler = GradScaler(enabled=args.mixed_precision)
     logger = Logger(model, scheduler)
 
-    # VAL_FREQ = 5000
-    VAL_FREQ = 10
+    VAL_FREQ = 5000
+    # VAL_FREQ = 10
     IMAGE_FREQ = 100
     add_noise = True
 

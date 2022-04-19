@@ -356,8 +356,8 @@ class RAFT(nn.Module):
 
                     # bs, n, 2
                     flow_embed = self.flow_embed[o_i](query)
-                    key_flow = inverse_sigmoid(reference_points.detach()) + flow_embed
-                    # key_flow = inverse_sigmoid(reference_points) + flow_embed
+                    # key_flow = inverse_sigmoid(reference_points.detach()) + flow_embed
+                    key_flow = inverse_sigmoid(reference_points) + flow_embed
                     key_flow = reference_points.detach() - key_flow.sigmoid()
                     # new_corr_ref_points = (inverse_sigmoid(corr_ref_points.detach()) + flow_embed).sigmoid()
                     # flow = inverse_sigmoid(reference_points.detach()) + flow_embed

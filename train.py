@@ -184,7 +184,8 @@ class Logger:
 
             this_pred = pred[0][p_i].squeeze(0).detach().cpu().numpy()
             this_pred = np.transpose(this_pred, (1, 2, 0))
-            pred_img.append(flow_vis.flow_to_color(this_pred, convert_to_bgr=False))
+            this_pred = flow_vis.flow_to_color(this_pred, convert_to_bgr=False)
+            pred_img.append(this_pred)
 
         mask_img = list()
         top_k = len(pred[0])

@@ -71,7 +71,7 @@ def create_kitti_submission(model, iters=24, output_path='kitti_submission'):
 
 
 @torch.no_grad()
-def validate_chairs(model, iters=24):
+def validate_chairs(model, logger=None, iters=24):
     """ Perform evaluation on the FlyingChairs (test) split """
     model.eval()
     epe_list = []
@@ -82,9 +82,11 @@ def validate_chairs(model, iters=24):
         image1 = image1[None].cuda()
         image2 = image2[None].cuda()
 
-        _, flow_pr = model(image1, image2, iters=iters, test_mode=True)
-        epe = torch.sum((flow_pr[0].cpu() - flow_gt)**2, dim=0).sqrt()
+        preds = model(image1, image2, iters=iters, test_mode=True)
+        epe = torch.sum((preds[0][-1].squeeze(0).cpu() - flow_gt)**2, dim=0).sqrt()
         epe_list.append(epe.view(-1).numpy())
+
+        logger.write_images(image1.squeeze(0), image2.squeeze(0), flow_gt, preds, phase="V")
 
     epe = np.mean(np.concatenate(epe_list))
     print("Validation Chairs EPE: %f" % epe)

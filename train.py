@@ -154,7 +154,46 @@ class Logger:
         for key in results:
             self.writer.add_scalar(key, results[key], self.total_steps)
 
-    def write_images(self, image1, image2, targets, preds):
+    def write_image(self, image1, image2, target, pred, phase="T", idx=0):
+        if self.writer is None:
+            self.writer = SummaryWriter()
+
+        _, I_H, I_W = image1.shape
+        scale = torch.tensor((I_W, I_H), dtype=torch.float32).view(1, 1, 2).to(image1.device)
+
+        image1 = image1.detach().cpu().numpy()
+        image1 = np.transpose(image1, (1, 2, 0))
+        image2 = image2.detach().cpu().numpy()
+        image2 = np.transpose(image2, (1, 2, 0))
+        target = target.detach().cpu().numpy()
+        target = np.transpose(target, (1, 2, 0))
+
+        target_img = flow_vis.flow_to_color(target, convert_to_bgr=False)
+        pred_img = list()
+        for p_i in range(len(pred[0])):
+            ref, sparse_flow, scores = pred[1][p_i].squeeze(0)
+            coords = torch.round(ref * scale).long()
+            coords = coords.detach().cpu().numpy()
+            confidence = np.squeeze(scores.detach().cpu().numpy())
+            ref_img = cv2.cvtColor(np.array(image1, dtype=np.uint8), cv2.COLOR_RGB2BGR)
+            for k_i in range(len(coords)):
+                coord = coords[k_i]
+                ref_img = cv2.circle(ref_img, coord, 10, (round(255 * confidence[k_i]), 0, 0), 10)
+            ref_img = cv2.cvtColor(np.array(ref_img, dtype=np.uint8), cv2.COLOR_BGR2RGB)
+            pred_img.append(ref_img)
+
+            this_pred = pred[0][p_i].squeeze(0).detach().cpu().numpy()
+            this_pred = np.transpose(this_pred, (1, 2, 0))
+            pred_img.append(flow_vis.flow_to_color(this_pred, convert_to_bgr=False))
+
+        pred_img = np.concatenate(pred_img, axis=1)
+        image = np.concatenate((image1, image2, target_img, pred_img), axis=1)
+
+        image = image.astype(np.uint8)
+
+        self.writer.add_image("{}_Image_{:02d}".format(phase, idx + 1), image, self.total_steps, dataformats='HWC')
+
+    def write_images(self, image1, image2, targets, preds, phase="T"):
         if self.writer is None:
             self.writer = SummaryWriter()
 
@@ -194,7 +233,7 @@ class Logger:
 
             image = image.astype(np.uint8)
 
-            self.writer.add_image("Image_{:02d}".format(n_i + 1), image, self.total_steps, dataformats='HWC')
+            self.writer.add_image("{}_Image_{:02d}".format(phase, n_i + 1), image, self.total_steps, dataformats='HWC')
 
     def close(self):
         self.writer.close()
@@ -249,7 +288,7 @@ def train(args):
 
             logger.push(metrics)
             if total_steps % IMAGE_FREQ == IMAGE_FREQ - 1:
-                logger.write_images(image1, image2, flow, flow_predictions)
+                logger.write_images(image1, image2, flow, flow_predictions, phase="T")
 
             if total_steps % VAL_FREQ == VAL_FREQ - 1:
                 PATH = 'checkpoints/%d_%s.pth' % (total_steps+1, args.name)
@@ -258,7 +297,7 @@ def train(args):
                 results = {}
                 for val_dataset in args.validation:
                     if val_dataset == 'chairs':
-                        results.update(evaluate.validate_chairs(model.module, iters=args.iters))
+                        results.update(evaluate.validate_chairs(model.module, logger=logger, iters=args.iters))
                     elif val_dataset == 'sintel':
                         results.update(evaluate.validate_sintel(model.module, iters=args.iters))
                     elif val_dataset == 'kitti':

@@ -393,7 +393,7 @@ class RAFT(nn.Module):
                     sparse_predictions.append((reference_points, key_flow, scores))
 
             if test_mode:
-                return flow_predictions[-1], flow_predictions[-1]
+                return flow_predictions, sparse_predictions
             else:
                 return flow_predictions, sparse_predictions
 

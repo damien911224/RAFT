@@ -159,7 +159,7 @@ class Logger:
             self.writer = SummaryWriter()
 
         _, I_H, I_W = image1.shape
-        scale = torch.tensor((I_W, I_H), dtype=torch.float32).view(1, 1, 2).to(image1.device)
+        scale = torch.tensor((I_W, I_H), dtype=torch.float32).view(1, 2).to(image1.device)
 
         image1 = image1.detach().cpu().numpy()
         image1 = np.transpose(image1, (1, 2, 0))

@@ -143,7 +143,7 @@ class RAFT(nn.Module):
         self.context_embed = MLP(d_model, self.extractor.up_dim, self.extractor.up_dim, 3)
         # self.reference_embed = MLP(d_model, d_model, 2, 3)
         self.reference_embed = nn.Embedding(self.num_keypoints, 4)
-        self.confidence_embed = MLP(d_model, d_model, 1, 3)
+        # self.confidence_embed = MLP(d_model, d_model, 1, 3)
         # self.reference_embed = MLP(d_model, d_model, d_model, 3)
         # self.reference_embed = nn.Linear(d_model, 2)
         # self.extractor_embed = MLP(self.extractor.up_dim, d_model, d_model, 3)
@@ -167,7 +167,7 @@ class RAFT(nn.Module):
         self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(self.outer_iterations)])
         self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(self.outer_iterations)])
         # self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(self.outer_iterations)])
-        self.confidence_embed = nn.ModuleList([copy.deepcopy(self.confidence_embed) for _ in range(self.outer_iterations)])
+        # self.confidence_embed = nn.ModuleList([copy.deepcopy(self.confidence_embed) for _ in range(self.outer_iterations)])
 
         self.reset_parameters()
 
@@ -447,8 +447,9 @@ class RAFT(nn.Module):
 
                     # bs, HW, n
                     context = self.context_embed[o_i](query)
-                    confidence = self.confidence_embed[o_i](query).squeeze(-1).unsqueeze(1)
-                    context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)) + confidence, dim=-1)
+                    context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
+                    # confidence = self.confidence_embed[o_i](query).squeeze(-1).unsqueeze(1)
+                    # context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)) + confidence, dim=-1)
                     # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
                     masks = context_flow.permute(0, 2, 1)
                     scores = torch.max(context_flow, dim=1)[0]

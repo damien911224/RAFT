@@ -363,7 +363,6 @@ class DeformableTransformerDecoder(nn.Module):
         output = tgt
 
         intermediate = []
-        intermediate_scores = []
         intermediate_reference_points = []
         for lid, layer in enumerate(self.layers):
             if reference_points.shape[-1] == 4:
@@ -388,7 +387,6 @@ class DeformableTransformerDecoder(nn.Module):
 
             if self.return_intermediate:
                 intermediate.append(output)
-                intermediate_scores.append(scores)
                 intermediate_reference_points.append(reference_points)
 
         if self.return_intermediate:

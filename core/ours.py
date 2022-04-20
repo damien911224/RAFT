@@ -280,7 +280,7 @@ class RAFT(nn.Module):
         # sineembed_tensor = torch.zeros(n_query, bs, 256)
         scale = 2 * math.pi
         dim_t = torch.arange(128, dtype=torch.float32, device=pos_tensor.device)
-        dim_t = 10000 ** (2 * (dim_t // 2) / 128)
+        dim_t = 10000 ** (2 * (dim_t // 2) / 64)
         x_embed = pos_tensor[:, :, 0] * scale
         y_embed = pos_tensor[:, :, 1] * scale
         pos_x = x_embed[:, :, None] / dim_t

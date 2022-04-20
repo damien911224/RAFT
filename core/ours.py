@@ -388,10 +388,7 @@ class RAFT(nn.Module):
                     if not self.use_dab:
                         reference_points = (inverse_sigmoid(base_reference_points.detach()) +
                                             self.reference_embed[o_i](query + query_pos)).sigmoid()
-                        reference_points_input = reference_points
-                    else:
-                        reference_points_input = torch.cat((reference_points[..., :2],
-                                                            reference_points[..., 2:] * 2 - 1), dim=-1)
+                    reference_points_input = reference_points
 
                     # reference_points = self.reference_embed[o_i](query + query_pos).sigmoid()
 

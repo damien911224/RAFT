@@ -39,7 +39,7 @@ class RAFT(nn.Module):
         if "dropout" not in self.args:
             self.args.dropout = 0
 
-        self.extractor = BasicEncoder(base_channel=64, norm_fn="batch")
+        self.feature_extractor = BasicEncoder(base_channel=64, norm_fn="batch")
         # self.extractor = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
         # self.context_extractor = Backbone("resnet50", train_backbone=True, return_interm_layers=True, dilation=False)
         d_model = 128
@@ -84,10 +84,13 @@ class RAFT(nn.Module):
         #                                                      n_heads=8, n_points=4, self_deformable=False)
         #                    for _ in range(self.outer_iterations)))
 
-        # self.keypoint_decoder = \
-        #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4,
-        #                                               nhead=8, dropout=0.1, activation="gelu")
-        #                    for _ in range(iterations)))
+        # self.keypoint_decoder = nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4,
+        #                                                    nhead=8, dropout=0.1, activation="gelu")
+
+        self.keypoint_decoder = \
+            nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4,
+                                                      nhead=8, dropout=0.1, activation="gelu")
+                           for _ in range(6)))
 
         # self.correlation_decoder = \
         #     nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
@@ -138,7 +141,8 @@ class RAFT(nn.Module):
         self.flow_embed = MLP(d_model, d_model, 2, 3)
         # self.flow_embed = nn.Linear(d_model, 2)
         self.context_embed = MLP(d_model, self.extractor.up_dim, self.extractor.up_dim, 3)
-        self.reference_embed = MLP(d_model, d_model, 2, 3)
+        # self.reference_embed = MLP(d_model, d_model, 2, 3)
+        self.reference_embed = MLP(d_model, d_model, d_model, 3)
         # self.reference_embed = nn.Linear(d_model, 2)
         # self.extractor_embed = MLP(self.extractor.up_dim, d_model, d_model, 3)
         self.extractor_pos_embed = nn.Linear(d_model, self.extractor.up_dim)
@@ -266,7 +270,7 @@ class RAFT(nn.Module):
             image2 = image2.contiguous()
             bs, _, I_H, I_W = image1.shape
 
-            D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
+            D1, D2, U1 = self.feature_extractor(torch.cat((image1, image2), dim=0))
             # features = self.extractor(torch.cat((image1, image2), dim=0))
             # D1 = list()
             # D2 = list()
@@ -315,9 +319,9 @@ class RAFT(nn.Module):
             query = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
             query_pos = self.query_pos_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
 
-            # root = round(math.sqrt(self.num_keypoints))
-            # reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
-            # reference_points = reference_points.repeat(bs, 1, 1)
+            root = round(math.sqrt(self.num_keypoints))
+            base_reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
+            base_reference_points = base_reference_points.repeat(bs, 1, 1)
 
             spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 2, dtype=torch.long, device=src.device)
             level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
@@ -336,12 +340,16 @@ class RAFT(nn.Module):
             for o_i in range(self.outer_iterations):
                 for i_i in range(self.inner_iterations):
                     # bs, n, 2
-                    # reference_points = (inverse_sigmoid(reference_points.detach()) +
+                    # reference_points = (inverse_sigmoid(base_reference_points.detach()) +
                     #                     self.reference_embed[o_i](query + query_pos)).sigmoid()
-                    reference_points = self.reference_embed[o_i](query + query_pos).sigmoid()
+                    # reference_points = self.reference_embed[o_i](query + query_pos).sigmoid()
 
-                    query = self.decoder[o_i](query, query_pos, reference_points.unsqueeze(2),
-                                              src, src_pos, spatial_shapes, level_start_index)
+                    query = self.keypoint_decoder(query.permute(1, 0, 2), src.permute(1, 0, 2)).permute(1, 0, 2)
+                    reference_points = (inverse_sigmoid(base_reference_points.detach()) +
+                                        self.reference_embed[o_i](query + query_pos)).sigmoid()
+
+                    corr = self.decoder[o_i](query, query_pos, reference_points.unsqueeze(2),
+                                             src, src_pos, spatial_shapes, level_start_index)
 
                     # keypoint = self.keypoint_decoder[o_i](keypoint, query_pos, reference_points.unsqueeze(2),
                     #                                     src, src_pos, spatial_shapes, level_start_index)
@@ -355,9 +363,9 @@ class RAFT(nn.Module):
                     #                                             src, src_pos, spatial_shapes, level_start_index)
 
                     # bs, n, 2
-                    flow_embed = self.flow_embed[o_i](query)
-                    # key_flow = inverse_sigmoid(reference_points.detach()) + flow_embed
-                    key_flow = inverse_sigmoid(reference_points) + flow_embed
+                    flow_embed = self.flow_embed[o_i](corr)
+                    key_flow = inverse_sigmoid(reference_points.detach()) + flow_embed
+                    # key_flow = inverse_sigmoid(reference_points) + flow_embed
                     key_flow = reference_points.detach() - key_flow.sigmoid()
                     # new_corr_ref_points = (inverse_sigmoid(corr_ref_points.detach()) + flow_embed).sigmoid()
                     # flow = inverse_sigmoid(reference_points.detach()) + flow_embed

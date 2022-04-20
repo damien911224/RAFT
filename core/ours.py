@@ -137,11 +137,12 @@ class RAFT(nn.Module):
         self.col_pos_embed = nn.Embedding(h // (2 ** 2), d_model // 2)
 
         self.query_embed = nn.Embedding(self.num_keypoints, d_model)
-        self.query_pos_embed = nn.Embedding(self.num_keypoints, d_model)
-        self.flow_embed = MLP(d_model, d_model, 2, 3)
+        # self.query_pos_embed = nn.Embedding(self.num_keypoints, d_model)
+        self.flow_embed = MLP(d_model, d_model, 4, 3)
         # self.flow_embed = nn.Linear(d_model, 2)
         self.context_embed = MLP(d_model, self.extractor.up_dim, self.extractor.up_dim, 3)
-        self.reference_embed = MLP(d_model, d_model, 2, 3)
+        # self.reference_embed = MLP(d_model, d_model, 2, 3)
+        self.reference_embed = nn.Embedding(self.num_keypoints, 4)
         self.confidence_embed = MLP(d_model, d_model, 1, 3)
         # self.reference_embed = MLP(d_model, d_model, d_model, 3)
         # self.reference_embed = nn.Linear(d_model, 2)
@@ -165,7 +166,7 @@ class RAFT(nn.Module):
         # self.reference_embed = nn.ModuleList([self.reference_embed for _ in range(self.outer_iterations)])
         self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(self.outer_iterations)])
         self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(self.outer_iterations)])
-        self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(self.outer_iterations)])
+        # self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(self.outer_iterations)])
         self.confidence_embed = nn.ModuleList([copy.deepcopy(self.confidence_embed) for _ in range(self.outer_iterations)])
 
         self.reset_parameters()
@@ -192,7 +193,8 @@ class RAFT(nn.Module):
         # nn.init.normal_(self.context_row_pos_embed.weight)
         # nn.init.normal_(self.context_col_pos_embed.weight)
         nn.init.xavier_uniform_(self.query_embed.weight)
-        nn.init.normal_(self.query_pos_embed.weight)
+        # nn.init.normal_(self.query_pos_embed.weight)
+        nn.init.uniform_(self.reference_embed.weight)
         nn.init.normal_(self.lvl_pos_embed.weight)
         nn.init.normal_(self.img_pos_embed.weight)
         nn.init.normal_(self.row_pos_embed.weight)
@@ -360,10 +362,11 @@ class RAFT(nn.Module):
             query = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
             if not self.use_dab:
                 query_pos = self.query_pos_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
-
-            root = round(math.sqrt(self.num_keypoints))
-            base_reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
-            base_reference_points = base_reference_points.repeat(bs, 1, 1)
+                root = round(math.sqrt(self.num_keypoints))
+                base_reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
+                base_reference_points = base_reference_points.repeat(bs, 1, 1)
+            else:
+                reference_points = self.reference_embed.weight.sigmoid()
 
             spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 2, dtype=torch.long, device=src.device)
             level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
@@ -385,9 +388,11 @@ class RAFT(nn.Module):
                     if not self.use_dab:
                         reference_points = (inverse_sigmoid(base_reference_points.detach()) +
                                             self.reference_embed[o_i](query + query_pos)).sigmoid()
+                        reference_points_input = reference_points
                     else:
-                        reference_points = (inverse_sigmoid(base_reference_points.detach()) +
-                                            self.reference_embed[o_i](query)).sigmoid()
+                        reference_points_input = torch.cat((reference_points[..., :2],
+                                                            reference_points[..., 2:] * 2 - 1), dim=-1)
+
                     # reference_points = self.reference_embed[o_i](query + query_pos).sigmoid()
 
                     # query = self.keypoint_decoder[o_i]((query + query_pos).permute(1, 0, 2),
@@ -406,7 +411,7 @@ class RAFT(nn.Module):
                     if self.high_dim_query_update and o_i != 0:
                         query_pos = query_pos + self.high_dim_query_proj(query)
 
-                    query = self.decoder[o_i](query, query_pos, reference_points.unsqueeze(2),
+                    query = self.decoder[o_i](query, query_pos, reference_points_input.unsqueeze(2),
                                               src, src_pos, spatial_shapes, level_start_index)
 
                     # keypoint = self.keypoint_decoder[o_i](keypoint, query_pos, reference_points.unsqueeze(2),
@@ -422,9 +427,14 @@ class RAFT(nn.Module):
 
                     # bs, n, 2
                     flow_embed = self.flow_embed[o_i](query)
-                    key_flow = inverse_sigmoid(reference_points.detach()) + flow_embed
-                    # key_flow = inverse_sigmoid(reference_points) + flow_embed
-                    key_flow = reference_points.detach() - key_flow.sigmoid()
+
+                    new_reference_points = (flow_embed + inverse_sigmoid(reference_points)).sigmoid()
+                    key_flow = new_reference_points[..., :2] - (new_reference_points[..., 2:] * 2 - 1)
+                    reference_points = new_reference_points.detach()
+
+                    # key_flow = inverse_sigmoid(reference_points.detach()) + flow_embed
+                    # # key_flow = inverse_sigmoid(reference_points) + flow_embed
+                    # key_flow = reference_points.detach() - key_flow.sigmoid()
                     # new_corr_ref_points = (inverse_sigmoid(corr_ref_points.detach()) + flow_embed).sigmoid()
                     # flow = inverse_sigmoid(reference_points.detach()) + flow_embed
                     # n_flow = corr_ref_points.detach() - new_corr_ref_points.sigmoid()
@@ -462,7 +472,7 @@ class RAFT(nn.Module):
                         #        F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
 
                     flow_predictions.append(flow)
-                    sparse_predictions.append((reference_points, key_flow, masks, scores))
+                    sparse_predictions.append((reference_points[..., :2], key_flow, masks, scores))
 
             if test_mode:
                 return flow_predictions, sparse_predictions

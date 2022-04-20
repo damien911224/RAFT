@@ -270,7 +270,7 @@ class RAFT(nn.Module):
             image2 = image2.contiguous()
             bs, _, I_H, I_W = image1.shape
 
-            D1, D2, U1 = self.feature_extractor(torch.cat((image1, image2), dim=0))
+            D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
             # features = self.extractor(torch.cat((image1, image2), dim=0))
             # D1 = list()
             # D2 = list()

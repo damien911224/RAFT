@@ -87,10 +87,10 @@ class RAFT(nn.Module):
         # self.keypoint_decoder = nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4,
         #                                                    nhead=8, dropout=0.1, activation="gelu")
 
-        self.keypoint_decoder = \
-            nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4,
-                                                      nhead=8, dropout=0.1, activation="gelu")
-                           for _ in range(6)))
+        # self.keypoint_decoder = \
+        #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4,
+        #                                               nhead=8, dropout=0.1, activation="gelu")
+        #                    for _ in range(6)))
 
         # self.correlation_decoder = \
         #     nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
@@ -142,6 +142,7 @@ class RAFT(nn.Module):
         # self.flow_embed = nn.Linear(d_model, 2)
         self.context_embed = MLP(d_model, self.extractor.up_dim, self.extractor.up_dim, 3)
         self.reference_embed = MLP(d_model, d_model, 2, 3)
+        self.confidence_embed = MLP(d_model, d_model, 1, 3)
         # self.reference_embed = MLP(d_model, d_model, d_model, 3)
         # self.reference_embed = nn.Linear(d_model, 2)
         # self.extractor_embed = MLP(self.extractor.up_dim, d_model, d_model, 3)
@@ -153,7 +154,7 @@ class RAFT(nn.Module):
         self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(self.outer_iterations)])
         self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(self.outer_iterations)])
         self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(self.outer_iterations)])
-        # self.confidence_embed = nn.ModuleList([copy.deepcopy(self.confidence_embed) for _ in range(iterations)])
+        self.confidence_embed = nn.ModuleList([copy.deepcopy(self.confidence_embed) for _ in range(self.outer_iterations)])
 
         self.reset_parameters()
 
@@ -340,17 +341,17 @@ class RAFT(nn.Module):
             for o_i in range(self.outer_iterations):
                 for i_i in range(self.inner_iterations):
                     # bs, n, 2
-                    # reference_points = (inverse_sigmoid(base_reference_points.detach()) +
-                    #                     self.reference_embed[o_i](query + query_pos)).sigmoid()
+                    reference_points = (inverse_sigmoid(base_reference_points.detach()) +
+                                        self.reference_embed[o_i](query + query_pos)).sigmoid()
                     # reference_points = self.reference_embed[o_i](query + query_pos).sigmoid()
 
-                    query = self.keypoint_decoder[o_i]((query + query_pos).permute(1, 0, 2),
-                                                       (src + src_pos).permute(1, 0, 2)).permute(1, 0, 2)
-                    reference_points = (inverse_sigmoid(base_reference_points.detach()) +
-                                        self.reference_embed[o_i](query)).sigmoid()
+                    # query = self.keypoint_decoder[o_i]((query + query_pos).permute(1, 0, 2),
+                    #                                    (src + src_pos).permute(1, 0, 2)).permute(1, 0, 2)
+                    # reference_points = (inverse_sigmoid(base_reference_points.detach()) +
+                    #                     self.reference_embed[o_i](query)).sigmoid()
 
-                    corr = self.decoder[o_i](query, query_pos, reference_points.unsqueeze(2),
-                                             src, src_pos, spatial_shapes, level_start_index)
+                    query = self.decoder[o_i](query, query_pos, reference_points.unsqueeze(2),
+                                              src, src_pos, spatial_shapes, level_start_index)
 
                     # keypoint = self.keypoint_decoder[o_i](keypoint, query_pos, reference_points.unsqueeze(2),
                     #                                     src, src_pos, spatial_shapes, level_start_index)
@@ -364,7 +365,7 @@ class RAFT(nn.Module):
                     #                                             src, src_pos, spatial_shapes, level_start_index)
 
                     # bs, n, 2
-                    flow_embed = self.flow_embed[o_i](corr)
+                    flow_embed = self.flow_embed[o_i](query)
                     key_flow = inverse_sigmoid(reference_points.detach()) + flow_embed
                     # key_flow = inverse_sigmoid(reference_points) + flow_embed
                     key_flow = reference_points.detach() - key_flow.sigmoid()
@@ -383,7 +384,8 @@ class RAFT(nn.Module):
 
                     # bs, HW, n
                     context = self.context_embed[o_i](query)
-                    context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
+                    confidence = self.confidence_embed[o_i](query).squeeze(-1).unsqueeze(1)
+                    context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)) + confidence, dim=-1)
                     # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
                     masks = context_flow.permute(0, 2, 1)
                     scores = torch.max(context_flow, dim=1)[0]

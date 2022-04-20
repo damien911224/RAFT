@@ -344,9 +344,10 @@ class RAFT(nn.Module):
                     #                     self.reference_embed[o_i](query + query_pos)).sigmoid()
                     # reference_points = self.reference_embed[o_i](query + query_pos).sigmoid()
 
-                    query = self.keypoint_decoder(query.permute(1, 0, 2), src.permute(1, 0, 2)).permute(1, 0, 2)
+                    query = self.keypoint_decoder((query + query_pos).permute(1, 0, 2),
+                                                  (src + src_pos).permute(1, 0, 2)).permute(1, 0, 2)
                     reference_points = (inverse_sigmoid(base_reference_points.detach()) +
-                                        self.reference_embed[o_i](query + query_pos)).sigmoid()
+                                        self.reference_embed[o_i](query)).sigmoid()
 
                     corr = self.decoder[o_i](query, query_pos, reference_points.unsqueeze(2),
                                              src, src_pos, spatial_shapes, level_start_index)

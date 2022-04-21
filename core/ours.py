@@ -61,7 +61,8 @@ class RAFT(nn.Module):
         self.encoder_iterations = 6
         self.outer_iterations = 6
         self.inner_iterations = 1
-        self.num_keypoints = 10 ** 2
+        # self.num_keypoints = 10 ** 2
+        self.num_keypoints = 200
 
         self.encoder = \
             nn.ModuleList((DeformableTransformerEncoderLayer(d_model=d_model, d_ffn=d_model * 4,
@@ -492,7 +493,7 @@ class RAFT(nn.Module):
                         #        F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
 
                     flow_predictions.append(flow)
-                    sparse_predictions.append((reference_points[..., :2], key_flow, masks, scores))
+                    sparse_predictions.append((reference_points[..., :2], key_flow, masks, scores, confidence.sigmoid()))
 
             if test_mode:
                 return flow_predictions, sparse_predictions, dense_predictions

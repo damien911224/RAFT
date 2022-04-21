@@ -58,8 +58,8 @@ class RAFT(nn.Module):
                 nn.GroupNorm(32, d_model)))
         self.input_proj = nn.ModuleList(input_proj_list)
 
-        self.encoder_iterations = 3
-        self.outer_iterations = 3
+        self.encoder_iterations = 6
+        self.outer_iterations = 6
         self.inner_iterations = 1
         self.num_keypoints = 10 ** 2
 

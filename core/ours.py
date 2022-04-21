@@ -43,7 +43,7 @@ class RAFT(nn.Module):
         self.feature_extractor = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
         self.context_extractor = BasicEncoder(base_channel=64, norm_fn="batch")
         # self.context_extractor = Backbone("resnet50", train_backbone=True, return_interm_layers=True, dilation=False)
-        d_model = 128
+        d_model = 256
         self.num_feature_levels = 3
         # self.extractor_projection = \
         #     nn.Sequential(nn.Conv2d(self.extractor.down_dim, d_model, kernel_size=1),

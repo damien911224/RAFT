@@ -64,12 +64,12 @@ class RAFT(nn.Module):
         # self.num_keypoints = 10 ** 2
         self.num_keypoints = 200
 
-        self.encoder = \
-            nn.ModuleList((DeformableTransformerEncoderLayer(d_model=d_model, d_ffn=d_model * 4,
-                                                             dropout=0.1, activation="gelu",
-                                                             n_levels=self.num_feature_levels * 2,
-                                                             n_heads=8, n_points=4)
-                           for _ in range(self.encoder_iterations)))
+        # self.encoder = \
+        #     nn.ModuleList((DeformableTransformerEncoderLayer(d_model=d_model, d_ffn=d_model * 4,
+        #                                                      dropout=0.1, activation="gelu",
+        #                                                      n_levels=self.num_feature_levels * 2,
+        #                                                      n_heads=8, n_points=4)
+        #                    for _ in range(self.encoder_iterations)))
 
         self.decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
@@ -170,8 +170,9 @@ class RAFT(nn.Module):
         # self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(self.outer_iterations)])
         # self.context_embed = nn.ModuleList([self.context_embed for _ in range(self.outer_iterations)])
         # self.reference_embed = nn.ModuleList([self.reference_embed for _ in range(self.outer_iterations)])
-        self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(self.outer_iterations +
-                                                                                       self.num_feature_levels)])
+        self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(self.outer_iterations)])
+        # self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(self.outer_iterations +
+        #                                                                                self.num_feature_levels)])
         self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(self.outer_iterations)])
         # self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(self.outer_iterations)])
         self.confidence_embed = nn.ModuleList([copy.deepcopy(self.confidence_embed) for _ in range(self.outer_iterations)])
@@ -383,17 +384,19 @@ class RAFT(nn.Module):
             for i in range(len(self.encoder)):
                 src = self.encoder[i](src, src_pos, src_ref, spatial_shapes, level_start_index)
 
-            prev_idx = 0
+            # prev_idx = 0
+            # dense_predictions = list()
+            # for l_i in range(self.num_feature_levels):
+            #     this_H, this_W = spatial_shapes[l_i]
+            #     this_src = src[:, prev_idx:prev_idx + this_H * this_W]
+            #     flow_embed = self.flow_embed[l_i](this_src)[..., :2]
+            #     dense_flow = flow_embed.tanh().permute(0, 2, 1).view(bs, 2, this_H, this_W)
+            #     dense_flow = dense_flow * \
+            #                  torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
+            #     dense_flow = F.interpolate(dense_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
+            #     dense_predictions.append(dense_flow)
+
             dense_predictions = list()
-            for l_i in range(self.num_feature_levels):
-                this_H, this_W = spatial_shapes[l_i]
-                this_src = src[:, prev_idx:prev_idx + this_H * this_W]
-                flow_embed = self.flow_embed[l_i](this_src)[..., :2]
-                dense_flow = flow_embed.tanh().permute(0, 2, 1).view(bs, 2, this_H, this_W)
-                dense_flow = dense_flow * \
-                             torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
-                dense_flow = F.interpolate(dense_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
-                dense_predictions.append(dense_flow)
 
             # reference_embed = \
             #     self.query_selector(self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1).permute(1, 0, 2),
@@ -444,7 +447,8 @@ class RAFT(nn.Module):
                     #                                             src, src_pos, spatial_shapes, level_start_index)
 
                     # bs, n, 2
-                    flow_embed = self.flow_embed[o_i + self.num_feature_levels](query)
+                    flow_embed = self.flow_embed[o_i](query)
+                    # flow_embed = self.flow_embed[o_i + self.num_feature_levels](query)
 
                     new_reference_points = (flow_embed + inverse_sigmoid(reference_points))
                     # key_flow = new_reference_points[..., :2].sigmoid().detach() - \

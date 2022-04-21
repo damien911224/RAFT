@@ -147,6 +147,7 @@ class RAFT(nn.Module):
         # self.reference_embed = MLP(d_model, d_model, 2, 3)
         # self.reference_embed = nn.Embedding(self.num_keypoints, 4)
         self.reference_embed = nn.Embedding(self.num_keypoints, d_model)
+        self.reference_pos_embed = MLP(d_model, d_model, 4, 3)
         # self.confidence_embed = MLP(d_model, d_model, 1, 3)
         # self.reference_embed = MLP(d_model, d_model, d_model, 3)
         # self.reference_embed = nn.Linear(d_model, 2)
@@ -393,9 +394,10 @@ class RAFT(nn.Module):
                 dense_flow = F.interpolate(dense_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
                 dense_predictions.append(dense_flow)
 
-            reference_points = \
+            reference_embed = \
                 self.query_selector(self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1).permute(1, 0, 2),
-                                    (src + src_pos).permute(1, 0, 2)).permute(1, 0, 2).sigmoid()
+                                    (src + src_pos).permute(1, 0, 2)).permute(1, 0, 2)
+            reference_points = self.reference_pos_embed(reference_embed).sigmoid()
 
             flow_predictions = list()
             sparse_predictions = list()

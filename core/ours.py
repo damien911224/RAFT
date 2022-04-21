@@ -40,7 +40,8 @@ class RAFT(nn.Module):
             self.args.dropout = 0
 
         self.extractor = BasicEncoder(base_channel=64, norm_fn="batch")
-        # self.extractor = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
+        self.feature_extractor = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
+        self.context_extractor = BasicEncoder(base_channel=64, norm_fn="batch")
         # self.context_extractor = Backbone("resnet50", train_backbone=True, return_interm_layers=True, dilation=False)
         d_model = 128
         self.num_feature_levels = 3
@@ -49,8 +50,8 @@ class RAFT(nn.Module):
         #     nn.GroupNorm(d_model // 8, d_model))
 
         input_proj_list = []
-        # channels = (512, 1024, 2048)
-        channels = (128, 192, 256)
+        channels = (512, 1024, 2048)
+        # channels = (128, 192, 256)
         for l_i in range(self.num_feature_levels):
             in_channels = channels[l_i]
             input_proj_list.append(nn.Sequential(
@@ -144,7 +145,7 @@ class RAFT(nn.Module):
         # self.query_pos_embed = nn.Embedding(self.num_keypoints, d_model)
         self.flow_embed = MLP(d_model, d_model, 4, 3)
         # self.flow_embed = nn.Linear(d_model, 2)
-        self.context_embed = MLP(d_model, self.extractor.up_dim, self.extractor.up_dim, 3)
+        self.context_embed = MLP(d_model, self.context_extractor.up_dim, self.context_extractor.up_dim, 3)
         # self.reference_embed = MLP(d_model, d_model, 2, 3)
         self.reference_embed = nn.Embedding(self.num_keypoints, 4)
         # self.reference_embed = nn.Embedding(self.num_keypoints, d_model)
@@ -153,7 +154,7 @@ class RAFT(nn.Module):
         # self.reference_embed = MLP(d_model, d_model, d_model, 3)
         # self.reference_embed = nn.Linear(d_model, 2)
         # self.extractor_embed = MLP(self.extractor.up_dim, d_model, d_model, 3)
-        self.extractor_pos_embed = nn.Linear(d_model, self.extractor.up_dim)
+        self.extractor_pos_embed = nn.Linear(d_model, self.context_extractor.up_dim)
 
         self.use_dab = True
         self.no_sine_embed = False
@@ -322,14 +323,15 @@ class RAFT(nn.Module):
             image2 = image2.contiguous()
             bs, _, I_H, I_W = image1.shape
 
-            D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
-            # features = self.extractor(torch.cat((image1, image2), dim=0))
-            # D1 = list()
-            # D2 = list()
-            # for f_i in range(len(features)):
-            #     x1, x2 = features["{}".format(f_i)].split(bs, dim=0)
-            #     D1.append(x1)
-            #     D2.append(x2)
+            # D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
+            features = self.extractor(torch.cat((image1, image2), dim=0))
+            _, _, U1 = self.extractor(torch.cat((image1, image2), dim=0))
+            D1 = list()
+            D2 = list()
+            for f_i in range(len(features)):
+                x1, x2 = features["{}".format(f_i)].split(bs, dim=0)
+                D1.append(x1)
+                D2.append(x2)
             # features_01 = self.extractor(image1)
             # features_02 = self.extractor(image2)
             # D1 = [features_01["{}".format(i)] for i in range(len(features_01))]

@@ -164,7 +164,8 @@ class RAFT(nn.Module):
         # self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(self.outer_iterations)])
         # self.context_embed = nn.ModuleList([self.context_embed for _ in range(self.outer_iterations)])
         # self.reference_embed = nn.ModuleList([self.reference_embed for _ in range(self.outer_iterations)])
-        self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(self.outer_iterations)])
+        self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(self.outer_iterations +
+                                                                                       self.num_feature_levels)])
         self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(self.outer_iterations)])
         # self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(self.outer_iterations)])
         # self.confidence_embed = nn.ModuleList([copy.deepcopy(self.confidence_embed) for _ in range(self.outer_iterations)])
@@ -375,6 +376,18 @@ class RAFT(nn.Module):
             for i in range(len(self.encoder)):
                 src = self.encoder[i](src, src_pos, src_ref, spatial_shapes, level_start_index)
 
+            prev_idx = 0
+            dense_predictions = list()
+            for l_i in range(self.num_feature_levels):
+                this_H, this_W = spatial_shapes[l_i]
+                this_src = src[:, prev_idx:prev_idx + this_H * this_W]
+                flow_embed = self.flow_embed[l_i](this_src)
+                dense_flow = flow_embed.tanh().permute(0, 2, 1)
+                dense_flow = dense_flow * \
+                             torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
+                dense_flow = F.interpolate(dense_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
+                dense_predictions.append(dense_flow)
+
             # D1, D2 = src.split(bs, dim=0)
 
             # keypoint = query
@@ -423,7 +436,7 @@ class RAFT(nn.Module):
                     #                                             src, src_pos, spatial_shapes, level_start_index)
 
                     # bs, n, 2
-                    flow_embed = self.flow_embed[o_i](query)
+                    flow_embed = self.flow_embed[o_i + self.num_feature_levels](query)
 
                     new_reference_points = (flow_embed + inverse_sigmoid(reference_points))
                     # key_flow = new_reference_points[..., :2].sigmoid().detach() - \
@@ -475,9 +488,9 @@ class RAFT(nn.Module):
                     sparse_predictions.append((reference_points[..., :2], key_flow, masks, scores))
 
             if test_mode:
-                return flow_predictions, sparse_predictions
+                return flow_predictions, sparse_predictions, dense_predictions
             else:
-                return flow_predictions, sparse_predictions
+                return flow_predictions, sparse_predictions, dense_predictions
 
 
 class MLP(nn.Module):

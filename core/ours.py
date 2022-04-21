@@ -382,6 +382,7 @@ class RAFT(nn.Module):
                 this_H, this_W = spatial_shapes[l_i]
                 this_src = src[:, prev_idx:prev_idx + this_H * this_W]
                 flow_embed = self.flow_embed[l_i](this_src)
+                print(flow_embed.shape)
                 dense_flow = flow_embed.tanh().permute(0, 2, 1).view(bs, 2, this_H, this_W)
                 dense_flow = dense_flow * \
                              torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)

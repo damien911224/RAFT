@@ -43,7 +43,7 @@ class RAFT(nn.Module):
         self.feature_extractor = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
         self.context_extractor = BasicEncoder(base_channel=64, norm_fn="batch")
         # self.context_extractor = Backbone("resnet50", train_backbone=True, return_interm_layers=True, dilation=False)
-        d_model = 256
+        self.d_model = 256
         self.num_feature_levels = 3
         # self.extractor_projection = \
         #     nn.Sequential(nn.Conv2d(self.extractor.down_dim, d_model, kernel_size=1),
@@ -55,8 +55,8 @@ class RAFT(nn.Module):
         for l_i in range(self.num_feature_levels):
             in_channels = channels[l_i]
             input_proj_list.append(nn.Sequential(
-                nn.Conv1d(in_channels, d_model, kernel_size=1, padding=0),
-                nn.GroupNorm(32, d_model)))
+                nn.Conv1d(in_channels, self.d_model, kernel_size=1, padding=0),
+                nn.GroupNorm(32, self.d_model)))
         self.input_proj = nn.ModuleList(input_proj_list)
 
         self.encoder_iterations = 6
@@ -134,39 +134,39 @@ class RAFT(nn.Module):
         #                                     for i in range(3, self.num_feature_levels + 3)])
         # self.col_pos_embed = nn.ModuleList([nn.Embedding(h // (2 ** i), d_model // 2)
         #                                     for i in range(3, self.num_feature_levels + 3)])
-        self.lvl_pos_embed = nn.Embedding(self.num_feature_levels, d_model)
-        self.img_pos_embed = nn.Embedding(2, d_model)
+        self.lvl_pos_embed = nn.Embedding(self.num_feature_levels, self.d_model)
+        self.img_pos_embed = nn.Embedding(2, self.d_model)
         # self.context_row_pos_embed = nn.Embedding(w // (2 ** 2), self.extractor.up_dim // 2)
         # self.context_col_pos_embed = nn.Embedding(h // (2 ** 2), self.extractor.up_dim // 2)
-        self.row_pos_embed = nn.Embedding(w // (2 ** 2), d_model // 2)
-        self.col_pos_embed = nn.Embedding(h // (2 ** 2), d_model // 2)
+        self.row_pos_embed = nn.Embedding(w // (2 ** 2), self.d_model // 2)
+        self.col_pos_embed = nn.Embedding(h // (2 ** 2), self.d_model // 2)
 
-        self.query_embed = nn.Embedding(self.num_keypoints, d_model)
+        self.query_embed = nn.Embedding(self.num_keypoints, self.d_model)
         # self.query_pos_embed = nn.Embedding(self.num_keypoints, d_model)
-        self.flow_embed = MLP(d_model, d_model, 4, 3)
+        self.flow_embed = MLP(self.d_model, self.d_model, 4, 3)
         # self.flow_embed = nn.Linear(d_model, 2)
-        self.context_embed = MLP(d_model, self.context_extractor.up_dim, self.context_extractor.up_dim, 3)
+        self.context_embed = MLP(self.d_model, self.context_extractor.up_dim, self.context_extractor.up_dim, 3)
         # self.reference_embed = MLP(d_model, d_model, 2, 3)
         self.reference_embed = nn.Embedding(self.num_keypoints, 4)
         # self.reference_embed = nn.Embedding(self.num_keypoints, d_model)
         # self.reference_pos_embed = MLP(d_model, d_model, 4, 3)
-        self.confidence_embed = MLP(d_model, d_model, 1, 3)
+        self.confidence_embed = MLP(self.d_model, self.d_model, 1, 3)
         # self.reference_embed = MLP(d_model, d_model, d_model, 3)
         # self.reference_embed = nn.Linear(d_model, 2)
         # self.extractor_embed = MLP(self.extractor.up_dim, d_model, d_model, 3)
-        self.extractor_pos_embed = nn.Linear(d_model, self.context_extractor.up_dim)
+        self.extractor_pos_embed = nn.Linear(self.d_model, self.context_extractor.up_dim)
 
         self.use_dab = True
         self.no_sine_embed = False
         if self.use_dab:
-            self.query_scale = MLP(d_model, d_model, d_model, 2)
+            self.query_scale = MLP(self.d_model, self.d_model, self.d_model, 2)
             if self.no_sine_embed:
-                self.ref_point_head = MLP(4, d_model, d_model, 3)
+                self.ref_point_head = MLP(4, self.d_model, self.d_model, 3)
             else:
-                self.ref_point_head = MLP(2 * d_model, d_model, d_model, 2)
+                self.ref_point_head = MLP(2 * self.d_model, self.d_model, self.d_model, 2)
         self.high_dim_query_update = True
         if self.high_dim_query_update:
-            self.high_dim_query_proj = MLP(d_model, d_model, d_model, 2)
+            self.high_dim_query_proj = MLP(self.d_model, self.d_model, self.d_model, 2)
 
         # self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(self.outer_iterations)])
         # self.context_embed = nn.ModuleList([self.context_embed for _ in range(self.outer_iterations)])
@@ -289,8 +289,8 @@ class RAFT(nn.Module):
         # n_query, bs, _ = pos_tensor.size()
         # sineembed_tensor = torch.zeros(n_query, bs, 256)
         scale = 2 * math.pi
-        dim_t = torch.arange(64, dtype=torch.float32, device=pos_tensor.device)
-        dim_t = 10000 ** (2 * (dim_t // 2) / 64)
+        dim_t = torch.arange(self.d_model // 2, dtype=torch.float32, device=pos_tensor.device)
+        dim_t = 10000 ** (2 * (dim_t // 2) / (self.d_model // 2))
         x_embed = pos_tensor[:, :, 0] * scale
         y_embed = pos_tensor[:, :, 1] * scale
         pos_x = x_embed[:, :, None] / dim_t

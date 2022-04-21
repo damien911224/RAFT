@@ -77,8 +77,8 @@ class RAFT(nn.Module):
                                                              n_heads=8, n_points=4, self_deformable=False)
                            for _ in range(self.outer_iterations)))
 
-        self.query_selector = nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4,
-                                                         nhead=8, dropout=0.1, activation="gelu")
+        # self.query_selector = nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4,
+        #                                                  nhead=8, dropout=0.1, activation="gelu")
 
         # self.keypoint_decoder = \
         #     nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
@@ -145,9 +145,9 @@ class RAFT(nn.Module):
         # self.flow_embed = nn.Linear(d_model, 2)
         self.context_embed = MLP(d_model, self.extractor.up_dim, self.extractor.up_dim, 3)
         # self.reference_embed = MLP(d_model, d_model, 2, 3)
-        # self.reference_embed = nn.Embedding(self.num_keypoints, 4)
-        self.reference_embed = nn.Embedding(self.num_keypoints, d_model)
-        self.reference_pos_embed = MLP(d_model, d_model, 4, 3)
+        self.reference_embed = nn.Embedding(self.num_keypoints, 4)
+        # self.reference_embed = nn.Embedding(self.num_keypoints, d_model)
+        # self.reference_pos_embed = MLP(d_model, d_model, 4, 3)
         # self.confidence_embed = MLP(d_model, d_model, 1, 3)
         # self.reference_embed = MLP(d_model, d_model, d_model, 3)
         # self.reference_embed = nn.Linear(d_model, 2)
@@ -200,8 +200,8 @@ class RAFT(nn.Module):
         # nn.init.normal_(self.context_col_pos_embed.weight)
         nn.init.xavier_uniform_(self.query_embed.weight)
         # nn.init.normal_(self.query_pos_embed.weight)
-        # nn.init.uniform_(self.reference_embed.weight)
-        nn.init.xavier_uniform_(self.reference_embed.weight)
+        nn.init.uniform_(self.reference_embed.weight)
+        # nn.init.xavier_uniform_(self.reference_embed.weight)
         nn.init.normal_(self.lvl_pos_embed.weight)
         nn.init.normal_(self.img_pos_embed.weight)
         nn.init.normal_(self.row_pos_embed.weight)
@@ -372,8 +372,8 @@ class RAFT(nn.Module):
                 root = round(math.sqrt(self.num_keypoints))
                 base_reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
                 base_reference_points = base_reference_points.repeat(bs, 1, 1)
-            # else:
-            #     reference_points = self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
+            else:
+                reference_points = self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
 
             spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 2, dtype=torch.long, device=src.device)
             level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
@@ -394,10 +394,10 @@ class RAFT(nn.Module):
                 dense_flow = F.interpolate(dense_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
                 dense_predictions.append(dense_flow)
 
-            reference_embed = \
-                self.query_selector(self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1).permute(1, 0, 2),
-                                    (src + src_pos).permute(1, 0, 2)).permute(1, 0, 2)
-            reference_points = self.reference_pos_embed(reference_embed).sigmoid()
+            # reference_embed = \
+            #     self.query_selector(self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1).permute(1, 0, 2),
+            #                         (src + src_pos).permute(1, 0, 2)).permute(1, 0, 2)
+            # reference_points = self.reference_pos_embed(reference_embed).sigmoid()
 
             flow_predictions = list()
             sparse_predictions = list()

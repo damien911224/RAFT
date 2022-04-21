@@ -78,8 +78,10 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
         sparse_i_loss = (sparse_flow * scale - sparse_gt).abs()
         sparse_loss += i_weight * (sparse_valid[..., None] * sparse_i_loss).mean()
 
-        i_dense_loss = (flow_preds[2][i] - flow_gt).abs()
-        dense_loss += i_weight * (dense_valid[:, None] * i_dense_loss).mean()
+    for i in range(len(flow_preds[2])):
+        i_weight = 1.0
+        i_loss = (flow_preds[2][i] - flow_gt).abs()
+        dense_loss += i_weight * (dense_valid[:, None] * i_loss).mean()
 
     loss = flow_loss + sparse_loss + dense_loss
 

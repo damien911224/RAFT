@@ -447,7 +447,8 @@ class RAFT(nn.Module):
                                                   src, src_pos, spatial_shapes, level_start_index)
                     else:
                         query = self.decoder[o_i](query, query_pos, reference_points_input.unsqueeze(2),
-                                                  src, src_pos, spatial_shapes, level_start_index)
+                                                  src[i_i], src_pos[i_i], spatial_shapes[i_i:i_i + 1],
+                                                  level_start_index[i_i:i_i + 1])
 
                     # keypoint = self.keypoint_decoder[o_i](keypoint, query_pos, reference_points.unsqueeze(2),
                     #                                     src, src_pos, spatial_shapes, level_start_index)

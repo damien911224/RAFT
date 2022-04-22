@@ -60,8 +60,8 @@ class RAFT(nn.Module):
         self.input_proj = nn.ModuleList(input_proj_list)
 
         self.encoder_iterations = 6
-        self.outer_iterations = 6
-        self.inner_iterations = 1
+        self.outer_iterations = 3
+        self.inner_iterations = 3
         # self.inner_iterations = self.num_feature_levels
         # self.num_keypoints = 10 ** 2
         self.num_keypoints = 100
@@ -141,6 +141,8 @@ class RAFT(nn.Module):
         # self.context_col_pos_embed = nn.Embedding(h // (2 ** 2), self.extractor.up_dim // 2)
         self.row_pos_embed = nn.Embedding(w // (2 ** 2), self.d_model // 2)
         self.col_pos_embed = nn.Embedding(h // (2 ** 2), self.d_model // 2)
+
+        self.iter_pos_embed = nn.Embedding(self.inner_iterations, self.d_model)
 
         self.query_embed = nn.Embedding(self.num_keypoints, self.d_model)
         # self.query_pos_embed = nn.Embedding(self.num_keypoints, d_model)
@@ -441,11 +443,13 @@ class RAFT(nn.Module):
                             raw_query_pos = self.ref_point_head(query_sine_embed)  # bs, nq, 256
                         pos_scale = self.query_scale(query) if not (o_i == 0 and i_i == 0) else 1
                         query_pos = pos_scale * raw_query_pos
-                    if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
-                        query_pos = query_pos + self.high_dim_query_proj(query)
 
                     if self.inner_iterations > 1:
-                        query_pos = query_pos + self.lvl_pos_embed.weight[self.num_feature_levels - i_i - 1].unsqueeze(0)
+                        query_pos = query_pos + \
+                                    self.iter_pos_embed.weight[self.num_feature_levels - i_i - 1].unsqueeze(0)
+
+                    if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
+                        query_pos = query_pos + self.high_dim_query_proj(query)
 
                     query = self.decoder[o_i](query, query_pos, reference_points_input.unsqueeze(2),
                                               src, src_pos, spatial_shapes, level_start_index)

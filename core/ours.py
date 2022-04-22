@@ -468,10 +468,11 @@ class RAFT(nn.Module):
                     flow_embed = self.flow_embed[o_i](query)
                     # flow_embed = self.flow_embed[o_i + self.num_feature_levels](query)
 
-                    flow_embed = (flow_embed + inverse_sigmoid(reference_points))
+                    flow_embed[..., 2:] = (flow_embed[..., 2:] + inverse_sigmoid(reference_points[..., 2:]))
                     # key_flow = new_reference_points[..., :2].sigmoid().detach() - \
                     #            (new_reference_points[..., :2] + (new_reference_points[..., 2:])).sigmoid()
-                    key_flow = flow_embed[..., :2].sigmoid() - (flow_embed[..., :2] + flow_embed[..., 2:]).sigmoid()
+                    key_flow = reference_points.detach() - \
+                               (inverse_sigmoid(reference_points[..., :2]).detach() + flow_embed[..., 2:]).sigmoid()
                     reference_points = flow_embed.sigmoid().detach()
 
                     # key_flow = inverse_sigmoid(reference_points.detach()) + flow_embed

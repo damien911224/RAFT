@@ -62,7 +62,7 @@ class RAFT(nn.Module):
         self.input_proj = nn.ModuleList(input_proj_list)
 
         self.encoder_iterations = 0
-        self.outer_iterations = 3
+        self.outer_iterations = 6
         self.inner_iterations = 1
         # self.inner_iterations = self.num_feature_levels
         # self.num_keypoints = 10 ** 2
@@ -509,7 +509,7 @@ class RAFT(nn.Module):
                     scores = torch.max(context_flow, dim=1)[0]
                     # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
                     # bs, HW, 2
-                    context_flow = torch.bmm(context_flow, key_flow.detach())
+                    context_flow = torch.bmm(context_flow, key_flow)
                     # context_flow = torch.bmm(context_flow, key_flow.detach())
                     # bs, 2, H, W
                     context_flow = context_flow.permute(0, 2, 1).view(bs, 2, H, W)
@@ -525,7 +525,7 @@ class RAFT(nn.Module):
                         #        F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
 
                     flow_predictions.append(flow)
-                    sparse_predictions.append((reference_points[..., :2], key_flow, masks, scores, None))
+                    sparse_predictions.append((reference_points, key_flow, masks, scores, None))
                     # sparse_predictions.append((reference_points[..., :2], key_flow, masks, scores, confidence.sigmoid()))
 
             if test_mode:

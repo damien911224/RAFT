@@ -146,7 +146,7 @@ class RAFT(nn.Module):
 
         self.query_embed = nn.Embedding(self.num_keypoints, self.d_model)
         # self.query_pos_embed = nn.Embedding(self.num_keypoints, d_model)
-        self.flow_embed = MLP(self.d_model, self.d_model, 4, 3)
+        self.flow_embed = MLP(self.d_model, self.d_model, 2, 3)
         # self.flow_embed = nn.Linear(d_model, 2)
         self.context_embed = MLP(self.d_model, self.extractor.up_dim, self.extractor.up_dim, 3)
         # self.reference_embed = MLP(d_model, d_model, 2, 3)
@@ -468,13 +468,14 @@ class RAFT(nn.Module):
                     flow_embed = self.flow_embed[o_i](query)
                     # flow_embed = self.flow_embed[o_i + self.num_feature_levels](query)
 
-                    flow_embed[..., 2:] = (flow_embed[..., 2:] + inverse_sigmoid(reference_points[..., 2:].detach()))
+                    reference_points[..., 2:] = (flow_embed + inverse_sigmoid(reference_points[..., 2:]))
                     # key_flow = new_reference_points[..., :2].sigmoid().detach() - \
                     #            (new_reference_points[..., :2] + (new_reference_points[..., 2:])).sigmoid()
                     # key_flow = reference_points.detach() - \
                     #            (inverse_sigmoid(reference_points[..., :2]).detach() + flow_embed[..., 2:]).sigmoid()
-                    key_flow = flow_embed[..., 2:].tanh()
-                    reference_points = flow_embed.sigmoid().detach()
+                    key_flow = reference_points[..., 2:].tanh()
+                    reference_points[..., 2:] = reference_points[..., 2:].sigmoid()
+                    reference_points = reference_points.detach()
 
                     # key_flow = inverse_sigmoid(reference_points.detach()) + flow_embed
                     # # key_flow = inverse_sigmoid(reference_points) + flow_embed

@@ -398,7 +398,7 @@ class RAFT(nn.Module):
                 # bs, hw, hw
                 corr = F.softmax(torch.bmm(this_src_01, this_src_02.permute(0, 2, 1)), dim=-1)
                 # bs, hw, 2
-                this_coords = src_ref.squeeze(2)[:, start_i:start_i + this_H * this_W]
+                this_coords = src_ref.squeeze(2)[:, start_i:start_i + this_H * this_W].repeat(bs, 1, 1)
                 dense_flow = this_coords - torch.bmm(corr, this_coords)
                 dense_flow = dense_flow.permute(0, 2, 1).view(bs, 2, this_H, this_W)
                 # flow_embed = self.flow_embed[l_i](this_src)[..., :2]

@@ -472,7 +472,8 @@ class RAFT(nn.Module):
                     new_reference_points = (flow_embed + inverse_sigmoid(reference_points))
                     # key_flow = new_reference_points[..., :2].sigmoid().detach() - \
                     #            (new_reference_points[..., :2] + (new_reference_points[..., 2:])).sigmoid()
-                    key_flow = new_reference_points[..., 2:].tanh()
+                    key_flow = new_reference_points[..., :2].sigmoid().detach() - \
+                               (new_reference_points[..., :2].detach() + new_reference_points[..., 2:]).sigmoid()
                     reference_points = new_reference_points.sigmoid().detach()
 
                     # key_flow = inverse_sigmoid(reference_points.detach()) + flow_embed
@@ -493,10 +494,10 @@ class RAFT(nn.Module):
 
                     # bs, HW, n
                     context = self.context_embed[o_i](query)
-                    # context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
+                    context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
                     # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
-                    confidence = self.confidence_embed[o_i](query).squeeze(-1).unsqueeze(1)
-                    context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)) + confidence, dim=-1)
+                    # confidence = self.confidence_embed[o_i](query).squeeze(-1).unsqueeze(1)
+                    # context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)) + confidence, dim=-1)
                     masks = context_flow.permute(0, 2, 1)
                     scores = torch.max(context_flow, dim=1)[0]
                     # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))

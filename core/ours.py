@@ -276,8 +276,8 @@ class RAFT(nn.Module):
     def get_reference_points(self, spatial_shapes, device):
         reference_points_list = []
         for lvl, (H_, W_) in enumerate(spatial_shapes):
-            ref_y, ref_x = torch.meshgrid(torch.linspace(0.5, H_ - 0.5, H_, dtype=torch.float32, device=device) / H_,
-                                          torch.linspace(0.5, W_ - 0.5, W_, dtype=torch.float32, device=device) / W_)
+            ref_y, ref_x = torch.meshgrid(torch.linspace(0.5, H_ - 0.5, H_, dtype=torch.float32, device=device),
+                                          torch.linspace(0.5, W_ - 0.5, W_, dtype=torch.float32, device=device))
             ref_y = ref_y.reshape(-1)[None]
             ref_x = ref_x.reshape(-1)[None]
             ref = torch.stack((ref_x, ref_y), -1)
@@ -387,21 +387,27 @@ class RAFT(nn.Module):
             for i in range(len(self.encoder)):
                 src = self.encoder[i](src, src_pos, src_ref, spatial_shapes, level_start_index)
 
-            prev_idx = 0
             dense_predictions = list()
             for l_i in range(self.num_feature_levels):
+                start_i = level_start_index[l_i]
                 this_H, this_W = spatial_shapes[l_i]
-                this_src = src[:, prev_idx:prev_idx + this_H * this_W]
-                flow_embed = self.flow_embed[l_i](this_src)[..., :2]
-                dense_flow = flow_embed.tanh().permute(0, 2, 1).view(bs, 2, this_H, this_W)
+                this_src_01 = src[:, start_i:start_i + this_H * this_W]
+                start_i = level_start_index[self.num_feature_levels + l_i]
+                this_H, this_W = spatial_shapes[self.num_feature_levels + l_i]
+                this_src_02 = src[:, start_i:start_i + this_H * this_W]
+                # hw x hw
+                corr = F.softmax(torch.bmm(this_src_01, this_src_02.permute(0, 2, 1)), dim=-1)
+                # hw x 2
+                this_coords = src_ref.squeeze(2)[start_i:start_i + this_H * this_W]
+                dense_flow = this_coords - corr * this_coords
+                dense_flow = dense_flow.permute(0, 2, 1).view(bs, 2, this_H, this_W)
+                # flow_embed = self.flow_embed[l_i](this_src)[..., :2]
+                # dense_flow = flow_embed.tanh().permute(0, 2, 1).view(bs, 2, this_H, this_W)
                 dense_flow = dense_flow * \
-                             torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
+                             torch.as_tensor((I_W // this_W, I_H // this_H,),
+                                             dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
                 dense_flow = F.interpolate(dense_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
                 dense_predictions.append(dense_flow)
-                prev_idx += this_H * this_W
-
-            print(src.shape, prev_idx)
-            exit()
 
             # dense_predictions = list()
 
@@ -409,10 +415,6 @@ class RAFT(nn.Module):
             #     self.query_selector(self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1).permute(1, 0, 2),
             #                         (src + src_pos).permute(1, 0, 2)).permute(1, 0, 2)
             # reference_points = self.reference_pos_embed(reference_embed).sigmoid()
-
-            if self.inner_iterations > 1:
-                src = [src[:, s_i:s_i + h * w] for (s_i, (h, w)) in zip(level_start_index, spatial_shapes)][::-1]
-                src_pos = [src_pos[:, s_i:s_i + h * w] for (s_i, (h, w)) in zip(level_start_index, spatial_shapes)][::-1]
 
             flow_predictions = list()
             sparse_predictions = list()
@@ -446,13 +448,8 @@ class RAFT(nn.Module):
                     if self.inner_iterations > 1:
                         query_pos = query_pos + self.lvl_pos_embed.weight[self.num_feature_levels - i_i - 1].unsqueeze(0)
 
-                    if self.inner_iterations <= 1:
-                        query = self.decoder[o_i](query, query_pos, reference_points_input.unsqueeze(2),
-                                                  src, src_pos, spatial_shapes, level_start_index)
-                    else:
-                        query = self.decoder[o_i](query, query_pos, reference_points_input.unsqueeze(2),
-                                                  src[i_i], src_pos[i_i], spatial_shapes[i_i:i_i + 1],
-                                                  level_start_index[i_i:i_i + 1])
+                    query = self.decoder[o_i](query, query_pos, reference_points_input.unsqueeze(2),
+                                              src, src_pos, spatial_shapes, level_start_index)
 
                     # keypoint = self.keypoint_decoder[o_i](keypoint, query_pos, reference_points.unsqueeze(2),
                     #                                     src, src_pos, spatial_shapes, level_start_index)

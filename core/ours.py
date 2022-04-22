@@ -440,7 +440,7 @@ class RAFT(nn.Module):
                         query_pos = query_pos + self.high_dim_query_proj(query)
 
                     if self.inner_iterations > 1:
-                        query_pos = query_pos + self.lvl_pos_embed.weight[self.num_feature_levels - i_i].unsqueeze(0)
+                        query_pos = query_pos + self.lvl_pos_embed.weight[self.num_feature_levels - i_i - 1].unsqueeze(0)
 
                     if self.inner_iterations <= 1:
                         query = self.decoder[o_i](query, query_pos, reference_points_input.unsqueeze(2),

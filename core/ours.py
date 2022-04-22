@@ -276,8 +276,8 @@ class RAFT(nn.Module):
     def get_reference_points(self, spatial_shapes, device):
         reference_points_list = []
         for lvl, (H_, W_) in enumerate(spatial_shapes):
-            ref_y, ref_x = torch.meshgrid(torch.linspace(0.5, H_ - 0.5, H_, dtype=torch.float32, device=device),
-                                          torch.linspace(0.5, W_ - 0.5, W_, dtype=torch.float32, device=device))
+            ref_y, ref_x = torch.meshgrid(torch.linspace(0.5, H_ - 0.5, H_, dtype=torch.float32, device=device) / H_,
+                                          torch.linspace(0.5, W_ - 0.5, W_, dtype=torch.float32, device=device) / W_)
             ref_y = ref_y.reshape(-1)[None]
             ref_x = ref_x.reshape(-1)[None]
             ref = torch.stack((ref_x, ref_y), -1)
@@ -399,13 +399,12 @@ class RAFT(nn.Module):
                 corr = F.softmax(torch.bmm(this_src_01, this_src_02.permute(0, 2, 1)), dim=-1)
                 # bs, hw, 2
                 this_coords = src_ref.squeeze(2)[:, start_i:start_i + this_H * this_W]
-                dense_flow = this_coords - corr * this_coords
+                dense_flow = this_coords - torch.bmm(corr, this_coords)
                 dense_flow = dense_flow.permute(0, 2, 1).view(bs, 2, this_H, this_W)
                 # flow_embed = self.flow_embed[l_i](this_src)[..., :2]
                 # dense_flow = flow_embed.tanh().permute(0, 2, 1).view(bs, 2, this_H, this_W)
                 dense_flow = dense_flow * \
-                             torch.as_tensor((I_W // this_W, I_H // this_H,),
-                                             dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
+                             torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
                 dense_flow = F.interpolate(dense_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
                 dense_predictions.append(dense_flow)
 

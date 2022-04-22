@@ -445,8 +445,7 @@ class RAFT(nn.Module):
                         query_pos = pos_scale * raw_query_pos
 
                     if self.inner_iterations > 1:
-                        query_pos = query_pos + \
-                                    self.iter_pos_embed.weight[self.num_feature_levels - i_i - 1].unsqueeze(0)
+                        query_pos = query_pos + self.iter_pos_embed.weight[i_i].unsqueeze(0)
 
                     if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
                         query_pos = query_pos + self.high_dim_query_proj(query)
@@ -472,10 +471,8 @@ class RAFT(nn.Module):
                     flow_embed = (flow_embed + inverse_sigmoid(reference_points))
                     # key_flow = new_reference_points[..., :2].sigmoid().detach() - \
                     #            (new_reference_points[..., :2] + (new_reference_points[..., 2:])).sigmoid()
-                    key_flow = reference_points[..., :2].detach() - \
-                               (inverse_sigmoid(reference_points[..., :2]).detach() + flow_embed[..., 2:]).sigmoid()
-                    # reference_points = new_reference_points.sigmoid().detach()
-                    reference_points = flow_embed.sigmoid()
+                    key_flow = flow_embed[..., :2].sigmoid() - (flow_embed[..., :2] + flow_embed[..., 2:]).sigmoid()
+                    reference_points = flow_embed.sigmoid().detach()
 
                     # key_flow = inverse_sigmoid(reference_points.detach()) + flow_embed
                     # # key_flow = inverse_sigmoid(reference_points) + flow_embed

@@ -395,9 +395,9 @@ class RAFT(nn.Module):
                 start_i = level_start_index[self.num_feature_levels + l_i]
                 this_H, this_W = spatial_shapes[self.num_feature_levels + l_i]
                 this_src_02 = src[:, start_i:start_i + this_H * this_W]
-                # hw x hw
+                # bs, hw, hw
                 corr = F.softmax(torch.bmm(this_src_01, this_src_02.permute(0, 2, 1)), dim=-1)
-                # hw x 2
+                # bs, hw, 2
                 this_coords = src_ref.squeeze(2)[start_i:start_i + this_H * this_W]
                 dense_flow = this_coords - corr * this_coords
                 dense_flow = dense_flow.permute(0, 2, 1).view(bs, 2, this_H, this_W)

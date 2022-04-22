@@ -505,8 +505,8 @@ class RAFT(nn.Module):
                     # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
                     # confidence = self.confidence_embed[o_i](query).squeeze(-1).unsqueeze(1)
                     # context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)) + confidence, dim=-1)
-                    masks = context_flow.permute(0, 2, 1)
-                    scores = torch.max(context_flow, dim=1)[0]
+                    masks = context_flow.permute(0, 2, 1).detach()
+                    scores = torch.max(context_flow, dim=1)[0].detach()
                     # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
                     # bs, HW, 2
                     context_flow = torch.bmm(context_flow, key_flow.detach())

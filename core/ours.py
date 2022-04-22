@@ -40,7 +40,7 @@ class RAFT(nn.Module):
             self.args.dropout = 0
 
         # self.extractor = BasicEncoder(base_channel=64, norm_fn="batch")
-        self.up_dim = self.extractor.up_dim
+        # self.up_dim = self.extractor.up_dim
         self.feature_extractor = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
         self.context_extractor = BasicEncoder(base_channel=64, norm_fn="batch")
         self.up_dim = self.context_extractor.up_dim

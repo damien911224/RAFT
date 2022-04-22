@@ -39,9 +39,9 @@ class RAFT(nn.Module):
         if "dropout" not in self.args:
             self.args.dropout = 0
 
-        self.extractor = BasicEncoder(base_channel=64, norm_fn="batch")
-        # self.feature_extractor = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
-        # self.context_extractor = BasicEncoder(base_channel=64, norm_fn="batch")
+        # self.extractor = BasicEncoder(base_channel=64, norm_fn="batch")
+        self.feature_extractor = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
+        self.context_extractor = BasicEncoder(base_channel=64, norm_fn="batch")
         # self.context_extractor = Backbone("resnet50", train_backbone=True, return_interm_layers=True, dilation=False)
         self.d_model = 64
         self.num_feature_levels = 3
@@ -326,15 +326,15 @@ class RAFT(nn.Module):
             image2 = image2.contiguous()
             bs, _, I_H, I_W = image1.shape
 
-            D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
-            # features = self.feature_extractor(torch.cat((image1, image2), dim=0))
-            # _, _, U1 = self.context_extractor(torch.cat((image1, image2), dim=0))
-            # D1 = list()
-            # D2 = list()
-            # for f_i in range(len(features)):
-            #     x1, x2 = features["{}".format(f_i)].split(bs, dim=0)
-            #     D1.append(x1)
-            #     D2.append(x2)
+            # D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
+            features = self.feature_extractor(torch.cat((image1, image2), dim=0))
+            _, _, U1 = self.context_extractor(torch.cat((image1, image2), dim=0))
+            D1 = list()
+            D2 = list()
+            for f_i in range(len(features)):
+                x1, x2 = features["{}".format(f_i)].split(bs, dim=0)
+                D1.append(x1)
+                D2.append(x2)
             # features_01 = self.extractor(image1)
             # features_02 = self.extractor(image2)
             # D1 = [features_01["{}".format(i)] for i in range(len(features_01))]

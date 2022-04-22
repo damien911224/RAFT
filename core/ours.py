@@ -405,6 +405,9 @@ class RAFT(nn.Module):
             #                         (src + src_pos).permute(1, 0, 2)).permute(1, 0, 2)
             # reference_points = self.reference_pos_embed(reference_embed).sigmoid()
 
+            src = [src[:, s_i:s_i + h * w] for (s_i, (h, w)) in zip(level_start_index, spatial_shapes)][::-1]
+            src_pos = [src_pos[:, s_i:s_i + h * w] for (s_i, (h, w)) in zip(level_start_index, spatial_shapes)][::-1]
+
             flow_predictions = list()
             sparse_predictions = list()
             # flow = torch.zeros(dtype=torch.float32, size=(1, 2, I_H, I_W), device=src.device)
@@ -429,11 +432,15 @@ class RAFT(nn.Module):
                         else:
                             query_sine_embed = self.gen_sineembed_for_position(reference_points)  # bs, nq, 256*2
                             raw_query_pos = self.ref_point_head(query_sine_embed)  # bs, nq, 256
-                        pos_scale = self.query_scale(query) if o_i != 0 else 1
+                        pos_scale = self.query_scale(query) if not (o_i == 0 and i_i == 0) else 1
                         query_pos = pos_scale * raw_query_pos
-                    if self.high_dim_query_update and o_i != 0:
+                    if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
                         query_pos = query_pos + self.high_dim_query_proj(query)
 
+                    query_pos = query_pos + self.lvl_pos_embed.weight[self.num_feature_levels - i_i].unsqueeze(0)
+
+                    # query = self.decoder[o_i](query, query_pos, reference_points_input.unsqueeze(2),
+                    #                           src, src_pos, spatial_shapes, level_start_index)
                     query = self.decoder[o_i](query, query_pos, reference_points_input.unsqueeze(2),
                                               src, src_pos, spatial_shapes, level_start_index)
 

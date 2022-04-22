@@ -63,7 +63,7 @@ class RAFT(nn.Module):
         self.outer_iterations = 6
         self.inner_iterations = 1
         # self.num_keypoints = 10 ** 2
-        self.num_keypoints = 200
+        self.num_keypoints = 100
 
         self.encoder = \
             nn.ModuleList((DeformableTransformerEncoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,

@@ -60,8 +60,8 @@ class RAFT(nn.Module):
         self.input_proj = nn.ModuleList(input_proj_list)
 
         self.encoder_iterations = 6
-        self.outer_iterations = 3
-        self.inner_iterations = 3
+        self.outer_iterations = 6
+        self.inner_iterations = 1
         # self.inner_iterations = self.num_feature_levels
         # self.num_keypoints = 10 ** 2
         self.num_keypoints = 100
@@ -385,32 +385,32 @@ class RAFT(nn.Module):
             spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 2, dtype=torch.long, device=src.device)
             level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
-            src_ref = self.get_reference_points(spatial_shapes, device=src.device)
-            for i in range(len(self.encoder)):
-                src = self.encoder[i](src, src_pos, src_ref, spatial_shapes, level_start_index)
+            # src_ref = self.get_reference_points(spatial_shapes, device=src.device)
+            # for i in range(len(self.encoder)):
+            #     src = self.encoder[i](src, src_pos, src_ref, spatial_shapes, level_start_index)
+            #
+            # dense_predictions = list()
+            # for l_i in range(self.num_feature_levels):
+            #     start_i = level_start_index[l_i]
+            #     this_H, this_W = spatial_shapes[l_i]
+            #     this_src_01 = src[:, start_i:start_i + this_H * this_W]
+            #     start_i = level_start_index[self.num_feature_levels + l_i]
+            #     this_H, this_W = spatial_shapes[self.num_feature_levels + l_i]
+            #     this_src_02 = src[:, start_i:start_i + this_H * this_W]
+            #     # bs, hw, hw
+            #     corr = F.softmax(torch.bmm(this_src_01, this_src_02.permute(0, 2, 1)), dim=-1)
+            #     # bs, hw, 2
+            #     this_coords = src_ref.squeeze(2)[:, start_i:start_i + this_H * this_W].repeat(bs, 1, 1)
+            #     dense_flow = this_coords - torch.bmm(corr, this_coords)
+            #     dense_flow = dense_flow.permute(0, 2, 1).view(bs, 2, this_H, this_W)
+            #     # flow_embed = self.flow_embed[l_i](this_src)[..., :2]
+            #     # dense_flow = flow_embed.tanh().permute(0, 2, 1).view(bs, 2, this_H, this_W)
+            #     dense_flow = dense_flow * \
+            #                  torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
+            #     dense_flow = F.interpolate(dense_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
+            #     dense_predictions.append(dense_flow)
 
             dense_predictions = list()
-            for l_i in range(self.num_feature_levels):
-                start_i = level_start_index[l_i]
-                this_H, this_W = spatial_shapes[l_i]
-                this_src_01 = src[:, start_i:start_i + this_H * this_W]
-                start_i = level_start_index[self.num_feature_levels + l_i]
-                this_H, this_W = spatial_shapes[self.num_feature_levels + l_i]
-                this_src_02 = src[:, start_i:start_i + this_H * this_W]
-                # bs, hw, hw
-                corr = F.softmax(torch.bmm(this_src_01, this_src_02.permute(0, 2, 1)), dim=-1)
-                # bs, hw, 2
-                this_coords = src_ref.squeeze(2)[:, start_i:start_i + this_H * this_W].repeat(bs, 1, 1)
-                dense_flow = this_coords - torch.bmm(corr, this_coords)
-                dense_flow = dense_flow.permute(0, 2, 1).view(bs, 2, this_H, this_W)
-                # flow_embed = self.flow_embed[l_i](this_src)[..., :2]
-                # dense_flow = flow_embed.tanh().permute(0, 2, 1).view(bs, 2, this_H, this_W)
-                dense_flow = dense_flow * \
-                             torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
-                dense_flow = F.interpolate(dense_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
-                dense_predictions.append(dense_flow)
-
-            # dense_predictions = list()
 
             # reference_embed = \
             #     self.query_selector(self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1).permute(1, 0, 2),

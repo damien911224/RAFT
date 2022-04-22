@@ -474,7 +474,7 @@ class RAFT(nn.Module):
                     # key_flow = reference_points.detach() - \
                     #            (inverse_sigmoid(reference_points[..., :2]).detach() + flow_embed[..., 2:]).sigmoid()
                     key_flow = flow_embed[..., :2].sigmoid().detach() - \
-                               (flow_embed[..., :2] + flow_embed[2:]).sigmoid()
+                               (flow_embed[..., :2] + flow_embed[..., 2:]).sigmoid()
                     reference_points = flow_embed.detach()
 
                     # key_flow = inverse_sigmoid(reference_points.detach()) + flow_embed

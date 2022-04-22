@@ -405,8 +405,9 @@ class RAFT(nn.Module):
             #                         (src + src_pos).permute(1, 0, 2)).permute(1, 0, 2)
             # reference_points = self.reference_pos_embed(reference_embed).sigmoid()
 
-            src = [src[:, s_i:s_i + h * w] for (s_i, (h, w)) in zip(level_start_index, spatial_shapes)][::-1]
-            src_pos = [src_pos[:, s_i:s_i + h * w] for (s_i, (h, w)) in zip(level_start_index, spatial_shapes)][::-1]
+            if self.inner_iterations > 1:
+                src = [src[:, s_i:s_i + h * w] for (s_i, (h, w)) in zip(level_start_index, spatial_shapes)][::-1]
+                src_pos = [src_pos[:, s_i:s_i + h * w] for (s_i, (h, w)) in zip(level_start_index, spatial_shapes)][::-1]
 
             flow_predictions = list()
             sparse_predictions = list()
@@ -437,12 +438,15 @@ class RAFT(nn.Module):
                     if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
                         query_pos = query_pos + self.high_dim_query_proj(query)
 
-                    query_pos = query_pos + self.lvl_pos_embed.weight[self.num_feature_levels - i_i].unsqueeze(0)
+                    if self.inner_iterations > 1:
+                        query_pos = query_pos + self.lvl_pos_embed.weight[self.num_feature_levels - i_i].unsqueeze(0)
 
-                    # query = self.decoder[o_i](query, query_pos, reference_points_input.unsqueeze(2),
-                    #                           src, src_pos, spatial_shapes, level_start_index)
-                    query = self.decoder[o_i](query, query_pos, reference_points_input.unsqueeze(2),
-                                              src, src_pos, spatial_shapes, level_start_index)
+                    if self.inner_iterations <= 1:
+                        query = self.decoder[o_i](query, query_pos, reference_points_input.unsqueeze(2),
+                                                  src, src_pos, spatial_shapes, level_start_index)
+                    else:
+                        query = self.decoder[o_i](query, query_pos, reference_points_input.unsqueeze(2),
+                                                  src, src_pos, spatial_shapes, level_start_index)
 
                     # keypoint = self.keypoint_decoder[o_i](keypoint, query_pos, reference_points.unsqueeze(2),
                     #                                     src, src_pos, spatial_shapes, level_start_index)
@@ -483,10 +487,10 @@ class RAFT(nn.Module):
 
                     # bs, HW, n
                     context = self.context_embed[o_i](query)
-                    # context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
+                    context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
                     # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
-                    confidence = self.confidence_embed[o_i](query).squeeze(-1).unsqueeze(1)
-                    context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)) + confidence, dim=-1)
+                    # confidence = self.confidence_embed[o_i](query).squeeze(-1).unsqueeze(1)
+                    # context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)) + confidence, dim=-1)
                     masks = context_flow.permute(0, 2, 1)
                     scores = torch.max(context_flow, dim=1)[0]
                     # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))

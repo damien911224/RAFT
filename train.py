@@ -20,6 +20,7 @@ from core.ours import RAFT
 import evaluate
 import datasets
 import flow_vis
+import random
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -232,7 +233,8 @@ class Logger:
         image2 = np.transpose(image2, (0, 2, 3, 1))
         targets = targets.detach().cpu().numpy()
         targets = np.transpose(targets, (0, 2, 3, 1))
-        for n_i in range(len(targets)):
+        sampled_indices = random.sample(range(len(targets)), 10)
+        for i_i, n_i in enumerate(sampled_indices):
             this_image1 = image1[n_i]
             this_image2 = image2[n_i]
             target_img = flow_vis.flow_to_color(targets[n_i], convert_to_bgr=False)

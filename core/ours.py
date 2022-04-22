@@ -40,8 +40,10 @@ class RAFT(nn.Module):
             self.args.dropout = 0
 
         # self.extractor = BasicEncoder(base_channel=64, norm_fn="batch")
+        self.up_dim = self.extractor.up_dim
         self.feature_extractor = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
         self.context_extractor = BasicEncoder(base_channel=64, norm_fn="batch")
+        self.up_dim = self.context_extractor.up_dim
         # self.context_extractor = Backbone("resnet50", train_backbone=True, return_interm_layers=True, dilation=False)
         self.d_model = 64
         self.num_feature_levels = 3
@@ -148,7 +150,7 @@ class RAFT(nn.Module):
         # self.query_pos_embed = nn.Embedding(self.num_keypoints, d_model)
         self.flow_embed = MLP(self.d_model, self.d_model, 2, 3)
         # self.flow_embed = nn.Linear(d_model, 2)
-        self.context_embed = MLP(self.d_model, self.extractor.up_dim, self.extractor.up_dim, 3)
+        self.context_embed = MLP(self.d_model, self.up_dim, self.up_dim, 3)
         # self.reference_embed = MLP(d_model, d_model, 2, 3)
         self.reference_embed = nn.Embedding(self.num_keypoints, 2)
         # self.reference_embed = nn.Embedding(self.num_keypoints, d_model)
@@ -157,7 +159,7 @@ class RAFT(nn.Module):
         # self.reference_embed = MLP(d_model, d_model, d_model, 3)
         # self.reference_embed = nn.Linear(d_model, 2)
         # self.extractor_embed = MLP(self.extractor.up_dim, d_model, d_model, 3)
-        self.extractor_pos_embed = nn.Linear(self.d_model, self.extractor.up_dim)
+        self.extractor_pos_embed = nn.Linear(self.d_model, self.up_dim)
 
         self.use_dab = True
         self.no_sine_embed = False

@@ -344,7 +344,7 @@ def train(args):
     optimizer, scheduler = fetch_optimizer(args, model)
 
     total_steps = 0
-    scaler = GradScaler(enabled=args.mixed_precision)
+    # scaler = GradScaler(enabled=args.mixed_precision)
     logger = Logger(model, scheduler)
 
     VAL_FREQ = 5000
@@ -365,13 +365,15 @@ def train(args):
 
             flow_predictions = model(image1, image2, iters=args.iters)
             loss, metrics = sequence_loss(flow_predictions, flow, valid, args.gamma)
-            scaler.scale(loss).backward()
-            scaler.unscale_(optimizer)                
-            torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
-            
-            scaler.step(optimizer)
+            # scaler.scale(loss).backward()
+            # scaler.unscale_(optimizer)
+            # torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
+
+            loss.backward()
+            optimizer.step()
+            # scaler.step(optimizer)
             scheduler.step()
-            scaler.update()
+            # scaler.update()
 
             logger.push(metrics)
             if total_steps % IMAGE_FREQ == IMAGE_FREQ - 1:

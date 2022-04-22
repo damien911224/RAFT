@@ -320,218 +320,218 @@ class RAFT(nn.Module):
 
     def forward(self, image1, image2, iters=6, test_mode=False):
         """ Estimate optical flow between pair of frames """
-        with autocast(enabled=self.args.mixed_precision):
-            image1 = 2 * (image1 / 255.0) - 1.0
-            image2 = 2 * (image2 / 255.0) - 1.0
+        # with autocast(enabled=self.args.mixed_precision):
+        image1 = 2 * (image1 / 255.0) - 1.0
+        image2 = 2 * (image2 / 255.0) - 1.0
 
-            image1 = image1.contiguous()
-            image2 = image2.contiguous()
-            bs, _, I_H, I_W = image1.shape
+        image1 = image1.contiguous()
+        image2 = image2.contiguous()
+        bs, _, I_H, I_W = image1.shape
 
-            D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
-            # features = self.feature_extractor(torch.cat((image1, image2), dim=0))
-            # _, _, U1 = self.context_extractor(torch.cat((image1, image2), dim=0))
-            # D1 = list()
-            # D2 = list()
-            # for f_i in range(len(features)):
-            #     x1, x2 = features["{}".format(f_i)].split(bs, dim=0)
-            #     D1.append(x1)
-            #     D2.append(x2)
-            # features_01 = self.extractor(image1)
-            # features_02 = self.extractor(image2)
-            # D1 = [features_01["{}".format(i)] for i in range(len(features_01))]
-            # D2 = [features_02["{}".format(i)] for i in range(len(features_02))]
-            _, c, h, w = D1[-1].shape
-            # bs, hw, c
-            # src_pos = self.get_embedding(D1, self.col_pos_embed, self.row_pos_embed).flatten(2).permute(0, 2, 1)
-            # src_pos = [self.get_embedding(feat, col_embed, row_embed) + self.lvl_pos_embed.weight[i]
-            #            for i, (feat, col_embed, row_embed)
-            #            in enumerate(zip(D1, self.col_pos_embed, self.row_pos_embed))]
-            src_pos = [self.get_embedding(feat, self.col_pos_embed, self.row_pos_embed) + self.lvl_pos_embed.weight[i]
-                       for i, feat in enumerate(D1)]
-            context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed)
-            # context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed) + \
-            #               self.img_pos_embed.weight[None, -1, None]
-            # context_pos = self.get_embedding(U1, self.context_col_pos_embed, self.context_row_pos_embed)
-            # src_pos = [self.get_sine_embedding(feat) + self.lvl_pos_embed.weight[i]
-            #            for i, (feat, col_embed, row_embed)
-            #            in enumerate(zip(D1, self.col_pos_embed, self.row_pos_embed))]
-            # src_pos = torch.cat(src_pos, dim=1)
-            src_pos = torch.flatten(torch.cat(src_pos, dim=1).unsqueeze(1) + self.img_pos_embed.weight[None, :2, None],
-                                    start_dim=1, end_dim=2)
-            # src_pos = torch.cat(src_pos, dim=1)
-            src = [self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1)
-                   for i, (feat1, feat2) in enumerate(zip(D1, D2))]
-            src = torch.cat(torch.cat(src, dim=1).split(bs, dim=0), dim=1)
-            # src = torch.cat(src, dim=1)
+        D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
+        # features = self.feature_extractor(torch.cat((image1, image2), dim=0))
+        # _, _, U1 = self.context_extractor(torch.cat((image1, image2), dim=0))
+        # D1 = list()
+        # D2 = list()
+        # for f_i in range(len(features)):
+        #     x1, x2 = features["{}".format(f_i)].split(bs, dim=0)
+        #     D1.append(x1)
+        #     D2.append(x2)
+        # features_01 = self.extractor(image1)
+        # features_02 = self.extractor(image2)
+        # D1 = [features_01["{}".format(i)] for i in range(len(features_01))]
+        # D2 = [features_02["{}".format(i)] for i in range(len(features_02))]
+        _, c, h, w = D1[-1].shape
+        # bs, hw, c
+        # src_pos = self.get_embedding(D1, self.col_pos_embed, self.row_pos_embed).flatten(2).permute(0, 2, 1)
+        # src_pos = [self.get_embedding(feat, col_embed, row_embed) + self.lvl_pos_embed.weight[i]
+        #            for i, (feat, col_embed, row_embed)
+        #            in enumerate(zip(D1, self.col_pos_embed, self.row_pos_embed))]
+        src_pos = [self.get_embedding(feat, self.col_pos_embed, self.row_pos_embed) + self.lvl_pos_embed.weight[i]
+                   for i, feat in enumerate(D1)]
+        context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed)
+        # context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed) + \
+        #               self.img_pos_embed.weight[None, -1, None]
+        # context_pos = self.get_embedding(U1, self.context_col_pos_embed, self.context_row_pos_embed)
+        # src_pos = [self.get_sine_embedding(feat) + self.lvl_pos_embed.weight[i]
+        #            for i, (feat, col_embed, row_embed)
+        #            in enumerate(zip(D1, self.col_pos_embed, self.row_pos_embed))]
+        # src_pos = torch.cat(src_pos, dim=1)
+        src_pos = torch.flatten(torch.cat(src_pos, dim=1).unsqueeze(1) + self.img_pos_embed.weight[None, :2, None],
+                                start_dim=1, end_dim=2)
+        # src_pos = torch.cat(src_pos, dim=1)
+        src = [self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1)
+               for i, (feat1, feat2) in enumerate(zip(D1, D2))]
+        src = torch.cat(torch.cat(src, dim=1).split(bs, dim=0), dim=1)
+        # src = torch.cat(src, dim=1)
 
-            # bs, HW, CU1
-            # U1 = D1[0]
-            # U1 = self.context_extractor(image1)["0"]
-            _, C, H, W = U1.shape
-            U1 = torch.flatten(U1, 2).permute(0, 2, 1)
-            # U1 = U1 + context_pos
-            # U1 = self.extractor_embed(U1) + context_pos
-            U1 = U1 + self.extractor_pos_embed(context_pos)
+        # bs, HW, CU1
+        # U1 = D1[0]
+        # U1 = self.context_extractor(image1)["0"]
+        _, C, H, W = U1.shape
+        U1 = torch.flatten(U1, 2).permute(0, 2, 1)
+        # U1 = U1 + context_pos
+        # U1 = self.extractor_embed(U1) + context_pos
+        U1 = U1 + self.extractor_pos_embed(context_pos)
 
-            # bs, n, c
-            query = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
-            if not self.use_dab:
-                query_pos = self.query_pos_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
-                root = round(math.sqrt(self.num_keypoints))
-                base_reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
-                base_reference_points = base_reference_points.repeat(bs, 1, 1)
-            else:
-                # reference_points = self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
+        # bs, n, c
+        query = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
+        if not self.use_dab:
+            query_pos = self.query_pos_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
+            root = round(math.sqrt(self.num_keypoints))
+            base_reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
+            base_reference_points = base_reference_points.repeat(bs, 1, 1)
+        else:
+            # reference_points = self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
 
-                root = round(math.sqrt(self.num_keypoints))
-                reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
-                reference_points = reference_points.repeat(bs, 1, 1)
-                reference_flows = self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
+            root = round(math.sqrt(self.num_keypoints))
+            reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
+            reference_points = reference_points.repeat(bs, 1, 1)
+            reference_flows = self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
 
-            spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 2, dtype=torch.long, device=src.device)
-            level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
+        spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 2, dtype=torch.long, device=src.device)
+        level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
-            src_ref = self.get_reference_points(spatial_shapes, device=src.device)
-            for i in range(len(self.encoder)):
-                src = self.encoder[i](src, src_pos, src_ref, spatial_shapes, level_start_index)
+        src_ref = self.get_reference_points(spatial_shapes, device=src.device)
+        for i in range(len(self.encoder)):
+            src = self.encoder[i](src, src_pos, src_ref, spatial_shapes, level_start_index)
 
-            # dense_predictions = list()
-            # for l_i in range(self.num_feature_levels):
-            #     start_i = level_start_index[l_i]
-            #     this_H, this_W = spatial_shapes[l_i]
-            #     this_src_01 = src[:, start_i:start_i + this_H * this_W]
-            #     start_i = level_start_index[self.num_feature_levels + l_i]
-            #     this_H, this_W = spatial_shapes[self.num_feature_levels + l_i]
-            #     this_src_02 = src[:, start_i:start_i + this_H * this_W]
-            #     # bs, hw, hw
-            #     corr = F.softmax(torch.bmm(this_src_01, this_src_02.permute(0, 2, 1)), dim=-1)
-            #     # bs, hw, 2
-            #     this_coords = src_ref.squeeze(2)[:, start_i:start_i + this_H * this_W].repeat(bs, 1, 1)
-            #     dense_flow = this_coords - torch.bmm(corr, this_coords)
-            #     dense_flow = dense_flow.permute(0, 2, 1).view(bs, 2, this_H, this_W)
-            #     # flow_embed = self.flow_embed[l_i](this_src)[..., :2]
-            #     # dense_flow = flow_embed.tanh().permute(0, 2, 1).view(bs, 2, this_H, this_W)
-            #     dense_flow = dense_flow * \
-            #                  torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
-            #     dense_flow = F.interpolate(dense_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
-            #     dense_predictions.append(dense_flow)
+        # dense_predictions = list()
+        # for l_i in range(self.num_feature_levels):
+        #     start_i = level_start_index[l_i]
+        #     this_H, this_W = spatial_shapes[l_i]
+        #     this_src_01 = src[:, start_i:start_i + this_H * this_W]
+        #     start_i = level_start_index[self.num_feature_levels + l_i]
+        #     this_H, this_W = spatial_shapes[self.num_feature_levels + l_i]
+        #     this_src_02 = src[:, start_i:start_i + this_H * this_W]
+        #     # bs, hw, hw
+        #     corr = F.softmax(torch.bmm(this_src_01, this_src_02.permute(0, 2, 1)), dim=-1)
+        #     # bs, hw, 2
+        #     this_coords = src_ref.squeeze(2)[:, start_i:start_i + this_H * this_W].repeat(bs, 1, 1)
+        #     dense_flow = this_coords - torch.bmm(corr, this_coords)
+        #     dense_flow = dense_flow.permute(0, 2, 1).view(bs, 2, this_H, this_W)
+        #     # flow_embed = self.flow_embed[l_i](this_src)[..., :2]
+        #     # dense_flow = flow_embed.tanh().permute(0, 2, 1).view(bs, 2, this_H, this_W)
+        #     dense_flow = dense_flow * \
+        #                  torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
+        #     dense_flow = F.interpolate(dense_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
+        #     dense_predictions.append(dense_flow)
 
-            dense_predictions = list()
+        dense_predictions = list()
 
-            # reference_embed = \
-            #     self.query_selector(self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1).permute(1, 0, 2),
-            #                         (src + src_pos).permute(1, 0, 2)).permute(1, 0, 2)
-            # reference_points = self.reference_pos_embed(reference_embed).sigmoid()
+        # reference_embed = \
+        #     self.query_selector(self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1).permute(1, 0, 2),
+        #                         (src + src_pos).permute(1, 0, 2)).permute(1, 0, 2)
+        # reference_points = self.reference_pos_embed(reference_embed).sigmoid()
 
-            flow_predictions = list()
-            sparse_predictions = list()
-            # flow = torch.zeros(dtype=torch.float32, size=(1, 2, I_H, I_W), device=src.device)
-            for o_i in range(self.outer_iterations):
-                for i_i in range(self.inner_iterations):
-                    # bs, n, 2
-                    if not self.use_dab:
-                        reference_points = (inverse_sigmoid(base_reference_points.detach()) +
-                                            self.reference_embed[o_i](query + query_pos)).sigmoid()
+        flow_predictions = list()
+        sparse_predictions = list()
+        # flow = torch.zeros(dtype=torch.float32, size=(1, 2, I_H, I_W), device=src.device)
+        for o_i in range(self.outer_iterations):
+            for i_i in range(self.inner_iterations):
+                # bs, n, 2
+                if not self.use_dab:
+                    reference_points = (inverse_sigmoid(base_reference_points.detach()) +
+                                        self.reference_embed[o_i](query + query_pos)).sigmoid()
 
-                    # reference_points = self.reference_embed[o_i](query + query_pos).sigmoid()
+                # reference_points = self.reference_embed[o_i](query + query_pos).sigmoid()
 
-                    # query = self.keypoint_decoder[o_i]((query + query_pos).permute(1, 0, 2),
-                    #                                    (src + src_pos).permute(1, 0, 2)).permute(1, 0, 2)
-                    # reference_points = (inverse_sigmoid(base_reference_points.detach()) +
-                    #                     self.reference_embed[o_i](query)).sigmoid()
+                # query = self.keypoint_decoder[o_i]((query + query_pos).permute(1, 0, 2),
+                #                                    (src + src_pos).permute(1, 0, 2)).permute(1, 0, 2)
+                # reference_points = (inverse_sigmoid(base_reference_points.detach()) +
+                #                     self.reference_embed[o_i](query)).sigmoid()
 
-                    if self.use_dab:
-                        if self.no_sine_embed:
-                            raw_query_pos = self.ref_point_head(reference_points)
-                        else:
-                            query_sine_embed = self.gen_sineembed_for_position(
-                                torch.cat((reference_points, reference_flows), dim=-1))  # bs, nq, 256*2
-                            raw_query_pos = self.ref_point_head(query_sine_embed)  # bs, nq, 256
-                        pos_scale = self.query_scale(query) if not (o_i == 0 and i_i == 0) else 1
-                        query_pos = pos_scale * raw_query_pos
+                if self.use_dab:
+                    if self.no_sine_embed:
+                        raw_query_pos = self.ref_point_head(reference_points)
+                    else:
+                        query_sine_embed = self.gen_sineembed_for_position(
+                            torch.cat((reference_points, reference_flows), dim=-1))  # bs, nq, 256*2
+                        raw_query_pos = self.ref_point_head(query_sine_embed)  # bs, nq, 256
+                    pos_scale = self.query_scale(query) if not (o_i == 0 and i_i == 0) else 1
+                    query_pos = pos_scale * raw_query_pos
 
-                    if self.inner_iterations > 1:
-                        query_pos = query_pos + self.iter_pos_embed.weight[i_i].unsqueeze(0)
+                if self.inner_iterations > 1:
+                    query_pos = query_pos + self.iter_pos_embed.weight[i_i].unsqueeze(0)
 
-                    if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
-                        query_pos = query_pos + self.high_dim_query_proj(query)
+                if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
+                    query_pos = query_pos + self.high_dim_query_proj(query)
 
-                    query = self.decoder[o_i](query, query_pos, reference_points.unsqueeze(2),
-                                              src, src_pos, spatial_shapes, level_start_index)
+                query = self.decoder[o_i](query, query_pos, reference_points.unsqueeze(2),
+                                          src, src_pos, spatial_shapes, level_start_index)
 
-                    # keypoint = self.keypoint_decoder[o_i](keypoint, query_pos, reference_points.unsqueeze(2),
-                    #                                     src, src_pos, spatial_shapes, level_start_index)
-                    # reference_points = (inverse_sigmoid(reference_points.detach()) +
-                    #                     self.reference_embed[o_i](keypoint)).sigmoid()
-                    # context = self.context_embed[o_i](keypoint)
+                # keypoint = self.keypoint_decoder[o_i](keypoint, query_pos, reference_points.unsqueeze(2),
+                #                                     src, src_pos, spatial_shapes, level_start_index)
+                # reference_points = (inverse_sigmoid(reference_points.detach()) +
+                #                     self.reference_embed[o_i](keypoint)).sigmoid()
+                # context = self.context_embed[o_i](keypoint)
 
-                    # bs, n, c
+                # bs, n, c
 
-                    # correlation = self.correlation_decoder[o_i](keypoint, query_pos, corr_ref_points.unsqueeze(2),
-                    #                                             src, src_pos, spatial_shapes, level_start_index)
+                # correlation = self.correlation_decoder[o_i](keypoint, query_pos, corr_ref_points.unsqueeze(2),
+                #                                             src, src_pos, spatial_shapes, level_start_index)
 
-                    # bs, n, 2
-                    flow_embed = self.flow_embed[o_i](query)
-                    # flow_embed = self.flow_embed[o_i + self.num_feature_levels](query)
+                # bs, n, 2
+                flow_embed = self.flow_embed[o_i](query)
+                # flow_embed = self.flow_embed[o_i + self.num_feature_levels](query)
 
-                    flow_embed = (flow_embed + inverse_sigmoid(reference_flows)).sigmoid()
-                    # key_flow = new_reference_points[..., :2].sigmoid().detach() - \
-                    #            (new_reference_points[..., :2] + (new_reference_points[..., 2:])).sigmoid()
-                    # key_flow = reference_points.detach() - \
-                    #            (inverse_sigmoid(reference_points[..., :2]).detach() + flow_embed[..., 2:]).sigmoid()
-                    key_flow = flow_embed * 2 - 1
-                    reference_flows = flow_embed.detach()
+                flow_embed = (flow_embed + inverse_sigmoid(reference_flows)).sigmoid()
+                # key_flow = new_reference_points[..., :2].sigmoid().detach() - \
+                #            (new_reference_points[..., :2] + (new_reference_points[..., 2:])).sigmoid()
+                # key_flow = reference_points.detach() - \
+                #            (inverse_sigmoid(reference_points[..., :2]).detach() + flow_embed[..., 2:]).sigmoid()
+                key_flow = flow_embed * 2 - 1
+                reference_flows = flow_embed.detach()
 
-                    # key_flow = inverse_sigmoid(reference_points.detach()) + flow_embed
-                    # # key_flow = inverse_sigmoid(reference_points) + flow_embed
-                    # key_flow = reference_points.detach() - key_flow.sigmoid()
-                    # new_corr_ref_points = (inverse_sigmoid(corr_ref_points.detach()) + flow_embed).sigmoid()
-                    # flow = inverse_sigmoid(reference_points.detach()) + flow_embed
-                    # n_flow = corr_ref_points.detach() - new_corr_ref_points.sigmoid()
-                    # corr_ref_points = new_corr_ref_points
-                    # flow = flow_embed.tanh()
-                    # confidence = flow_embed[..., 2:].sigmoid()
-                    # flow = inverse_sigmoid(reference_points) + self.flow_embed[i](query)
-                    # flow = reference_points - flow.sigmoid()
-                    # bs, n, c
-                    # bs, n, c
-                    # reference_points = inverse_sigmoid(reference_points.detach()) + self.reference_embed[i](query)
-                    # reference_points = reference_points.unsqueeze(2).sigmoid()
+                # key_flow = inverse_sigmoid(reference_points.detach()) + flow_embed
+                # # key_flow = inverse_sigmoid(reference_points) + flow_embed
+                # key_flow = reference_points.detach() - key_flow.sigmoid()
+                # new_corr_ref_points = (inverse_sigmoid(corr_ref_points.detach()) + flow_embed).sigmoid()
+                # flow = inverse_sigmoid(reference_points.detach()) + flow_embed
+                # n_flow = corr_ref_points.detach() - new_corr_ref_points.sigmoid()
+                # corr_ref_points = new_corr_ref_points
+                # flow = flow_embed.tanh()
+                # confidence = flow_embed[..., 2:].sigmoid()
+                # flow = inverse_sigmoid(reference_points) + self.flow_embed[i](query)
+                # flow = reference_points - flow.sigmoid()
+                # bs, n, c
+                # bs, n, c
+                # reference_points = inverse_sigmoid(reference_points.detach()) + self.reference_embed[i](query)
+                # reference_points = reference_points.unsqueeze(2).sigmoid()
 
-                    # bs, HW, n
-                    context = self.context_embed[o_i](query)
-                    context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
-                    # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
-                    # confidence = self.confidence_embed[o_i](query).squeeze(-1).unsqueeze(1)
-                    # context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)) + confidence, dim=-1)
-                    masks = context_flow.permute(0, 2, 1).detach()
-                    scores = torch.max(context_flow, dim=1)[0].detach()
-                    # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
-                    # bs, HW, 2
-                    context_flow = torch.bmm(context_flow, key_flow.detach())
-                    # context_flow = torch.bmm(context_flow, key_flow.detach())
-                    # bs, 2, H, W
-                    context_flow = context_flow.permute(0, 2, 1).view(bs, 2, H, W)
+                # bs, HW, n
+                context = self.context_embed[o_i](query)
+                context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
+                # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
+                # confidence = self.confidence_embed[o_i](query).squeeze(-1).unsqueeze(1)
+                # context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)) + confidence, dim=-1)
+                masks = context_flow.permute(0, 2, 1).detach()
+                scores = torch.max(context_flow, dim=1)[0].detach()
+                # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
+                # bs, HW, 2
+                context_flow = torch.bmm(context_flow, key_flow)
+                # context_flow = torch.bmm(context_flow, key_flow.detach())
+                # bs, 2, H, W
+                context_flow = context_flow.permute(0, 2, 1).view(bs, 2, H, W)
 
-                    context_flow = context_flow * \
-                                   torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
-                    if I_H != H or I_W != W:
-                        flow = F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
-                        masks = masks.reshape(bs * self.num_keypoints, 1, H, W)
-                        masks = F.interpolate(masks, size=(I_H, I_W), mode="bilinear", align_corners=False)
-                        masks = masks.view(bs, self.num_keypoints, I_H, I_W)
-                        # flow = flow.detach() + \
-                        #        F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
+                context_flow = context_flow * \
+                               torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
+                if I_H != H or I_W != W:
+                    flow = F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
+                    masks = masks.reshape(bs * self.num_keypoints, 1, H, W)
+                    masks = F.interpolate(masks, size=(I_H, I_W), mode="bilinear", align_corners=False)
+                    masks = masks.view(bs, self.num_keypoints, I_H, I_W)
+                    # flow = flow.detach() + \
+                    #        F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
 
-                    flow_predictions.append(flow)
-                    sparse_predictions.append((reference_points, key_flow, masks, scores, None))
-                    # sparse_predictions.append((reference_points[..., :2], key_flow, masks, scores, confidence.sigmoid()))
+                flow_predictions.append(flow)
+                sparse_predictions.append((reference_points, key_flow, masks, scores, None))
+                # sparse_predictions.append((reference_points[..., :2], key_flow, masks, scores, confidence.sigmoid()))
 
-            if test_mode:
-                return flow_predictions, sparse_predictions, dense_predictions
-            else:
-                return flow_predictions, sparse_predictions, dense_predictions
+        if test_mode:
+            return flow_predictions, sparse_predictions, dense_predictions
+        else:
+            return flow_predictions, sparse_predictions, dense_predictions
 
 
 class MLP(nn.Module):

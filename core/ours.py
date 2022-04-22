@@ -39,19 +39,19 @@ class RAFT(nn.Module):
         if "dropout" not in self.args:
             self.args.dropout = 0
 
-        # self.extractor = BasicEncoder(base_channel=64, norm_fn="batch")
-        self.feature_extractor = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
-        self.context_extractor = BasicEncoder(base_channel=64, norm_fn="batch")
+        self.extractor = BasicEncoder(base_channel=64, norm_fn="batch")
+        # self.feature_extractor = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
+        # self.context_extractor = BasicEncoder(base_channel=64, norm_fn="batch")
         # self.context_extractor = Backbone("resnet50", train_backbone=True, return_interm_layers=True, dilation=False)
-        self.d_model = 256
+        self.d_model = 64
         self.num_feature_levels = 3
         # self.extractor_projection = \
         #     nn.Sequential(nn.Conv2d(self.extractor.down_dim, d_model, kernel_size=1),
         #     nn.GroupNorm(d_model // 8, d_model))
 
         input_proj_list = []
-        channels = (512, 1024, 2048)
-        # channels = (128, 192, 256)
+        # channels = (512, 1024, 2048)
+        channels = (128, 192, 256)
         for l_i in range(self.num_feature_levels):
             in_channels = channels[l_i]
             input_proj_list.append(nn.Sequential(
@@ -65,12 +65,12 @@ class RAFT(nn.Module):
         # self.num_keypoints = 10 ** 2
         self.num_keypoints = 200
 
-        # self.encoder = \
-        #     nn.ModuleList((DeformableTransformerEncoderLayer(d_model=d_model, d_ffn=d_model * 4,
-        #                                                      dropout=0.1, activation="gelu",
-        #                                                      n_levels=self.num_feature_levels * 2,
-        #                                                      n_heads=8, n_points=4)
-        #                    for _ in range(self.encoder_iterations)))
+        self.encoder = \
+            nn.ModuleList((DeformableTransformerEncoderLayer(d_model=d_model, d_ffn=d_model * 4,
+                                                             dropout=0.1, activation="gelu",
+                                                             n_levels=self.num_feature_levels * 2,
+                                                             n_heads=8, n_points=4)
+                           for _ in range(self.encoder_iterations)))
 
         self.decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
@@ -323,15 +323,15 @@ class RAFT(nn.Module):
             image2 = image2.contiguous()
             bs, _, I_H, I_W = image1.shape
 
-            # D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
-            features = self.feature_extractor(torch.cat((image1, image2), dim=0))
-            _, _, U1 = self.context_extractor(torch.cat((image1, image2), dim=0))
-            D1 = list()
-            D2 = list()
-            for f_i in range(len(features)):
-                x1, x2 = features["{}".format(f_i)].split(bs, dim=0)
-                D1.append(x1)
-                D2.append(x2)
+            D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
+            # features = self.feature_extractor(torch.cat((image1, image2), dim=0))
+            # _, _, U1 = self.context_extractor(torch.cat((image1, image2), dim=0))
+            # D1 = list()
+            # D2 = list()
+            # for f_i in range(len(features)):
+            #     x1, x2 = features["{}".format(f_i)].split(bs, dim=0)
+            #     D1.append(x1)
+            #     D2.append(x2)
             # features_01 = self.extractor(image1)
             # features_02 = self.extractor(image2)
             # D1 = [features_01["{}".format(i)] for i in range(len(features_01))]
@@ -382,23 +382,23 @@ class RAFT(nn.Module):
             spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 2, dtype=torch.long, device=src.device)
             level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
-            # src_ref = self.get_reference_points(spatial_shapes, device=src.device)
-            # for i in range(len(self.encoder)):
-            #     src = self.encoder[i](src, src_pos, src_ref, spatial_shapes, level_start_index)
+            src_ref = self.get_reference_points(spatial_shapes, device=src.device)
+            for i in range(len(self.encoder)):
+                src = self.encoder[i](src, src_pos, src_ref, spatial_shapes, level_start_index)
 
-            # prev_idx = 0
-            # dense_predictions = list()
-            # for l_i in range(self.num_feature_levels):
-            #     this_H, this_W = spatial_shapes[l_i]
-            #     this_src = src[:, prev_idx:prev_idx + this_H * this_W]
-            #     flow_embed = self.flow_embed[l_i](this_src)[..., :2]
-            #     dense_flow = flow_embed.tanh().permute(0, 2, 1).view(bs, 2, this_H, this_W)
-            #     dense_flow = dense_flow * \
-            #                  torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
-            #     dense_flow = F.interpolate(dense_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
-            #     dense_predictions.append(dense_flow)
-
+            prev_idx = 0
             dense_predictions = list()
+            for l_i in range(self.num_feature_levels):
+                this_H, this_W = spatial_shapes[l_i]
+                this_src = src[:, prev_idx:prev_idx + this_H * this_W]
+                flow_embed = self.flow_embed[l_i](this_src)[..., :2]
+                dense_flow = flow_embed.tanh().permute(0, 2, 1).view(bs, 2, this_H, this_W)
+                dense_flow = dense_flow * \
+                             torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
+                dense_flow = F.interpolate(dense_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
+                dense_predictions.append(dense_flow)
+
+            # dense_predictions = list()
 
             # reference_embed = \
             #     self.query_selector(self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1).permute(1, 0, 2),
@@ -476,10 +476,10 @@ class RAFT(nn.Module):
 
                     # bs, HW, n
                     context = self.context_embed[o_i](query)
-                    # context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
+                    context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
                     # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
-                    confidence = self.confidence_embed[o_i](query).squeeze(-1).unsqueeze(1)
-                    context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)) + confidence, dim=-1)
+                    # confidence = self.confidence_embed[o_i](query).squeeze(-1).unsqueeze(1)
+                    # context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)) + confidence, dim=-1)
                     masks = context_flow.permute(0, 2, 1)
                     scores = torch.max(context_flow, dim=1)[0]
                     # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
@@ -499,7 +499,8 @@ class RAFT(nn.Module):
                         #        F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
 
                     flow_predictions.append(flow)
-                    sparse_predictions.append((reference_points[..., :2], key_flow, masks, scores, confidence.sigmoid()))
+                    sparse_predictions.append((reference_points[..., :2], key_flow, masks, scores, None))
+                    # sparse_predictions.append((reference_points[..., :2], key_flow, masks, scores, confidence.sigmoid()))
 
             if test_mode:
                 return flow_predictions, sparse_predictions, dense_predictions

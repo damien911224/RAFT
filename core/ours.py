@@ -398,6 +398,10 @@ class RAFT(nn.Module):
                              torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
                 dense_flow = F.interpolate(dense_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
                 dense_predictions.append(dense_flow)
+                prev_idx += this_H * this_W
+
+            print(src.shape, prev_idx)
+            exit()
 
             # dense_predictions = list()
 

@@ -67,14 +67,14 @@ class RAFT(nn.Module):
 
         self.encoder = \
             nn.ModuleList((DeformableTransformerEncoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
-                                                             dropout=0.1, activation="gelu",
+                                                             dropout=0.1, activation="relu",
                                                              n_levels=self.num_feature_levels * 2,
                                                              n_heads=8, n_points=4)
                            for _ in range(self.encoder_iterations)))
 
         self.decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
-                                                             dropout=0.1, activation="gelu",
+                                                             dropout=0.1, activation="relu",
                                                              n_levels=self.num_feature_levels * 2,
                                                              n_heads=8, n_points=4, self_deformable=False)
                            for _ in range(self.outer_iterations)))
@@ -516,20 +516,20 @@ class MLP(nn.Module):
         self.num_layers = num_layers
         self.last_activate = last_activate
         h = [hidden_dim] * (num_layers - 1)
-        # self.layers = nn.ModuleList(nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
-        self.layers = nn.ModuleList(nn.Conv1d(n, k, kernel_size=1, padding=0)
-                                    for n, k in zip([input_dim] + h, h + [output_dim]))
-        self.norms = nn.ModuleList(nn.GroupNorm(32, k)
-                                   for n, k in zip([input_dim] + h, h + [output_dim]))
+        self.layers = nn.ModuleList(nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
+        # self.layers = nn.ModuleList(nn.Conv1d(n, k, kernel_size=1, padding=0)
+        #                             for n, k in zip([input_dim] + h, h + [output_dim]))
+        # self.norms = nn.ModuleList(nn.GroupNorm(32, k)
+        #                            for n, k in zip([input_dim] + h, h + [output_dim]))
 
     def forward(self, x):
-        x = x.permute(0, 2, 1)
-        for i, (layer, norm) in enumerate(zip(self.layers, self.norms)):
-        # for i, layer in enumerate(self.layers):
-        #     x = F.relu(layer(x)) if i < self.num_layers - 1 else layer(x)
+        # x = x.permute(0, 2, 1)
+        # for i, (layer, norm) in enumerate(zip(self.layers, self.norms)):
+        for i, layer in enumerate(self.layers):
+            x = F.relu(layer(x)) if i < self.num_layers - 1 else layer(x)
             # x = F.relu(norm(layer(x))) if i < self.num_layers - 1 else layer(x)
-            x = F.gelu(norm(layer(x))) if (i < self.num_layers - 1) or self.last_activate else layer(x)
-        x = x.permute(0, 2, 1)
+            # x = F.gelu(norm(layer(x))) if (i < self.num_layers - 1) or self.last_activate else layer(x)
+        # x = x.permute(0, 2, 1)
         return x
 
 

@@ -9,8 +9,8 @@ class ResidualBlock(nn.Module):
 
         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, padding=1, stride=stride)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, padding=1)
-        # self.relu = nn.ReLU(inplace=True)
-        self.relu = nn.GELU()
+        self.relu = nn.ReLU(inplace=True)
+        # self.relu = nn.GELU()
 
         num_groups = planes // 8
 
@@ -63,8 +63,8 @@ class BottleneckBlock(nn.Module):
         self.conv1 = nn.Conv2d(in_planes, planes // 4, kernel_size=1, padding=0)
         self.conv2 = nn.Conv2d(planes // 4, planes // 4, kernel_size=3, padding=1, stride=stride)
         self.conv3 = nn.Conv2d(planes // 4, planes, kernel_size=1, padding=0)
-        # self.relu = nn.ReLU(inplace=True)
-        self.relu = nn.GELU()
+        self.relu = nn.ReLU(inplace=True)
+        # self.relu = nn.GELU()
 
         num_groups = planes // 8
 
@@ -130,8 +130,8 @@ class BasicEncoder(nn.Module):
             self.norm1 = nn.Sequential()
 
         self.conv1 = nn.Conv2d(3, base_channel, kernel_size=7, stride=2, padding=3)
-        # self.relu1 = nn.ReLU(inplace=True)
-        self.relu1 = nn.GELU()
+        self.relu1 = nn.ReLU(inplace=True)
+        # self.relu1 = nn.GELU()
 
         self.in_planes = base_channel
         self.down_layer1 = self._make_down_layer(base_channel, stride=1)
@@ -156,7 +156,7 @@ class BasicEncoder(nn.Module):
         self.up_smooth1 = \
             nn.Sequential(*(nn.Conv2d(round(base_channel * 1.5), round(base_channel * 1.5), kernel_size=3, padding=1),
                             self._get_norm_func(round(base_channel * 1.5), norm_fn=self.norm_fn),
-                            nn.GELU()))
+                            nn.ReLU()))
         # self.up_top2 = \
         #     nn.Sequential(*(nn.Conv2d(round(base_channel * 1.5), base_channel, kernel_size=1, padding=0),
         #                     self._get_norm_func(base_channel, norm_fn=self.norm_fn)))
@@ -204,8 +204,8 @@ class BasicEncoder(nn.Module):
             layer3 = nn.InstanceNorm2d(dim)
         else:
             layer3 = nn.Sequential()
-        # layer4 = nn.ReLU()
-        layer4 = nn.GELU()
+        layer4 = nn.ReLU()
+        # layer4 = nn.GELU()
         layers = (layer1, layer2, layer3, layer4)
 
         self.in_planes = dim
@@ -250,10 +250,10 @@ class BasicEncoder(nn.Module):
 
         T1 = self.up_top1(D3_x1)
         D2_x1 = self.up_lateral1(D2_x1)
-        U1 = self.up_smooth1(F.gelu(F.interpolate(T1, scale_factor=2.0, mode="bilinear", align_corners=False) + D2_x1))
+        U1 = self.up_smooth1(F.relu(F.interpolate(T1, scale_factor=2.0, mode="bilinear", align_corners=False) + D2_x1))
         # T2 = self.up_top2(U1)
         # D1_x1 = self.up_lateral2(D1_x1)
-        # U2 = self.up_smooth2(F.gelu(F.upsample(T2, scale_factor=2.0, mode="bilinear") + D1_x1))
+        # U2 = self.up_smooth2(F.relu(F.upsample(T2, scale_factor=2.0, mode="bilinear") + D1_x1))
 
         # U1 = self.up_layer1(D3_x1)
         # U2 = self.up_layer2(U1)
@@ -282,8 +282,8 @@ class SmallEncoder(nn.Module):
             self.norm1 = nn.Sequential()
 
         self.conv1 = nn.Conv2d(3, 32, kernel_size=7, stride=2, padding=3)
-        # self.relu1 = nn.ReLU(inplace=True)
-        self.relu1 = nn.GELU()
+        self.relu1 = nn.ReLU(inplace=True)
+        # self.relu1 = nn.GELU()
 
         self.in_planes = 32
         self.layer1 = self._make_layer(32, stride=1)

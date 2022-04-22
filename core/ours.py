@@ -39,11 +39,11 @@ class RAFT(nn.Module):
         if "dropout" not in self.args:
             self.args.dropout = 0
 
-        # self.extractor = BasicEncoder(base_channel=64, norm_fn="batch")
-        # self.up_dim = self.extractor.up_dim
-        self.feature_extractor = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
-        self.context_extractor = BasicEncoder(base_channel=64, norm_fn="batch")
-        self.up_dim = self.context_extractor.up_dim
+        self.extractor = BasicEncoder(base_channel=64, norm_fn="batch")
+        self.up_dim = self.extractor.up_dim
+        # self.feature_extractor = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
+        # self.context_extractor = BasicEncoder(base_channel=64, norm_fn="batch")
+        # self.up_dim = self.context_extractor.up_dim
         # self.context_extractor = Backbone("resnet50", train_backbone=True, return_interm_layers=True, dilation=False)
         self.num_feature_levels = 3
         # self.extractor_projection = \
@@ -51,8 +51,8 @@ class RAFT(nn.Module):
         #     nn.GroupNorm(d_model // 8, d_model))
 
         input_proj_list = []
-        channels = (512, 1024, 2048)
-        # channels = (128, 192, 256)
+        # channels = (512, 1024, 2048)
+        channels = (128, 192, 256)
         self.d_model = channels[0] // 2
         for l_i in range(self.num_feature_levels):
             in_channels = channels[l_i]
@@ -62,7 +62,7 @@ class RAFT(nn.Module):
         self.input_proj = nn.ModuleList(input_proj_list)
 
         self.encoder_iterations = 0
-        self.outer_iterations = 6
+        self.outer_iterations = 3
         self.inner_iterations = 1
         # self.inner_iterations = self.num_feature_levels
         # self.num_keypoints = 10 ** 2

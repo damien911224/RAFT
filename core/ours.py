@@ -52,8 +52,8 @@ class RAFT(nn.Module):
         #     nn.GroupNorm(d_model // 8, d_model))
 
         input_proj_list = []
-        # channels = (512, 1024, 2048)
-        channels = (128, 192, 256)
+        channels = (512, 1024, 2048)
+        # channels = (128, 192, 256)
         for l_i in range(self.num_feature_levels):
             in_channels = channels[l_i]
             input_proj_list.append(nn.Sequential(

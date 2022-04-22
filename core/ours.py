@@ -433,7 +433,6 @@ class RAFT(nn.Module):
                     if not self.use_dab:
                         reference_points = (inverse_sigmoid(base_reference_points.detach()) +
                                             self.reference_embed[o_i](query + query_pos)).sigmoid()
-                    reference_points_input = reference_points
 
                     # reference_points = self.reference_embed[o_i](query + query_pos).sigmoid()
 
@@ -458,7 +457,7 @@ class RAFT(nn.Module):
                     if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
                         query_pos = query_pos + self.high_dim_query_proj(query)
 
-                    query = self.decoder[o_i](query, query_pos, reference_points_input.unsqueeze(2),
+                    query = self.decoder[o_i](query, query_pos, reference_points.unsqueeze(2),
                                               src, src_pos, spatial_shapes, level_start_index)
 
                     # keypoint = self.keypoint_decoder[o_i](keypoint, query_pos, reference_points.unsqueeze(2),

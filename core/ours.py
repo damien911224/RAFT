@@ -150,7 +150,7 @@ class RAFT(nn.Module):
         # self.flow_embed = nn.Linear(d_model, 2)
         self.context_embed = MLP(self.d_model, self.extractor.up_dim, self.extractor.up_dim, 3)
         # self.reference_embed = MLP(d_model, d_model, 2, 3)
-        self.reference_embed = nn.Embedding(self.num_keypoints, 4)
+        self.reference_embed = nn.Embedding(self.num_keypoints, 2)
         # self.reference_embed = nn.Embedding(self.num_keypoints, d_model)
         # self.reference_pos_embed = MLP(d_model, d_model, 4, 3)
         self.confidence_embed = MLP(self.d_model, self.d_model, 1, 3)
@@ -380,7 +380,12 @@ class RAFT(nn.Module):
                 base_reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
                 base_reference_points = base_reference_points.repeat(bs, 1, 1)
             else:
-                reference_points = self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
+                # reference_points = self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
+
+                root = round(math.sqrt(self.num_keypoints))
+                reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
+                reference_points = reference_points.repeat(bs, 1, 1)
+                reference_flows = self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
 
             spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 2, dtype=torch.long, device=src.device)
             level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
@@ -439,7 +444,8 @@ class RAFT(nn.Module):
                         if self.no_sine_embed:
                             raw_query_pos = self.ref_point_head(reference_points)
                         else:
-                            query_sine_embed = self.gen_sineembed_for_position(reference_points)  # bs, nq, 256*2
+                            query_sine_embed = self.gen_sineembed_for_position(
+                                torch.cat((reference_points, reference_flows), dim=-1))  # bs, nq, 256*2
                             raw_query_pos = self.ref_point_head(query_sine_embed)  # bs, nq, 256
                         pos_scale = self.query_scale(query) if not (o_i == 0 and i_i == 0) else 1
                         query_pos = pos_scale * raw_query_pos
@@ -468,14 +474,13 @@ class RAFT(nn.Module):
                     flow_embed = self.flow_embed[o_i](query)
                     # flow_embed = self.flow_embed[o_i + self.num_feature_levels](query)
 
-                    flow_embed = flow_embed + inverse_sigmoid(reference_points)
+                    flow_embed = (flow_embed + inverse_sigmoid(reference_flows)).sigmoid()
                     # key_flow = new_reference_points[..., :2].sigmoid().detach() - \
                     #            (new_reference_points[..., :2] + (new_reference_points[..., 2:])).sigmoid()
                     # key_flow = reference_points.detach() - \
                     #            (inverse_sigmoid(reference_points[..., :2]).detach() + flow_embed[..., 2:]).sigmoid()
-                    key_flow = flow_embed[..., :2].sigmoid().detach() - \
-                               (flow_embed[..., :2].detach() + flow_embed[..., 2:]).sigmoid()
-                    reference_points = flow_embed.sigmoid().detach()
+                    key_flow = flow_embed * 2 - 1
+                    reference_flows = flow_embed.detach()
 
                     # key_flow = inverse_sigmoid(reference_points.detach()) + flow_embed
                     # # key_flow = inverse_sigmoid(reference_points) + flow_embed

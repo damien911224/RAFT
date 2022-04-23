@@ -62,7 +62,7 @@ class RAFT(nn.Module):
         self.input_proj = nn.ModuleList(input_proj_list)
 
         self.encoder_iterations = 0
-        self.outer_iterations = 6
+        self.outer_iterations = 3
         self.inner_iterations = 1
         # self.inner_iterations = self.num_feature_levels
         # self.num_keypoints = 10 ** 2
@@ -387,6 +387,7 @@ class RAFT(nn.Module):
             root = round(math.sqrt(self.num_keypoints))
             reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
             reference_points = reference_points.repeat(bs, 1, 1)
+            reference_points = reference_points.unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
             reference_flows = self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
 
         spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 2, dtype=torch.long, device=src.device)
@@ -446,7 +447,7 @@ class RAFT(nn.Module):
                         raw_query_pos = self.ref_point_head(reference_points)
                     else:
                         query_sine_embed = self.gen_sineembed_for_position(
-                            torch.cat((reference_points, reference_flows), dim=-1))  # bs, nq, 256*2
+                            torch.cat((reference_points[:, :, 0], reference_flows), dim=-1))  # bs, nq, 256*2
                         raw_query_pos = self.ref_point_head(query_sine_embed)  # bs, nq, 256
                     pos_scale = self.query_scale(query) if not (o_i == 0 and i_i == 0) else 1
                     query_pos = pos_scale * raw_query_pos
@@ -457,7 +458,7 @@ class RAFT(nn.Module):
                 if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
                     query_pos = query_pos + self.high_dim_query_proj(query)
 
-                query = self.decoder[o_i](query, query_pos, reference_points.unsqueeze(2),
+                query = self.decoder[o_i](query, query_pos, reference_points,
                                           src, src_pos, spatial_shapes, level_start_index)
 
                 # keypoint = self.keypoint_decoder[o_i](keypoint, query_pos, reference_points.unsqueeze(2),
@@ -482,6 +483,9 @@ class RAFT(nn.Module):
                 #            (inverse_sigmoid(reference_points[..., :2]).detach() + flow_embed[..., 2:]).sigmoid()
                 key_flow = flow_embed * 2 - 1
                 reference_flows = flow_embed.detach()
+                reference_points[:, :, self.num_feature_levels:] = \
+                    (reference_points[:, :, self.num_feature_levels:] +
+                     inverse_sigmoid(reference_flows)).sigmoid().detach()
 
                 # key_flow = inverse_sigmoid(reference_points.detach()) + flow_embed
                 # # key_flow = inverse_sigmoid(reference_points) + flow_embed

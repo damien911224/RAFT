@@ -439,6 +439,7 @@ class RAFT(nn.Module):
                 else:
                     reference_points = (inverse_sigmoid(base_reference_points.detach()) +
                                         self.reference_embed[o_i](query)).sigmoid().unsqueeze(2)
+                reference_points = reference_points.repeat(1, 1, self.num_feature_levels * 2, 1)
 
                 # reference_points = self.reference_embed[o_i](query + query_pos).sigmoid()
 
@@ -479,7 +480,7 @@ class RAFT(nn.Module):
 
                 # bs, n, 2
                 flow_embed = self.flow_embed[o_i](query)
-                flow_embed = flow_embed + inverse_sigmoid(reference_flows)
+                # flow_embed = flow_embed + inverse_sigmoid(reference_flows)
 
                 # flow_embed = self.flow_embed[o_i + self.num_feature_levels](query)
 
@@ -491,7 +492,7 @@ class RAFT(nn.Module):
                 src_points = reference_points[:, :, 0].detach()
                 dst_points = (inverse_sigmoid(src_points) + flow_embed).sigmoid()
                 key_flow = src_points - dst_points
-                # reference_points[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
+                reference_points[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
                 reference_flows = flow_embed.detach().sigmoid()
 
                 # key_flow = inverse_sigmoid(reference_points.detach()) + flow_embed

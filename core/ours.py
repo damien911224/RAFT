@@ -382,9 +382,9 @@ class RAFT(nn.Module):
             # base_reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
             # base_reference_points = base_reference_points.repeat(bs, 1, 1)
 
-        # root = round(math.sqrt(self.num_keypoints))
-        # reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
-        reference_points = self.reference_embed.weight.unsqueeze(0)
+        root = round(math.sqrt(self.num_keypoints))
+        reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
+        # reference_points = self.reference_embed.weight.unsqueeze(0)
         reference_points = reference_points.repeat(bs, 1, 1)
         reference_points = reference_points.unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
         # reference_flows = self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1)

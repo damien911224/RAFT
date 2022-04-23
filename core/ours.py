@@ -62,7 +62,7 @@ class RAFT(nn.Module):
         self.input_proj = nn.ModuleList(input_proj_list)
 
         self.encoder_iterations = 1
-        self.outer_iterations = 6
+        self.outer_iterations = 3
         self.inner_iterations = 1
         # self.inner_iterations = self.num_feature_levels
         # self.num_keypoints = 10 ** 2
@@ -147,12 +147,12 @@ class RAFT(nn.Module):
         self.iter_pos_embed = nn.Embedding(self.inner_iterations, self.d_model)
 
         self.query_embed = nn.Embedding(self.num_keypoints, self.d_model)
-        # self.query_pos_embed = nn.Embedding(self.num_keypoints, d_model)
+        self.query_pos_embed = nn.Embedding(self.num_keypoints, d_model)
         self.flow_embed = MLP(self.d_model, self.d_model, 2, 3)
         # self.flow_embed = nn.Linear(d_model, 2)
         self.context_embed = MLP(self.d_model, self.up_dim, self.up_dim, 3)
         # self.reference_embed = MLP(d_model, d_model, 2, 3)
-        self.reference_embed = nn.Embedding(self.num_keypoints, 2)
+        # self.reference_embed = nn.Embedding(self.num_keypoints, 2)
         # self.reference_embed = nn.Embedding(self.num_keypoints, d_model)
         # self.reference_pos_embed = MLP(d_model, d_model, 4, 3)
         self.confidence_embed = MLP(self.d_model, self.d_model, 1, 3)
@@ -161,7 +161,7 @@ class RAFT(nn.Module):
         # self.extractor_embed = MLP(self.extractor.up_dim, d_model, d_model, 3)
         self.extractor_pos_embed = nn.Linear(self.d_model, self.up_dim)
 
-        self.use_dab = True
+        self.use_dab = False
         self.no_sine_embed = False
         if self.use_dab:
             self.query_scale = MLP(self.d_model, self.d_model, self.d_model, 2)
@@ -207,8 +207,8 @@ class RAFT(nn.Module):
         # nn.init.normal_(self.context_row_pos_embed.weight)
         # nn.init.normal_(self.context_col_pos_embed.weight)
         nn.init.xavier_uniform_(self.query_embed.weight)
-        # nn.init.normal_(self.query_pos_embed.weight)
-        nn.init.uniform_(self.reference_embed.weight)
+        nn.init.normal_(self.query_pos_embed.weight)
+        # nn.init.uniform_(self.reference_embed.weight)
         # nn.init.xavier_uniform_(self.reference_embed.weight)
         nn.init.normal_(self.lvl_pos_embed.weight)
         nn.init.normal_(self.img_pos_embed.weight)
@@ -378,18 +378,16 @@ class RAFT(nn.Module):
         query = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
         if not self.use_dab:
             query_pos = self.query_pos_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
-            root = round(math.sqrt(self.num_keypoints))
-            base_reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
-            base_reference_points = base_reference_points.repeat(bs, 1, 1)
-        else:
-            # reference_points = self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
+            # root = round(math.sqrt(self.num_keypoints))
+            # base_reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
+            # base_reference_points = base_reference_points.repeat(bs, 1, 1)
 
-            root = round(math.sqrt(self.num_keypoints))
-            reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
-            reference_points = reference_points.repeat(bs, 1, 1)
-            reference_points = reference_points.unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
-            # reference_flows = self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
-            reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2), device=src.device)
+        root = round(math.sqrt(self.num_keypoints))
+        reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
+        reference_points = reference_points.repeat(bs, 1, 1)
+        reference_points = reference_points.unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
+        # reference_flows = self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
+        reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2), device=src.device)
 
         spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 2, dtype=torch.long, device=src.device)
         level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
@@ -432,9 +430,9 @@ class RAFT(nn.Module):
         for o_i in range(self.outer_iterations):
             for i_i in range(self.inner_iterations):
                 # bs, n, 2
-                if not self.use_dab:
-                    reference_points = (inverse_sigmoid(base_reference_points.detach()) +
-                                        self.reference_embed[o_i](query + query_pos)).sigmoid()
+                # if not self.use_dab:
+                #     reference_points = (inverse_sigmoid(base_reference_points.detach()) +
+                #                         self.reference_embed[o_i](query + query_pos)).sigmoid()
 
                 # reference_points = self.reference_embed[o_i](query + query_pos).sigmoid()
 
@@ -453,11 +451,11 @@ class RAFT(nn.Module):
                     pos_scale = self.query_scale(query) if not (o_i == 0 and i_i == 0) else 1
                     query_pos = pos_scale * raw_query_pos
 
-                if self.inner_iterations > 1:
-                    query_pos = query_pos + self.iter_pos_embed.weight[i_i].unsqueeze(0)
+                    if self.inner_iterations > 1:
+                        query_pos = query_pos + self.iter_pos_embed.weight[i_i].unsqueeze(0)
 
-                if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
-                    query_pos = query_pos + self.high_dim_query_proj(query)
+                    if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
+                        query_pos = query_pos + self.high_dim_query_proj(query)
 
                 query = self.decoder[o_i](query, query_pos, reference_points,
                                           src, src_pos, spatial_shapes, level_start_index)

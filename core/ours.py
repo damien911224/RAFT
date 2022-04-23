@@ -53,7 +53,7 @@ class RAFT(nn.Module):
         input_proj_list = []
         # channels = (512, 1024, 2048)
         channels = (128, 192, 256)
-        self.d_model = channels[0] // 2
+        self.d_model = channels[0]
         for l_i in range(self.num_feature_levels):
             in_channels = channels[l_i]
             input_proj_list.append(nn.Sequential(
@@ -62,7 +62,7 @@ class RAFT(nn.Module):
         self.input_proj = nn.ModuleList(input_proj_list)
 
         self.encoder_iterations = 1
-        self.outer_iterations = 3
+        self.outer_iterations = 1
         self.inner_iterations = 1
         # self.inner_iterations = self.num_feature_levels
         # self.num_keypoints = 10 ** 2
@@ -70,14 +70,14 @@ class RAFT(nn.Module):
 
         self.encoder = \
             nn.ModuleList((DeformableTransformerEncoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
-                                                             dropout=0.1, activation="relu",
+                                                             dropout=0.1, activation="gelu",
                                                              n_levels=self.num_feature_levels * 2,
                                                              n_heads=8, n_points=4)
                            for _ in range(self.encoder_iterations)))
 
         self.decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
-                                                             dropout=0.1, activation="relu",
+                                                             dropout=0.1, activation="gelu",
                                                              n_levels=self.num_feature_levels * 2,
                                                              n_heads=8, n_points=4, self_deformable=False)
                            for _ in range(self.outer_iterations)))
@@ -382,9 +382,9 @@ class RAFT(nn.Module):
             # base_reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
             # base_reference_points = base_reference_points.repeat(bs, 1, 1)
 
-        root = round(math.sqrt(self.num_keypoints))
-        reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
-        # reference_points = self.reference_embed.weight.unsqueeze(0)
+        # root = round(math.sqrt(self.num_keypoints))
+        # reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
+        reference_points = self.reference_embed.weight.unsqueeze(0)
         reference_points = reference_points.repeat(bs, 1, 1)
         reference_points = reference_points.unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
         # reference_flows = self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
@@ -559,7 +559,7 @@ class MLP(nn.Module):
         # for i, layer in enumerate(self.layers):
         #     x = F.relu(layer(x)) if i < self.num_layers - 1 else layer(x)
             # x = F.relu(norm(layer(x))) if i < self.num_layers - 1 else layer(x)
-            x = F.relu(norm(layer(x))) if (i < self.num_layers - 1) or self.last_activate else layer(x)
+            x = F.gelu(norm(layer(x))) if (i < self.num_layers - 1) or self.last_activate else layer(x)
         x = x.permute(0, 2, 1)
         return x
 

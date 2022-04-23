@@ -208,7 +208,7 @@ class RAFT(nn.Module):
         # nn.init.normal_(self.context_col_pos_embed.weight)
         nn.init.xavier_uniform_(self.query_embed.weight)
         nn.init.normal_(self.query_pos_embed.weight)
-        nn.init.uniform_(self.reference_embed.weight)
+        # nn.init.uniform_(self.reference_embed.weight)
         # nn.init.xavier_uniform_(self.reference_embed.weight)
         nn.init.normal_(self.lvl_pos_embed.weight)
         nn.init.normal_(self.img_pos_embed.weight)

@@ -62,7 +62,7 @@ class RAFT(nn.Module):
         self.input_proj = nn.ModuleList(input_proj_list)
 
         self.encoder_iterations = 1
-        self.outer_iterations = 1
+        self.outer_iterations = 3
         self.inner_iterations = 1
         # self.inner_iterations = self.num_feature_levels
         # self.num_keypoints = 10 ** 2
@@ -151,8 +151,8 @@ class RAFT(nn.Module):
         self.flow_embed = MLP(self.d_model, self.d_model, 2, 3)
         # self.flow_embed = nn.Linear(d_model, 2)
         self.context_embed = MLP(self.d_model, self.up_dim, self.up_dim, 3)
-        # self.reference_embed = MLP(d_model, d_model, 2, 3)
-        self.reference_embed = nn.Embedding(self.num_keypoints, 2)
+        self.reference_embed = MLP(self.d_model, self.d_model, 2, 3)
+        # self.reference_embed = nn.Embedding(self.num_keypoints, 2)
         # self.reference_embed = nn.Embedding(self.num_keypoints, d_model)
         # self.reference_pos_embed = MLP(d_model, d_model, 4, 3)
         self.confidence_embed = MLP(self.d_model, self.d_model, 1, 3)
@@ -378,9 +378,10 @@ class RAFT(nn.Module):
         query = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
         if not self.use_dab:
             query_pos = self.query_pos_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
-            # root = round(math.sqrt(self.num_keypoints))
-            # base_reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
-            # base_reference_points = base_reference_points.repeat(bs, 1, 1)
+
+        root = round(math.sqrt(self.num_keypoints))
+        base_reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
+        base_reference_points = base_reference_points.repeat(bs, 1, 1)
 
         # root = round(math.sqrt(self.num_keypoints))
         # reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
@@ -434,6 +435,9 @@ class RAFT(nn.Module):
                 # if not self.use_dab:
                 #     reference_points = (inverse_sigmoid(base_reference_points.detach()) +
                 #                         self.reference_embed[o_i](query + query_pos)).sigmoid()
+
+                reference_points = (inverse_sigmoid(base_reference_points.detach()) +
+                                    self.reference_embed[o_i](query + query_pos)).sigmoid().unsqueeze(2)
 
                 # reference_points = self.reference_embed[o_i](query + query_pos).sigmoid()
 

@@ -61,7 +61,7 @@ class RAFT(nn.Module):
                 nn.GroupNorm(32, self.d_model)))
         self.input_proj = nn.ModuleList(input_proj_list)
 
-        self.encoder_iterations = 0
+        self.encoder_iterations = 1
         self.outer_iterations = 3
         self.inner_iterations = 1
         # self.inner_iterations = self.num_feature_levels

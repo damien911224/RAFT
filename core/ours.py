@@ -448,11 +448,11 @@ class RAFT(nn.Module):
                 #                     self.reference_embed[o_i](query)).sigmoid()
 
                 if self.use_dab:
+                    raw_query_pos = torch.cat((reference_points[:, :, 0], reference_flows), dim=-1)
                     if self.no_sine_embed:
-                        raw_query_pos = self.ref_point_head(reference_points[:, :, 0])
+                        raw_query_pos = self.ref_point_head(raw_query_pos)
                     else:
-                        query_sine_embed = self.gen_sineembed_for_position(
-                            torch.cat((reference_points[:, :, 0], reference_flows), dim=-1))  # bs, nq, 256*2
+                        query_sine_embed = self.gen_sineembed_for_position(raw_query_pos)  # bs, nq, 256*2
                         raw_query_pos = self.ref_point_head(query_sine_embed)  # bs, nq, 256
                     pos_scale = self.query_scale(query) if not (o_i == 0 and i_i == 0) else 1
                     query_pos = pos_scale * raw_query_pos

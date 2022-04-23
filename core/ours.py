@@ -161,7 +161,7 @@ class RAFT(nn.Module):
         # self.extractor_embed = MLP(self.extractor.up_dim, d_model, d_model, 3)
         self.extractor_pos_embed = nn.Linear(self.d_model, self.up_dim)
 
-        self.use_dab = True
+        self.use_dab = False
         self.no_sine_embed = False
         if self.use_dab:
             self.query_scale = MLP(self.d_model, self.d_model, self.d_model, 2)

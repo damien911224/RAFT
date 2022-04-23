@@ -152,7 +152,7 @@ class RAFT(nn.Module):
         # self.flow_embed = nn.Linear(d_model, 2)
         self.context_embed = MLP(self.d_model, self.up_dim, self.up_dim, 3)
         # self.reference_embed = MLP(d_model, d_model, 2, 3)
-        # self.reference_embed = nn.Embedding(self.num_keypoints, 2)
+        self.reference_embed = nn.Embedding(self.num_keypoints, 2)
         # self.reference_embed = nn.Embedding(self.num_keypoints, d_model)
         # self.reference_pos_embed = MLP(d_model, d_model, 4, 3)
         self.confidence_embed = MLP(self.d_model, self.d_model, 1, 3)
@@ -208,7 +208,7 @@ class RAFT(nn.Module):
         # nn.init.normal_(self.context_col_pos_embed.weight)
         nn.init.xavier_uniform_(self.query_embed.weight)
         nn.init.normal_(self.query_pos_embed.weight)
-        # nn.init.uniform_(self.reference_embed.weight)
+        nn.init.uniform_(self.reference_embed.weight)
         # nn.init.xavier_uniform_(self.reference_embed.weight)
         nn.init.normal_(self.lvl_pos_embed.weight)
         nn.init.normal_(self.img_pos_embed.weight)
@@ -382,8 +382,9 @@ class RAFT(nn.Module):
             # base_reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
             # base_reference_points = base_reference_points.repeat(bs, 1, 1)
 
-        root = round(math.sqrt(self.num_keypoints))
-        reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
+        # root = round(math.sqrt(self.num_keypoints))
+        # reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
+        reference_points = self.reference_embed.weight.unsqueeze(0)
         reference_points = reference_points.repeat(bs, 1, 1)
         reference_points = reference_points.unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
         # reference_flows = self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
@@ -546,20 +547,20 @@ class MLP(nn.Module):
         self.num_layers = num_layers
         self.last_activate = last_activate
         h = [hidden_dim] * (num_layers - 1)
-        self.layers = nn.ModuleList(nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
-        # self.layers = nn.ModuleList(nn.Conv1d(n, k, kernel_size=1, padding=0)
-        #                             for n, k in zip([input_dim] + h, h + [output_dim]))
-        # self.norms = nn.ModuleList(nn.GroupNorm(32, k)
-        #                            for n, k in zip([input_dim] + h, h + [output_dim]))
+        # self.layers = nn.ModuleList(nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
+        self.layers = nn.ModuleList(nn.Conv1d(n, k, kernel_size=1, padding=0)
+                                    for n, k in zip([input_dim] + h, h + [output_dim]))
+        self.norms = nn.ModuleList(nn.GroupNorm(32, k)
+                                   for n, k in zip([input_dim] + h, h + [output_dim]))
 
     def forward(self, x):
-        # x = x.permute(0, 2, 1)
-        # for i, (layer, norm) in enumerate(zip(self.layers, self.norms)):
-        for i, layer in enumerate(self.layers):
-            x = F.relu(layer(x)) if i < self.num_layers - 1 else layer(x)
+        x = x.permute(0, 2, 1)
+        for i, (layer, norm) in enumerate(zip(self.layers, self.norms)):
+        # for i, layer in enumerate(self.layers):
+        #     x = F.relu(layer(x)) if i < self.num_layers - 1 else layer(x)
             # x = F.relu(norm(layer(x))) if i < self.num_layers - 1 else layer(x)
-            # x = F.relu(norm(layer(x))) if (i < self.num_layers - 1) or self.last_activate else layer(x)
-        # x = x.permute(0, 2, 1)
+            x = F.relu(norm(layer(x))) if (i < self.num_layers - 1) or self.last_activate else layer(x)
+        x = x.permute(0, 2, 1)
         return x
 
 

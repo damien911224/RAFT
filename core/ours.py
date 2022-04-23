@@ -480,7 +480,7 @@ class RAFT(nn.Module):
 
                 # bs, n, 2
                 flow_embed = self.flow_embed[o_i](query)
-                # flow_embed = flow_embed + inverse_sigmoid(reference_flows)
+                flow_embed = flow_embed + inverse_sigmoid(reference_flows)
 
                 # flow_embed = self.flow_embed[o_i + self.num_feature_levels](query)
 

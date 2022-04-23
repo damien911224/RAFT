@@ -485,7 +485,7 @@ class RAFT(nn.Module):
                 reference_flows = flow_embed.detach()
                 reference_points[:, :, self.num_feature_levels:] = \
                     (reference_points[:, :, self.num_feature_levels:] +
-                     inverse_sigmoid(reference_flows)).sigmoid().detach()
+                     inverse_sigmoid(reference_flows.unsqueeze(2))).sigmoid().detach()
 
                 # key_flow = inverse_sigmoid(reference_points.detach()) + flow_embed
                 # # key_flow = inverse_sigmoid(reference_points) + flow_embed

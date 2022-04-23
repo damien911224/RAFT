@@ -529,7 +529,7 @@ class RAFT(nn.Module):
                     #        F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
 
                 flow_predictions.append(flow)
-                sparse_predictions.append((reference_points, key_flow, masks, scores, None))
+                sparse_predictions.append((reference_points[:, :, 0], key_flow, masks, scores, None))
                 # sparse_predictions.append((reference_points[..., :2], key_flow, masks, scores, confidence.sigmoid()))
 
         if test_mode:

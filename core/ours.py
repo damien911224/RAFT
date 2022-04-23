@@ -433,12 +433,12 @@ class RAFT(nn.Module):
         for o_i in range(self.outer_iterations):
             for i_i in range(self.inner_iterations):
                 # bs, n, 2
-                # if not self.use_dab:
-                #     reference_points = (inverse_sigmoid(base_reference_points.detach()) +
-                #                         self.reference_embed[o_i](query + query_pos)).sigmoid()
-
-                reference_points = (inverse_sigmoid(base_reference_points.detach()) +
-                                    self.reference_embed[o_i](query + query_pos)).sigmoid().unsqueeze(2)
+                if not self.use_dab:
+                    reference_points = (inverse_sigmoid(base_reference_points.detach()) +
+                                        self.reference_embed[o_i](query + query_pos)).sigmoid().unsqueeze(2)
+                else:
+                    reference_points = (inverse_sigmoid(base_reference_points.detach()) +
+                                        self.reference_embed[o_i](query)).sigmoid().unsqueeze(2)
 
                 # reference_points = self.reference_embed[o_i](query + query_pos).sigmoid()
 

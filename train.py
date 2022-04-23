@@ -278,7 +278,7 @@ class Logger:
                                     np.concatenate((this_image1, this_image2, target_img, mask_img), axis=1)), axis=0)
             image = image.astype(np.uint8)
 
-            self.writer.add_image("{}_Image_{:02d}".format(phase, n_i + 1), image, self.total_steps, dataformats='HWC')
+            self.writer.add_image("{}_Image_{:02d}".format(phase, i_i + 1), image, self.total_steps, dataformats='HWC')
 
     def write_seg_images(self, image1, image2, targets, preds, phase="T"):
         if self.writer is None:

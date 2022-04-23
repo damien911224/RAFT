@@ -513,7 +513,7 @@ class RAFT(nn.Module):
                 scores = torch.max(context_flow, dim=1)[0].detach()
                 # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
                 # bs, HW, 2
-                context_flow = torch.bmm(context_flow, key_flow.detach())
+                context_flow = torch.bmm(context_flow, key_flow)
                 # context_flow = torch.bmm(context_flow, key_flow.detach())
                 # bs, 2, H, W
                 context_flow = context_flow.permute(0, 2, 1).view(bs, 2, H, W)

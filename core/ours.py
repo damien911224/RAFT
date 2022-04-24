@@ -439,13 +439,14 @@ class RAFT(nn.Module):
         for o_i in range(self.outer_iterations):
             for i_i in range(self.inner_iterations):
                 # bs, n, 2
-                if not self.use_dab:
-                    reference_points = (inverse_sigmoid(base_reference_points.detach()) +
-                                        self.reference_embed[o_i](query + query_pos)).sigmoid().unsqueeze(2)
-                else:
-                    reference_points = (inverse_sigmoid(base_reference_points.detach()) +
-                                        self.reference_embed[o_i](query)).sigmoid().unsqueeze(2)
-                reference_points = reference_points.repeat(1, 1, self.num_feature_levels * 2, 1)
+                # if not self.use_dab:
+                #     reference_points = (inverse_sigmoid(base_reference_points.detach()) +
+                #                         self.reference_embed[o_i](query + query_pos)).sigmoid().unsqueeze(2)
+                # else:
+                #     reference_points = (inverse_sigmoid(base_reference_points.detach()) +
+                #                         self.reference_embed[o_i](query)).sigmoid().unsqueeze(2)
+                # reference_points = reference_points.repeat(1, 1, self.num_feature_levels * 2, 1)
+                reference_points = base_reference_points.detach().repeat(1, 1, self.num_feature_levels * 2, 1)
 
                 # reference_points = self.reference_embed[o_i](query + query_pos).sigmoid()
 
@@ -470,7 +471,7 @@ class RAFT(nn.Module):
                     if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
                         query_pos = query_pos + self.high_dim_query_proj(query)
 
-                    context_pos = raw_context_pos + self.context_flow_head(context_flow)
+                    context_pos = raw_context_pos + self.context_flow_head(context_flow.detach())
                     context_pos_scale = self.context_scale(U1) if not (o_i == 0 and i_i == 0) else 1
                     context_pos = context_pos_scale * context_pos
 
@@ -493,7 +494,7 @@ class RAFT(nn.Module):
 
                 # bs, n, 2
                 flow_embed = self.flow_embed[o_i](query)
-                # flow_embed = flow_embed + inverse_sigmoid(reference_flows)
+                flow_embed = flow_embed + inverse_sigmoid(reference_flows)
 
                 # flow_embed = self.flow_embed[o_i + self.num_feature_levels](query)
 

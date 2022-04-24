@@ -446,7 +446,8 @@ class RAFT(nn.Module):
                 #     reference_points = (inverse_sigmoid(base_reference_points.detach()) +
                 #                         self.reference_embed[o_i](query)).sigmoid().unsqueeze(2)
                 # reference_points = reference_points.repeat(1, 1, self.num_feature_levels * 2, 1)
-                reference_points = base_reference_points.detach().repeat(1, 1, self.num_feature_levels * 2, 1)
+                reference_points = \
+                    base_reference_points.detach().unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
 
                 # reference_points = self.reference_embed[o_i](query + query_pos).sigmoid()
 

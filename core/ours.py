@@ -526,10 +526,10 @@ class RAFT(nn.Module):
 
                 # bs, HW, n
                 context = self.context_embed[o_i](query)
-                # context_flow = F.softmax(torch.bmm(U1, context.permute(0, 2, 1)), dim=-1)
+                context_flow = F.softmax(torch.bmm(U1 + context_pos, context.permute(0, 2, 1)), dim=-1)
                 # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
-                confidence = self.confidence_embed[o_i](query).squeeze(-1).unsqueeze(1)
-                context_flow = F.softmax(torch.bmm(U1 + context_pos, context.permute(0, 2, 1)) * confidence, dim=-1)
+                # confidence = self.confidence_embed[o_i](query).squeeze(-1).unsqueeze(1)
+                # context_flow = F.softmax(torch.bmm(U1 + context_pos, context.permute(0, 2, 1)) * confidence, dim=-1)
                 masks = context_flow.permute(0, 2, 1).detach()
                 scores = torch.max(context_flow, dim=1)[0].detach()
                 # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
@@ -550,8 +550,8 @@ class RAFT(nn.Module):
                     #        F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
 
                 flow_predictions.append(flow)
-                # sparse_predictions.append((reference_points[:, :, 0], key_flow, masks, scores, None))
-                sparse_predictions.append((reference_points[..., :2], key_flow, masks, scores, confidence.sigmoid()))
+                sparse_predictions.append((reference_points[:, :, 0], key_flow, masks, scores, None))
+                # sparse_predictions.append((reference_points[..., :2], key_flow, masks, scores, confidence.sigmoid()))
 
         if test_mode:
             return flow_predictions, sparse_predictions, dense_predictions

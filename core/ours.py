@@ -426,7 +426,7 @@ class RAFT(nn.Module):
             dense_flow = F.interpolate(dense_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
             dense_predictions.append(dense_flow)
 
-        dense_predictions = list()
+        # dense_predictions = list()
 
         # reference_embed = \
         #     self.query_selector(self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1).permute(1, 0, 2),

@@ -77,8 +77,8 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
         sparse_valid = torch.gather(flatten_valid, 1, coords)
         sparse_valid = (sparse_valid >= 0.5) & (torch.sum(sparse_gt ** 2, dim=-1).sqrt() < max_flow)
         sparse_i_loss = (sparse_flow * scale - sparse_gt).abs()
-        # sparse_i_loss = (sparse_flow * scale - sparse_gt).abs() * confidence.detach().squeeze(1).unsqueeze(-1)
-        sparse_loss += i_weight * (sparse_valid[..., None] * sparse_i_loss).mean()
+        sparse_i_loss = (sparse_flow * scale - sparse_gt).abs() * confidence.detach().squeeze(1).unsqueeze(-1)
+        # sparse_loss += i_weight * (sparse_valid[..., None] * sparse_i_loss).mean()
 
     for i in range(len(flow_preds[2])):
         i_weight = 1.0

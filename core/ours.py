@@ -354,7 +354,9 @@ class RAFT(nn.Module):
         #            in enumerate(zip(D1, self.col_pos_embed, self.row_pos_embed))]
         src_pos = [self.get_embedding(feat, self.col_pos_embed, self.row_pos_embed) + self.lvl_pos_embed.weight[i]
                    for i, feat in enumerate(D1)]
-        context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed)
+        # context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed)
+        raw_context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed)
+        raw_context_pos = self.context_pos_embed(raw_context_pos)
         # context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed) + \
         #               self.img_pos_embed.weight[None, -1, None]
         # context_pos = self.get_embedding(U1, self.context_col_pos_embed, self.context_row_pos_embed)
@@ -468,9 +470,7 @@ class RAFT(nn.Module):
                     if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
                         query_pos = query_pos + self.high_dim_query_proj(query)
 
-                    raw_context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed)
-                    raw_context_pos = self.context_pos_embed(raw_context_pos)
-                    raw_context_pos = raw_context_pos + self.context_flow_head(context_flow)
+                    context_pos = raw_context_pos + self.context_flow_head(context_flow)
                     context_pos_scale = self.context_scale(U1) if not (o_i == 0 and i_i == 0) else 1
                     context_pos = context_pos_scale * raw_context_pos
 

@@ -435,7 +435,7 @@ class RAFT(nn.Module):
 
         flow_predictions = list()
         sparse_predictions = list()
-        context_flow = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=src.device) + 0.5
+        context_flow = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=src.device)
         for o_i in range(self.outer_iterations):
             for i_i in range(self.inner_iterations):
                 # bs, n, 2
@@ -540,7 +540,6 @@ class RAFT(nn.Module):
                 # context_flow = torch.bmm(context_flow, key_flow.detach())
                 # bs, 2, H, W
                 flow = context_flow.permute(0, 2, 1).view(bs, 2, H, W)
-
                 flow = flow * torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
 
                 if I_H != H or I_W != W:

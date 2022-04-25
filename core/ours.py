@@ -356,8 +356,8 @@ class RAFT(nn.Module):
         context_flow = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=src.device)
         for o_i in range(self.outer_iterations):
             for i_i in range(self.inner_iterations):
-                if o_i >= 1:
-                    reference_points = reference_points.reshape(bs, )
+                # if o_i >= 1:
+                #     reference_points = reference_points.reshape(bs, )
 
                 if self.use_dab:
                     raw_query_pos = torch.cat((reference_points[:, :, 0], reference_flows), dim=-1)

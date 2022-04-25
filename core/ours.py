@@ -395,8 +395,8 @@ class RAFT(nn.Module):
                 # bs, HW, n
                 context = self.context_embed[o_i](query)
                 context_flow = F.softmax(torch.bmm(U1 + context_pos, context.permute(0, 2, 1)), dim=-1)
-                # masks = context_flow.permute(0, 2, 1).detach()
-                scores = torch.max(context_flow, dim=1)[0].detach()
+                masks = context_flow.permute(0, 2, 1).detach().cpu().numpy()
+                scores = torch.max(context_flow, dim=1)[0].detach().cpu().numpy()
                 # bs, HW, 2
                 context_flow = torch.bmm(context_flow, key_flow)
                 # bs, 2, H, W
@@ -411,8 +411,7 @@ class RAFT(nn.Module):
                     # masks = masks.view(bs, self.num_keypoints, I_H, I_W)
 
                 flow_predictions.append(flow)
-                # sparse_predictions.append((reference_points[:, :, 0], key_flow, masks, scores))
-                sparse_predictions.append((reference_points[:, :, 0], key_flow, None, scores))
+                sparse_predictions.append((reference_points[:, :, 0], key_flow, masks, scores))
 
         if test_mode:
             return flow_predictions, sparse_predictions

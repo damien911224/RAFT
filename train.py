@@ -192,6 +192,8 @@ class Logger:
         top_k = len(pred[0])
         # top_k_indices = np.argsort(-confidence)[:top_k]
         masks = masks.squeeze(0).cpu().numpy()
+        # masks = masks.reshape(self.num_keypoints, 1, H, W)
+        masks = F.interpolate(masks, size=(I_H, I_W), mode="bilinear", align_corners=False)
         top_k_indices = np.argsort(-np.sum(masks, axis=(1, 2)))[:top_k]
         for m_i in top_k_indices:
             coord = coords[m_i]
@@ -253,6 +255,7 @@ class Logger:
             top_k = len(preds[0])
             # top_k_indices = np.argsort(-confidence)[:top_k]
             masks = masks[n_i].cpu().numpy()
+            masks = F.interpolate(masks, size=(I_H, I_W), mode="bilinear", align_corners=False)
             top_k_indices = np.argsort(-np.sum(masks, axis=(1, 2)))[:top_k]
             for m_i in top_k_indices:
                 coord = coords[m_i]
@@ -320,7 +323,7 @@ class Logger:
 
 def train(args):
 
-    model = nn.DataParallel(RAFT(args), device_ids=args.gpus, output_device="1")
+    model = nn.DataParallel(RAFT(args), device_ids=args.gpus)
     print("Parameter Count: %d" % count_parameters(model))
 
     if args.restore_ckpt is not None:

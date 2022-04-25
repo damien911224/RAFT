@@ -380,6 +380,8 @@ class RAFT(nn.Module):
 
         src = torch.cat(src.split(bs, dim=0), dim=1)
         src_pos = (src_pos.unsqueeze(1) + self.img_pos_embed.weight[None, :2, None]).flatten(start_dim=1, end_dim=2)
+        spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 2, dtype=torch.long, device=src.device)
+        level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
         flow_predictions = list()
         sparse_predictions = list()

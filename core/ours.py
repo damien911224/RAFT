@@ -60,7 +60,7 @@ class RAFT(nn.Module):
         self.encoder_iterations = 6
         self.outer_iterations = 6
         self.inner_iterations = 1
-        self.num_keypoints = 100
+        # self.num_keypoints = 100
         self.num_keypoints = 25
 
         self.encoder = \
@@ -359,6 +359,7 @@ class RAFT(nn.Module):
             for i_i in range(self.inner_iterations):
                 if o_i >= 1:
                     N = self.num_keypoints * (2 ** (o_i - 1))
+                    reference_points.shape
                     reference_points = reference_points[:, :, 0].permute(0, 2, 1)
                     reference_points = reference_points.reshape(bs, 2, N, N)
                     reference_points = F.interpolate(reference_points, (N * 2, N * 2),

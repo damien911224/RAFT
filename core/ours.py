@@ -383,7 +383,12 @@ class RAFT(nn.Module):
 
         flow_predictions = list()
         sparse_predictions = list()
-        context_flow = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=image1.device)
+        root = round(math.sqrt(self.num_keypoints))
+        base_reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
+        base_reference_points = base_reference_points.repeat(bs, 1, 1)
+        reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, 2, 1)
+        reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2), device=src.device) + 0.5
+        context_flow = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=src.device)
         for o_i in range(self.outer_iterations):
             for i_i in range(self.inner_iterations):
                 # if o_i >= 1:

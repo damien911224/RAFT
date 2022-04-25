@@ -256,8 +256,10 @@ class Logger:
             top_k = len(preds[0])
             # top_k_indices = np.argsort(-confidence)[:top_k]
             masks = masks[n_i].cpu()
-            masks = F.interpolate(masks[None], size=(I_H, I_W), mode="bilinear", align_corners=False).numpy()
-            masks = masks[0]
+            print(masks.shape)
+            masks = F.interpolate(masks, size=(I_H, I_W), mode="bilinear", align_corners=False).numpy()
+            print(masks.shape)
+            exit()
             top_k_indices = np.argsort(-np.sum(masks, axis=(1, 2)))[:top_k]
             for m_i in top_k_indices:
                 coord = coords[m_i]
@@ -346,7 +348,7 @@ def train(args):
 
     VAL_FREQ = 5000
     # VAL_FREQ = 10
-    IMAGE_FREQ = 1000
+    IMAGE_FREQ = 100
     add_noise = True
 
     should_keep_training = True

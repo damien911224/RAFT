@@ -138,7 +138,7 @@ class RAFT(nn.Module):
         self.flow_embed = MLP(self.d_model, self.d_model, 2, 3)
         self.context_embed = MLP(self.d_model, self.up_dim, self.up_dim, 3)
         self.reference_embed = MLP(self.d_model, self.d_model, 2, 3)
-        self.confidence_embed = MLP(self.d_model, self.d_model, 1, 3)
+        # self.confidence_embed = MLP(self.d_model, self.d_model, 1, 3)
         self.context_pos_embed = nn.Linear(self.d_model, self.up_dim)
         self.use_dab = True
         if self.use_dab:
@@ -160,7 +160,7 @@ class RAFT(nn.Module):
         self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(self.outer_iterations)])
         self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(self.outer_iterations)])
         self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(self.outer_iterations)])
-        self.confidence_embed = nn.ModuleList([copy.deepcopy(self.confidence_embed) for _ in range(self.outer_iterations)])
+        # self.confidence_embed = nn.ModuleList([copy.deepcopy(self.confidence_embed) for _ in range(self.outer_iterations)])
 
         self.reset_parameters()
 
@@ -395,7 +395,7 @@ class RAFT(nn.Module):
                 # bs, HW, n
                 context = self.context_embed[o_i](query)
                 context_flow = F.softmax(torch.bmm(U1 + context_pos, context.permute(0, 2, 1)), dim=-1)
-                masks = context_flow.permute(0, 2, 1).detach()
+                # masks = context_flow.permute(0, 2, 1).detach()
                 scores = torch.max(context_flow, dim=1)[0].detach()
                 # bs, HW, 2
                 context_flow = torch.bmm(context_flow, key_flow)
@@ -406,12 +406,13 @@ class RAFT(nn.Module):
                 if I_H != H or I_W != W:
                     flow = F.interpolate(flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
 
-                    masks = masks.reshape(bs * self.num_keypoints, 1, H, W)
-                    masks = F.interpolate(masks, size=(I_H, I_W), mode="bilinear", align_corners=False)
-                    masks = masks.view(bs, self.num_keypoints, I_H, I_W)
+                    # masks = masks.reshape(bs * self.num_keypoints, 1, H, W)
+                    # masks = F.interpolate(masks, size=(I_H, I_W), mode="bilinear", align_corners=False)
+                    # masks = masks.view(bs, self.num_keypoints, I_H, I_W)
 
                 flow_predictions.append(flow)
-                sparse_predictions.append((reference_points[:, :, 0], key_flow, masks, scores))
+                # sparse_predictions.append((reference_points[:, :, 0], key_flow, masks, scores))
+                sparse_predictions.append((reference_points[:, :, 0], key_flow, None, scores))
 
         if test_mode:
             return flow_predictions, sparse_predictions

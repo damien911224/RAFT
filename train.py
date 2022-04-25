@@ -345,8 +345,8 @@ def train(args):
     logger = Logger(model, scheduler)
 
     VAL_FREQ = 5000
-    VAL_FREQ = 10
-    IMAGE_FREQ = 10
+    # VAL_FREQ = 10
+    IMAGE_FREQ = 1000
     add_noise = True
 
     should_keep_training = True
@@ -394,8 +394,6 @@ def train(args):
                 model.train()
                 if args.stage != 'chairs':
                     model.module.freeze_bn()
-
-                exit()
             
             total_steps += 1
 

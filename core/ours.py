@@ -324,7 +324,7 @@ class RAFT(nn.Module):
         src_pos = [self.get_embedding(feat, self.col_pos_embed, self.row_pos_embed) + self.lvl_pos_embed.weight[i]
                    for i, feat in enumerate(D1)]
         raw_context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed)
-        raw_context_pos = self.context_pos_embed(raw_context_pos) + self.img_pos_embed.weight[None, -1][:, None]
+        raw_context_pos = self.context_pos_embed(raw_context_pos + self.img_pos_embed.weight[None, -1][:, None])
         # src_pos = torch.flatten(torch.cat(src_pos, dim=1).unsqueeze(1) + self.img_pos_embed.weight[None, :2, None],
         #                         start_dim=1, end_dim=2)
         src_pos = torch.cat(src_pos, dim=1)

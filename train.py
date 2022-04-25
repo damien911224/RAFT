@@ -172,7 +172,7 @@ class Logger:
         target_img = flow_vis.flow_to_color(target, convert_to_bgr=False)
         pred_img = list()
         for p_i in range(len(pred[0])):
-            ref, sparse_flow, masks, scores, _ = pred[1][p_i]
+            ref, sparse_flow, masks, scores = pred[1][p_i]
             coords = torch.round(ref.squeeze(0) * scale).long()
             coords = coords.cpu().numpy()
             confidence = np.squeeze(scores.squeeze(0).cpu().numpy())
@@ -234,7 +234,7 @@ class Logger:
             target_img = flow_vis.flow_to_color(targets[n_i], convert_to_bgr=False)
             pred_img = list()
             for p_i in range(len(preds[0])):
-                ref, sparse_flow, masks, scores, _ = preds[1][p_i]
+                ref, sparse_flow, masks, scores = preds[1][p_i]
                 coords = torch.round(ref * scale).long()
                 coords = coords.cpu().numpy()[n_i]
                 confidence = np.squeeze(scores.cpu().numpy()[n_i])

@@ -358,7 +358,7 @@ class RAFT(nn.Module):
         for o_i in range(self.outer_iterations):
             for i_i in range(self.inner_iterations):
                 if o_i >= 1:
-                    N = round(math.sqrt(self.num_keypoints)) * (2 + (o_i - 1) * 5)
+                    N = round(math.sqrt(self.num_keypoints)) + ((o_i - 1) * 5)
                     reference_points = reference_points[:, :, 0].permute(0, 2, 1)
                     reference_points = reference_points.reshape(bs, 2, N, N)
                     reference_points = F.interpolate(reference_points, (N + o_i * 5, N + o_i * 5),

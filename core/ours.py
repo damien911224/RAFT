@@ -541,7 +541,7 @@ class RAFT(nn.Module):
                 if i_i >= self.num_feature_levels - 1:
                     # bs, 2, H, W
                     flow = context_flow.permute(0, 2, 1).view(bs, 2, H, W)
-                    flow = flow * torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
+                    flow = flow * torch.as_tensor((I_W, I_H), dtype=torch.float32, device=image1.device).view(1, 2, 1, 1)
 
                     if I_H != H or I_W != W:
                         flow = F.interpolate(flow, size=(I_H, I_W), mode="bilinear", align_corners=False)

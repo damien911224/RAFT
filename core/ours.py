@@ -518,7 +518,7 @@ class RAFT(nn.Module):
                         context_pos = context_pos + self.context_high_dim_query_proj(U1)
 
                 query = self.decoder[o_i * i_i](query, query_pos, reference_points,
-                                                src[i_i], src_pos[i_i], spatial_shapes, level_start_index)
+                                                src[i_i], src_pos[i_i], this_spatial_shapes, level_start_index)
 
                 # bs, n, 2
                 flow_embed = self.flow_embed[o_i * i_i](query)

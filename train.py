@@ -53,7 +53,6 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
     n_predictions = len(flow_preds[0])
     flow_loss = 0.0
     sparse_loss = 0.0
-    dense_loss = 0.0
 
     # exlude invalid pixels and extremely large diplacements
     mag = torch.sum(flow_gt ** 2, dim=1).sqrt()
@@ -67,7 +66,7 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
         i_loss = (flow_preds[0][i] - flow_gt).abs()
         flow_loss += i_weight * (dense_valid[:, None] * i_loss).mean()
 
-        ref, sparse_flow, _, _, confidence = flow_preds[1][i]
+        ref, sparse_flow, _, _ = flow_preds[1][i]
         scale = torch.tensor((I_W - 1, I_H - 1), dtype=torch.float32).view(1, 1, 2).to(sparse_flow.device)
         flatten_gt = flow_gt.flatten(2).permute(0, 2, 1)
         flatten_valid = valid.flatten(1)
@@ -77,15 +76,9 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
         sparse_valid = torch.gather(flatten_valid, 1, coords)
         sparse_valid = (sparse_valid >= 0.5) & (torch.sum(sparse_gt ** 2, dim=-1).sqrt() < max_flow)
         sparse_i_loss = (sparse_flow * scale - sparse_gt).abs()
-        # sparse_i_loss = (sparse_flow * scale - sparse_gt).abs() * confidence.detach().squeeze(1).unsqueeze(-1)
         sparse_loss += i_weight * (sparse_valid[..., None] * sparse_i_loss).mean()
 
-    for i in range(len(flow_preds[2])):
-        i_weight = 1.0
-        i_loss = (flow_preds[2][i] - flow_gt).abs()
-        dense_loss += i_weight * (dense_valid[:, None] * i_loss).mean()
-
-    loss = flow_loss + sparse_loss + dense_loss
+    loss = flow_loss + sparse_loss
 
     epe = torch.sum((flow_preds[0][-1] - flow_gt)**2, dim=1).sqrt()
     epe = epe.view(-1)[dense_valid.view(-1)]
@@ -97,8 +90,7 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
         '5px': (epe < 5).float().mean().item(),
         'loss': loss,
         'flow_loss': flow_loss,
-        'sparse_loss': sparse_loss,
-        'dense_loss': dense_loss
+        'sparse_loss': sparse_loss
     }
 
     return loss, metrics
@@ -182,8 +174,8 @@ class Logger:
         for p_i in range(len(pred[0])):
             ref, sparse_flow, masks, scores, _ = pred[1][p_i]
             coords = torch.round(ref.squeeze(0) * scale).long()
-            coords = coords.detach().cpu().numpy()
-            confidence = np.squeeze(scores.squeeze(0).detach().cpu().numpy())
+            coords = coords.detach().numpy()
+            confidence = np.squeeze(scores.squeeze(0).numpy())
             ref_img = cv2.cvtColor(np.array(image1, dtype=np.uint8), cv2.COLOR_RGB2BGR)
             for k_i in range(len(coords)):
                 coord = coords[k_i]
@@ -199,7 +191,7 @@ class Logger:
         mask_img = list()
         top_k = len(pred[0])
         # top_k_indices = np.argsort(-confidence)[:top_k]
-        masks = masks.squeeze(0).detach().cpu().numpy()
+        masks = masks.squeeze(0).numpy()
         top_k_indices = np.argsort(-np.sum(masks, axis=(1, 2)))[:top_k]
         for m_i in top_k_indices:
             coord = coords[m_i]
@@ -242,8 +234,8 @@ class Logger:
             for p_i in range(len(preds[0])):
                 ref, sparse_flow, masks, scores, _ = preds[1][p_i]
                 coords = torch.round(ref * scale).long()
-                coords = coords.detach().cpu().numpy()[n_i]
-                confidence = np.squeeze(scores.detach().cpu().numpy()[n_i])
+                coords = coords.detach().numpy()[n_i]
+                confidence = np.squeeze(scores.numpy()[n_i])
                 ref_img = cv2.cvtColor(np.array(this_image1, dtype=np.uint8), cv2.COLOR_RGB2BGR)
                 for k_i in range(len(coords)):
                     coord = coords[k_i]
@@ -260,7 +252,7 @@ class Logger:
             mask_img = list()
             top_k = len(preds[0])
             # top_k_indices = np.argsort(-confidence)[:top_k]
-            masks = masks[n_i].detach().cpu().numpy()
+            masks = masks[n_i].numpy()
             top_k_indices = np.argsort(-np.sum(masks, axis=(1, 2)))[:top_k]
             for m_i in top_k_indices:
                 coord = coords[m_i]

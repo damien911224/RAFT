@@ -44,16 +44,12 @@ class RAFT(nn.Module):
         # self.feature_extractor = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
         # self.context_extractor = BasicEncoder(base_channel=64, norm_fn="batch")
         # self.up_dim = self.context_extractor.up_dim
-        # self.context_extractor = Backbone("resnet50", train_backbone=True, return_interm_layers=True, dilation=False)
         self.num_feature_levels = 3
-        # self.extractor_projection = \
-        #     nn.Sequential(nn.Conv2d(self.extractor.down_dim, d_model, kernel_size=1),
-        #     nn.GroupNorm(d_model // 8, d_model))
 
         input_proj_list = []
         # channels = (512, 1024, 2048)
         channels = (128, 192, 256)
-        self.d_model = channels[0]
+        self.d_model = channels[0] // 2
         for l_i in range(self.num_feature_levels):
             in_channels = channels[l_i]
             input_proj_list.append(nn.Sequential(
@@ -61,11 +57,9 @@ class RAFT(nn.Module):
                 nn.GroupNorm(32, self.d_model)))
         self.input_proj = nn.ModuleList(input_proj_list)
 
-        self.encoder_iterations = 1
-        self.outer_iterations = 3
+        self.encoder_iterations = 6
+        self.outer_iterations = 6
         self.inner_iterations = 1
-        # self.inner_iterations = self.num_feature_levels
-        # self.num_keypoints = 10 ** 2
         self.num_keypoints = 100
 
         self.encoder = \
@@ -132,15 +126,8 @@ class RAFT(nn.Module):
         #                    for _ in range(6)))
 
         h, w = args.image_size[0], args.image_size[1]
-        # self.pos_embed = NerfPositionalEncoding(depth=d_model // 4)
-        # self.row_pos_embed = nn.ModuleList([nn.Embedding(w // (2 ** i), d_model // 2)
-        #                                     for i in range(3, self.num_feature_levels + 3)])
-        # self.col_pos_embed = nn.ModuleList([nn.Embedding(h // (2 ** i), d_model // 2)
-        #                                     for i in range(3, self.num_feature_levels + 3)])
         self.lvl_pos_embed = nn.Embedding(self.num_feature_levels, self.d_model)
         self.img_pos_embed = nn.Embedding(2, self.d_model)
-        # self.context_row_pos_embed = nn.Embedding(w // (2 ** 2), self.extractor.up_dim // 2)
-        # self.context_col_pos_embed = nn.Embedding(h // (2 ** 2), self.extractor.up_dim // 2)
         self.row_pos_embed = nn.Embedding(w // (2 ** 2), self.d_model // 2)
         self.col_pos_embed = nn.Embedding(h // (2 ** 2), self.d_model // 2)
 
@@ -149,16 +136,9 @@ class RAFT(nn.Module):
         self.query_embed = nn.Embedding(self.num_keypoints, self.d_model)
         self.query_pos_embed = nn.Embedding(self.num_keypoints, self.d_model)
         self.flow_embed = MLP(self.d_model, self.d_model, 2, 3)
-        # self.flow_embed = nn.Linear(d_model, 2)
         self.context_embed = MLP(self.d_model, self.up_dim, self.up_dim, 3)
         self.reference_embed = MLP(self.d_model, self.d_model, 2, 3)
-        # self.reference_embed = nn.Embedding(self.num_keypoints, 2)
-        # self.reference_embed = nn.Embedding(self.num_keypoints, d_model)
-        # self.reference_pos_embed = MLP(d_model, d_model, 4, 3)
         self.confidence_embed = MLP(self.d_model, self.d_model, 1, 3)
-        # self.reference_embed = MLP(d_model, d_model, d_model, 3)
-        # self.reference_embed = nn.Linear(d_model, 2)
-        # self.extractor_embed = MLP(self.extractor.up_dim, d_model, d_model, 3)
         self.context_pos_embed = nn.Linear(self.d_model, self.up_dim)
         self.use_dab = True
         if self.use_dab:
@@ -177,12 +157,7 @@ class RAFT(nn.Module):
         if self.high_dim_query_update:
             self.high_dim_query_proj = MLP(self.d_model, self.d_model, self.d_model, 2)
 
-        # self.flow_embed = nn.ModuleList([self.flow_embed for _ in range(self.outer_iterations)])
-        # self.context_embed = nn.ModuleList([self.context_embed for _ in range(self.outer_iterations)])
-        # self.reference_embed = nn.ModuleList([self.reference_embed for _ in range(self.outer_iterations)])
         self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(self.outer_iterations)])
-        # self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(self.outer_iterations +
-        #                                                                                self.num_feature_levels)])
         self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(self.outer_iterations)])
         self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(self.outer_iterations)])
         self.confidence_embed = nn.ModuleList([copy.deepcopy(self.confidence_embed) for _ in range(self.outer_iterations)])
@@ -342,44 +317,21 @@ class RAFT(nn.Module):
         #     x1, x2 = features["{}".format(f_i)].split(bs, dim=0)
         #     D1.append(x1)
         #     D2.append(x2)
-        # features_01 = self.extractor(image1)
-        # features_02 = self.extractor(image2)
-        # D1 = [features_01["{}".format(i)] for i in range(len(features_01))]
-        # D2 = [features_02["{}".format(i)] for i in range(len(features_02))]
         _, c, h, w = D1[-1].shape
         # bs, hw, c
-        # src_pos = self.get_embedding(D1, self.col_pos_embed, self.row_pos_embed).flatten(2).permute(0, 2, 1)
-        # src_pos = [self.get_embedding(feat, col_embed, row_embed) + self.lvl_pos_embed.weight[i]
-        #            for i, (feat, col_embed, row_embed)
-        #            in enumerate(zip(D1, self.col_pos_embed, self.row_pos_embed))]
         src_pos = [self.get_embedding(feat, self.col_pos_embed, self.row_pos_embed) + self.lvl_pos_embed.weight[i]
                    for i, feat in enumerate(D1)]
-        # context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed)
         raw_context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed)
         raw_context_pos = self.context_pos_embed(raw_context_pos)
-        # context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed) + \
-        #               self.img_pos_embed.weight[None, -1, None]
-        # context_pos = self.get_embedding(U1, self.context_col_pos_embed, self.context_row_pos_embed)
-        # src_pos = [self.get_sine_embedding(feat) + self.lvl_pos_embed.weight[i]
-        #            for i, (feat, col_embed, row_embed)
-        #            in enumerate(zip(D1, self.col_pos_embed, self.row_pos_embed))]
-        # src_pos = torch.cat(src_pos, dim=1)
         src_pos = torch.flatten(torch.cat(src_pos, dim=1).unsqueeze(1) + self.img_pos_embed.weight[None, :2, None],
                                 start_dim=1, end_dim=2)
-        # src_pos = torch.cat(src_pos, dim=1)
         src = [self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1)
                for i, (feat1, feat2) in enumerate(zip(D1, D2))]
         src = torch.cat(torch.cat(src, dim=1).split(bs, dim=0), dim=1)
-        # src = torch.cat(src, dim=1)
 
         # bs, HW, CU1
-        # U1 = D1[0]
-        # U1 = self.context_extractor(image1)["0"]
         _, C, H, W = U1.shape
         U1 = torch.flatten(U1, 2).permute(0, 2, 1)
-        # U1 = U1 + context_pos
-        # U1 = self.extractor_embed(U1) + context_pos
-        # U1 = U1 + self.context_pos_embed(context_pos)
 
         # bs, n, c
         query = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
@@ -389,13 +341,7 @@ class RAFT(nn.Module):
         root = round(math.sqrt(self.num_keypoints))
         base_reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
         base_reference_points = base_reference_points.repeat(bs, 1, 1)
-
-        # root = round(math.sqrt(self.num_keypoints))
-        # reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
-        # reference_points = self.reference_embed.weight.unsqueeze(0)
-        # reference_points = reference_points.repeat(bs, 1, 1)
-        # reference_points = reference_points.unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
-        # reference_flows = self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
+        reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
         reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2), device=src.device) + 0.5
 
         spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 2, dtype=torch.long, device=src.device)
@@ -405,57 +351,11 @@ class RAFT(nn.Module):
         for i in range(len(self.encoder)):
             src = self.encoder[i](src, src_pos, src_ref, spatial_shapes, level_start_index)
 
-        # dense_predictions = list()
-        # for l_i in range(self.num_feature_levels):
-        #     start_i = level_start_index[l_i]
-        #     this_H, this_W = spatial_shapes[l_i]
-        #     this_src_01 = src[:, start_i:start_i + this_H * this_W]
-        #     start_i = level_start_index[self.num_feature_levels + l_i]
-        #     this_H, this_W = spatial_shapes[self.num_feature_levels + l_i]
-        #     this_src_02 = src[:, start_i:start_i + this_H * this_W]
-        #     # bs, hw, hw
-        #     corr = F.softmax(torch.bmm(this_src_01, this_src_02.permute(0, 2, 1)), dim=-1)
-        #     # bs, hw, 2
-        #     this_coords = src_ref.squeeze(2)[:, start_i:start_i + this_H * this_W].repeat(bs, 1, 1)
-        #     dense_flow = this_coords - torch.bmm(corr, this_coords)
-        #     dense_flow = dense_flow.permute(0, 2, 1).view(bs, 2, this_H, this_W)
-        #     # flow_embed = self.flow_embed[l_i](this_src)[..., :2]
-        #     # dense_flow = flow_embed.tanh().permute(0, 2, 1).view(bs, 2, this_H, this_W)
-        #     dense_flow = dense_flow * \
-        #                  torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
-        #     dense_flow = F.interpolate(dense_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
-        #     dense_predictions.append(dense_flow)
-
-        dense_predictions = list()
-
-        # reference_embed = \
-        #     self.query_selector(self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1).permute(1, 0, 2),
-        #                         (src + src_pos).permute(1, 0, 2)).permute(1, 0, 2)
-        # reference_points = self.reference_pos_embed(reference_embed).sigmoid()
-
         flow_predictions = list()
         sparse_predictions = list()
         context_flow = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=src.device)
         for o_i in range(self.outer_iterations):
             for i_i in range(self.inner_iterations):
-                # bs, n, 2
-                # if not self.use_dab:
-                #     reference_points = (inverse_sigmoid(base_reference_points.detach()) +
-                #                         self.reference_embed[o_i](query + query_pos)).sigmoid().unsqueeze(2)
-                # else:
-                #     reference_points = (inverse_sigmoid(base_reference_points.detach()) +
-                #                         self.reference_embed[o_i](query)).sigmoid().unsqueeze(2)
-                # reference_points = reference_points.repeat(1, 1, self.num_feature_levels * 2, 1)
-                reference_points = \
-                    base_reference_points.detach().unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
-
-                # reference_points = self.reference_embed[o_i](query + query_pos).sigmoid()
-
-                # query = self.keypoint_decoder[o_i]((query + query_pos).permute(1, 0, 2),
-                #                                    (src + src_pos).permute(1, 0, 2)).permute(1, 0, 2)
-                # reference_points = (inverse_sigmoid(base_reference_points.detach()) +
-                #                     self.reference_embed[o_i](query)).sigmoid()
-
                 if self.use_dab:
                     raw_query_pos = torch.cat((reference_points[:, :, 0], reference_flows), dim=-1)
                     if self.no_sine_embed:
@@ -482,27 +382,9 @@ class RAFT(nn.Module):
                 query = self.decoder[o_i](query, query_pos, reference_points,
                                           src, src_pos, spatial_shapes, level_start_index)
 
-                # keypoint = self.keypoint_decoder[o_i](keypoint, query_pos, reference_points.unsqueeze(2),
-                #                                     src, src_pos, spatial_shapes, level_start_index)
-                # reference_points = (inverse_sigmoid(reference_points.detach()) +
-                #                     self.reference_embed[o_i](keypoint)).sigmoid()
-                # context = self.context_embed[o_i](keypoint)
-
-                # bs, n, c
-
-                # correlation = self.correlation_decoder[o_i](keypoint, query_pos, corr_ref_points.unsqueeze(2),
-                #                                             src, src_pos, spatial_shapes, level_start_index)
-
                 # bs, n, 2
                 flow_embed = self.flow_embed[o_i](query)
                 flow_embed = flow_embed + inverse_sigmoid(reference_flows)
-
-                # flow_embed = self.flow_embed[o_i + self.num_feature_levels](query)
-
-                # key_flow = new_reference_points[..., :2].sigmoid().detach() - \
-                #            (new_reference_points[..., :2] + (new_reference_points[..., 2:])).sigmoid()
-                # key_flow = reference_points.detach() - \
-                #            (inverse_sigmoid(reference_points[..., :2]).detach() + flow_embed[..., 2:]).sigmoid()
 
                 src_points = reference_points[:, :, 0].detach()
                 dst_points = (inverse_sigmoid(src_points) + flow_embed).sigmoid()
@@ -510,54 +392,31 @@ class RAFT(nn.Module):
                 reference_points[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
                 reference_flows = flow_embed.detach().sigmoid()
 
-                # key_flow = inverse_sigmoid(reference_points.detach()) + flow_embed
-                # # key_flow = inverse_sigmoid(reference_points) + flow_embed
-                # key_flow = reference_points.detach() - key_flow.sigmoid()
-                # new_corr_ref_points = (inverse_sigmoid(corr_ref_points.detach()) + flow_embed).sigmoid()
-                # flow = inverse_sigmoid(reference_points.detach()) + flow_embed
-                # n_flow = corr_ref_points.detach() - new_corr_ref_points.sigmoid()
-                # corr_ref_points = new_corr_ref_points
-                # flow = flow_embed.tanh()
-                # confidence = flow_embed[..., 2:].sigmoid()
-                # flow = inverse_sigmoid(reference_points) + self.flow_embed[i](query)
-                # flow = reference_points - flow.sigmoid()
-                # bs, n, c
-                # bs, n, c
-                # reference_points = inverse_sigmoid(reference_points.detach()) + self.reference_embed[i](query)
-                # reference_points = reference_points.unsqueeze(2).sigmoid()
-
                 # bs, HW, n
                 context = self.context_embed[o_i](query)
                 context_flow = F.softmax(torch.bmm(U1 + context_pos, context.permute(0, 2, 1)), dim=-1)
-                # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
-                # confidence = self.confidence_embed[o_i](query).squeeze(-1).unsqueeze(1)
-                # context_flow = F.softmax(torch.bmm(U1 + context_pos, context.permute(0, 2, 1)) * confidence, dim=-1)
-                masks = context_flow.permute(0, 2, 1).detach()
-                scores = torch.max(context_flow, dim=1)[0].detach()
-                # context_flow = torch.sigmoid(torch.bmm(U1, context.permute(0, 2, 1)))
+                masks = context_flow.permute(0, 2, 1).detach().cpu()
+                scores = torch.max(context_flow, dim=1)[0].detach().cpu()
                 # bs, HW, 2
                 context_flow = torch.bmm(context_flow, key_flow)
-                # context_flow = torch.bmm(context_flow, key_flow.detach())
                 # bs, 2, H, W
                 flow = context_flow.permute(0, 2, 1).view(bs, 2, H, W)
                 flow = flow * torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
 
                 if I_H != H or I_W != W:
                     flow = F.interpolate(flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
+
                     masks = masks.reshape(bs * self.num_keypoints, 1, H, W)
                     masks = F.interpolate(masks, size=(I_H, I_W), mode="bilinear", align_corners=False)
                     masks = masks.view(bs, self.num_keypoints, I_H, I_W)
-                    # flow = flow.detach() + \
-                    #        F.interpolate(context_flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
 
                 flow_predictions.append(flow)
-                sparse_predictions.append((reference_points[:, :, 0], key_flow, masks, scores, None))
-                # sparse_predictions.append((reference_points[..., :2], key_flow, masks, scores, confidence.sigmoid()))
+                sparse_predictions.append((reference_points[:, :, 0].cpu(), key_flow, masks, scores))
 
         if test_mode:
-            return flow_predictions, sparse_predictions, dense_predictions
+            return flow_predictions, sparse_predictions
         else:
-            return flow_predictions, sparse_predictions, dense_predictions
+            return flow_predictions, sparse_predictions
 
 
 class MLP(nn.Module):

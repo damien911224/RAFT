@@ -493,7 +493,7 @@ class RAFT(nn.Module):
                     reference_flows = F.interpolate(reference_flows, (N * 2, N * 2),
                                                     mode="bilinear", align_corners=False)
                     reference_flows = reference_flows.flatten(2).permute(0, 2, 1)
-                else:
+                elif o_i >= 1:
                     N = round(math.sqrt(self.num_keypoints)) * (2 ** (self.num_feature_levels - 1))
                     n = round(math.sqrt(self.num_keypoints))
                     query = query.permute(0, 2, 1)

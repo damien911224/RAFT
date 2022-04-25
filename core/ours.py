@@ -411,7 +411,7 @@ class RAFT(nn.Module):
                     masks = masks.view(bs, self.num_keypoints, I_H, I_W)
 
                 flow_predictions.append(flow)
-                sparse_predictions.append((reference_points[:, :, 0].cpu(), key_flow, masks, scores))
+                sparse_predictions.append((reference_points[:, :, 0], key_flow, masks, scores))
 
         if test_mode:
             return flow_predictions, sparse_predictions

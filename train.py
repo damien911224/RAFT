@@ -67,15 +67,15 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
         flow_loss += i_weight * (dense_valid[:, None] * i_loss).mean()
 
         ref, sparse_flow, _, _ = flow_preds[1][i]
-        scale = torch.tensor((I_W - 1, I_H - 1), dtype=torch.float32).view(1, 1, 2)
+        scale = torch.tensor((I_W - 1, I_H - 1), dtype=torch.float32).view(1, 1, 2).to(sparse_flow.device)
         flatten_gt = flow_gt.flatten(2).permute(0, 2, 1)
         flatten_valid = valid.flatten(1)
-        coords = torch.round(ref * scale.to(ref.device)).long()
+        coords = torch.round(ref * scale).long()
         coords = torch.clamp_max(coords[..., 1] * coords[..., 0], I_H * I_W - 1)
         sparse_gt = torch.gather(flatten_gt, 1, coords.unsqueeze(-1).repeat(1, 1, 2))
         sparse_valid = torch.gather(flatten_valid, 1, coords)
         sparse_valid = (sparse_valid >= 0.5) & (torch.sum(sparse_gt ** 2, dim=-1).sqrt() < max_flow)
-        sparse_i_loss = (sparse_flow * scale.to(sparse_flow.device) - sparse_gt).abs()
+        sparse_i_loss = (sparse_flow * scale - sparse_gt).abs()
         sparse_loss += i_weight * (sparse_valid[..., None] * sparse_i_loss).mean()
 
     loss = flow_loss + sparse_loss
@@ -174,7 +174,7 @@ class Logger:
         for p_i in range(len(pred[0])):
             ref, sparse_flow, masks, scores, _ = pred[1][p_i]
             coords = torch.round(ref.squeeze(0) * scale).long()
-            coords = coords.detach().numpy()
+            coords = coords.cpu().numpy()
             confidence = np.squeeze(scores.squeeze(0).numpy())
             ref_img = cv2.cvtColor(np.array(image1, dtype=np.uint8), cv2.COLOR_RGB2BGR)
             for k_i in range(len(coords)):
@@ -234,7 +234,7 @@ class Logger:
             for p_i in range(len(preds[0])):
                 ref, sparse_flow, masks, scores, _ = preds[1][p_i]
                 coords = torch.round(ref * scale).long()
-                coords = coords.detach().numpy()[n_i]
+                coords = coords.cpu().numpy()[n_i]
                 confidence = np.squeeze(scores.numpy()[n_i])
                 ref_img = cv2.cvtColor(np.array(this_image1, dtype=np.uint8), cv2.COLOR_RGB2BGR)
                 for k_i in range(len(coords)):

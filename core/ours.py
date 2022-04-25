@@ -451,7 +451,7 @@ class RAFT(nn.Module):
             root = round(math.sqrt(self.num_keypoints))
             base_reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
             base_reference_points = base_reference_points.repeat(bs, 1, 1)
-            reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
+            reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, 2, 1)
             reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2),
                                           device=src.device) + 0.5
             context_flow = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=image1.device)
@@ -467,7 +467,7 @@ class RAFT(nn.Module):
                     reference_points = F.interpolate(reference_points, (N * 2, N * 2),
                                                      mode="bilinear", align_corners=False)
                     reference_points = reference_points.flatten(2).permute(0, 2, 1)
-                    reference_points = reference_points.unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
+                    reference_points = reference_points.unsqueeze(2).repeat(1, 1, 2, 1)
 
                     query = query.permute(0, 2, 1)
                     query = query.reshape(bs, self.d_model, N, N)
@@ -513,7 +513,7 @@ class RAFT(nn.Module):
                 src_points = reference_points[:, :, 0].detach()
                 dst_points = (inverse_sigmoid(src_points) + flow_embed).sigmoid()
                 key_flow = src_points - dst_points
-                reference_points[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
+                reference_points[:, :, 1] = dst_points.detach()
                 reference_flows = flow_embed.detach().sigmoid()
 
                 # bs, HW, n

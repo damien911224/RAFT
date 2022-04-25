@@ -261,8 +261,8 @@ class RAFT(nn.Module):
     def get_reference_points(self, spatial_shapes, device):
         reference_points_list = []
         for lvl, (H_, W_) in enumerate(spatial_shapes):
-            ref_y, ref_x = torch.meshgrid(torch.linspace(0.5, H_ - 0.5, H_, dtype=torch.float32, device=device) / H_,
-                                          torch.linspace(0.5, W_ - 0.5, W_, dtype=torch.float32, device=device) / W_)
+            ref_y, ref_x = torch.meshgrid(torch.linspace(0.0, H_ - 0.0, H_ - 1, dtype=torch.float32, device=device) / (H_ - 1),
+                                          torch.linspace(0.0, W_ - 0.0, W_ - 1, dtype=torch.float32, device=device) / (W_ - 1))
             ref_y = ref_y.reshape(-1)[None]
             ref_x = ref_x.reshape(-1)[None]
             ref = torch.stack((ref_x, ref_y), -1)

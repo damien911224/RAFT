@@ -160,18 +160,20 @@ class RAFT(nn.Module):
         if self.use_dab:
             self.context_flow_head = MLP(2, self.up_dim, self.up_dim, 3)
             self.context_scale = MLP(self.up_dim, self.up_dim, self.up_dim, 2)
-            self.context_high_dim_query_proj = MLP(self.up_dim, self.up_dim, self.up_dim, 2)
+            self.src_pos_head = MLP(2, self.d_model, self.d_model, 3)
+            self.src_scale = MLP(self.d_model, self.d_model, self.d_model, 2)
 
-        self.no_sine_embed = True
-        if self.use_dab:
+            self.no_sine_embed = True
             self.query_scale = MLP(self.d_model, self.d_model, self.d_model, 2)
             if self.no_sine_embed:
                 self.ref_point_head = MLP(4, self.d_model, self.d_model, 3)
             else:
                 self.ref_point_head = MLP(2 * self.d_model, self.d_model, self.d_model, 2)
-        self.high_dim_query_update = True
-        if self.high_dim_query_update:
-            self.high_dim_query_proj = MLP(self.d_model, self.d_model, self.d_model, 2)
+            self.high_dim_query_update = True
+            if self.high_dim_query_update:
+                self.high_dim_query_proj = MLP(self.d_model, self.d_model, self.d_model, 2)
+                self.context_high_dim_query_proj = MLP(self.up_dim, self.up_dim, self.up_dim, 2)
+                self.src_high_dim_query_proj = MLP(self.d_model, self.d_model, self.d_model, 2)
 
         # self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(self.outer_iterations)])
         # self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(self.outer_iterations)])
@@ -379,7 +381,7 @@ class RAFT(nn.Module):
         # src_pos = new_src_pos
 
         src = torch.cat(src.split(bs, dim=0), dim=1)
-        src_pos = (src_pos.unsqueeze(1) + self.img_pos_embed.weight[None, :2, None]).flatten(start_dim=1, end_dim=2)
+        raw_src_pos = (src_pos.unsqueeze(1) + self.img_pos_embed.weight[None, :2, None]).flatten(start_dim=1, end_dim=2)
         spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 2, dtype=torch.long, device=src.device)
         level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
@@ -436,6 +438,24 @@ class RAFT(nn.Module):
 
                     if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
                         context_pos = context_pos + self.context_high_dim_query_proj(U1)
+
+                    if o_i >= 1:
+                        # bs, HW, N
+                        attention_pos = list()
+                        for H_, W_ in spatial_shapes:
+                            this_mask = F.interpolate(masks, size=(H_, W_), mode="bilinear", align_corners=False)
+                            this_mask = this_mask.squeeze(2).flatten(2).permute(0, 2, 1)
+                            attention_pos.append(torch.bmm(this_mask, query_pos.detach()))
+                        attention_pos = torch.cat(attention_pos, dim=1)
+                        # bs, HW, d_model
+                        src_pos = raw_src_pos + self.src_pos_head(attention_pos)
+                        src_pos_scale = self.src_scale(src) if not (o_i == 0 and i_i == 0) else 1
+                        src_pos = src_pos_scale * src_pos
+
+                        if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
+                            src_pos = src_pos + self.src_high_dim_query_proj(src)
+                    else:
+                        src_pos = raw_src_pos
 
                 query = self.decoder[o_i](query, query_pos, reference_points,
                                           src, src_pos, spatial_shapes, level_start_index)

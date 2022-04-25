@@ -320,7 +320,7 @@ class Logger:
 
 def train(args):
 
-    model = nn.DataParallel(RAFT(args), device_ids=args.gpus)
+    model = nn.DataParallel(RAFT(args), device_ids=args.gpus, output_device="cpu")
     print("Parameter Count: %d" % count_parameters(model))
 
     if args.restore_ckpt is not None:

@@ -357,8 +357,8 @@ class RAFT(nn.Module):
         context_flow = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=src.device)
         for o_i in range(self.outer_iterations):
             for i_i in range(self.inner_iterations):
+                N = self.num_keypoints * (2 ** o_i)
                 if o_i >= 1:
-                    N = self.num_keypoints
                     reference_points = reference_points[:, :, 0].permute(0, 2, 1)
                     reference_points = reference_points.reshape(bs, 2, N, N)
                     reference_points = F.interpolate(reference_points, (N * 2, N * 2),
@@ -376,7 +376,6 @@ class RAFT(nn.Module):
                     reference_flows = F.interpolate(reference_flows, (N * 2, N * 2),
                                                     mode="bilinear", align_corners=False)
                     reference_flows = reference_flows.flatten(2).permute(0, 2, 1)
-
 
                 if self.use_dab:
                     raw_query_pos = torch.cat((reference_points[:, :, 0], reference_flows), dim=-1)
@@ -427,7 +426,7 @@ class RAFT(nn.Module):
 
                 if I_H != H or I_W != W:
                     flow = F.interpolate(flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
-                    masks = masks.reshape(bs, self.num_keypoints, 1, H, W)
+                    masks = masks.reshape(bs, N, 1, H, W)
                     # masks = F.interpolate(masks, size=(I_H, I_W), mode="bilinear", align_corners=False)
                     # masks = masks.view(bs, self.num_keypoints, I_H, I_W)
 

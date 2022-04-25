@@ -361,19 +361,19 @@ class RAFT(nn.Module):
                     N = round(math.sqrt(self.num_keypoints)) + ((o_i - 1) * 5)
                     reference_points = reference_points[:, :, 0].permute(0, 2, 1)
                     reference_points = reference_points.reshape(bs, 2, N, N)
-                    reference_points = F.interpolate(reference_points, (N + o_i * 5, N + o_i * 5),
+                    reference_points = F.interpolate(reference_points, (N + 5, N + 5),
                                                      mode="bilinear", align_corners=False)
                     reference_points = reference_points.flatten(2).permute(0, 2, 1)
                     reference_points = reference_points.unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
 
                     query = query.permute(0, 2, 1)
                     query = query.reshape(bs, self.d_model, N, N)
-                    query = F.interpolate(query, (N + o_i * 5, N + o_i * 5), mode="bilinear", align_corners=False)
+                    query = F.interpolate(query, (N + 5, N + 5), mode="bilinear", align_corners=False)
                     query = query.flatten(2).permute(0, 2, 1)
 
                     reference_flows = reference_flows.permute(0, 2, 1)
                     reference_flows = reference_flows.reshape(bs, 2, N, N)
-                    reference_flows = F.interpolate(reference_flows, (N + o_i * 5, N + o_i * 5),
+                    reference_flows = F.interpolate(reference_flows, (N + 5, N + 5),
                                                     mode="bilinear", align_corners=False)
                     reference_flows = reference_flows.flatten(2).permute(0, 2, 1)
 

@@ -67,7 +67,7 @@ class RAFT(nn.Module):
         self.encoder = \
             nn.ModuleList((DeformableTransformerEncoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
                                                              dropout=0.1, activation="gelu",
-                                                             n_levels=self.num_feature_levels * 2,
+                                                             n_levels=self.num_feature_levels,
                                                              n_heads=8, n_points=4)
                            for _ in range(self.encoder_iterations)))
 

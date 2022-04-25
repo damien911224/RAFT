@@ -331,7 +331,7 @@ class RAFT(nn.Module):
         src = [self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1)
                for i, (feat1, feat2) in enumerate(zip(D1, D2))]
         # src = torch.cat(torch.cat(src, dim=1).split(bs, dim=0), dim=1)
-        src = torch.cat(src, dim=1).split(bs, dim=0)
+        src = torch.cat(src, dim=1)
 
         # bs, HW, CU1
         _, C, H, W = U1.shape

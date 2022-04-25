@@ -175,7 +175,7 @@ class Logger:
             ref, sparse_flow, masks, scores, _ = pred[1][p_i]
             coords = torch.round(ref.squeeze(0) * scale).long()
             coords = coords.cpu().numpy()
-            confidence = np.squeeze(scores.squeeze(0).numpy())
+            confidence = np.squeeze(scores.squeeze(0).cpu().numpy())
             ref_img = cv2.cvtColor(np.array(image1, dtype=np.uint8), cv2.COLOR_RGB2BGR)
             for k_i in range(len(coords)):
                 coord = coords[k_i]
@@ -191,7 +191,7 @@ class Logger:
         mask_img = list()
         top_k = len(pred[0])
         # top_k_indices = np.argsort(-confidence)[:top_k]
-        masks = masks.squeeze(0).numpy()
+        masks = masks.squeeze(0).cpu().numpy()
         top_k_indices = np.argsort(-np.sum(masks, axis=(1, 2)))[:top_k]
         for m_i in top_k_indices:
             coord = coords[m_i]
@@ -235,7 +235,7 @@ class Logger:
                 ref, sparse_flow, masks, scores, _ = preds[1][p_i]
                 coords = torch.round(ref * scale).long()
                 coords = coords.cpu().numpy()[n_i]
-                confidence = np.squeeze(scores.numpy()[n_i])
+                confidence = np.squeeze(scores.cpu().numpy()[n_i])
                 ref_img = cv2.cvtColor(np.array(this_image1, dtype=np.uint8), cv2.COLOR_RGB2BGR)
                 for k_i in range(len(coords)):
                     coord = coords[k_i]
@@ -252,7 +252,7 @@ class Logger:
             mask_img = list()
             top_k = len(preds[0])
             # top_k_indices = np.argsort(-confidence)[:top_k]
-            masks = masks[n_i].numpy()
+            masks = masks[n_i].cpu().numpy()
             top_k_indices = np.argsort(-np.sum(masks, axis=(1, 2)))[:top_k]
             for m_i in top_k_indices:
                 coord = coords[m_i]

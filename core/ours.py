@@ -138,7 +138,7 @@ class RAFT(nn.Module):
         self.query_pos_embed = nn.Embedding(self.num_keypoints, self.d_model)
         self.flow_embed = MLP(self.d_model, self.d_model, 2, 3)
         self.context_embed = MLP(self.d_model, self.up_dim, self.up_dim, 3)
-        self.reference_embed = MLP(self.d_model, self.d_model, 2, 3)
+        # self.reference_embed = MLP(self.d_model, self.d_model, 2, 3)
         # self.confidence_embed = MLP(self.d_model, self.d_model, 1, 3)
         self.context_pos_embed = nn.Linear(self.d_model, self.up_dim)
         self.use_dab = True
@@ -163,7 +163,6 @@ class RAFT(nn.Module):
         # self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(self.outer_iterations)])
         self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(self.outer_iterations * self.inner_iterations)])
         self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(self.outer_iterations * self.inner_iterations)])
-        self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(self.outer_iterations * self.inner_iterations)])
 
         self.reset_parameters()
 
@@ -508,7 +507,7 @@ class RAFT(nn.Module):
                                                 src[i_i], src_pos[i_i], spatial_shapes, level_start_index)
 
                 # bs, n, 2
-                flow_embed = self.flow_embed[o_i](query)
+                flow_embed = self.flow_embed[o_i * i_i](query)
                 flow_embed = flow_embed + inverse_sigmoid(reference_flows)
 
                 src_points = reference_points[:, :, 0].detach()
@@ -518,7 +517,7 @@ class RAFT(nn.Module):
                 reference_flows = flow_embed.detach().sigmoid()
 
                 # bs, HW, n
-                context = self.context_embed[o_i](query)
+                context = self.context_embed[o_i * i_i](query)
                 context_flow = F.softmax(torch.bmm(U1 + context_pos, context.permute(0, 2, 1)), dim=-1)
                 if i_i >= self.num_feature_levels - 1:
                     masks = context_flow.permute(0, 2, 1).detach()

@@ -367,7 +367,7 @@ class RAFT(nn.Module):
                     reference_points = reference_points.unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
 
                     query = query.permute(0, 2, 1)
-                    query = query.reshape(bs, 2, N, N)
+                    query = query.reshape(bs, self.d_model, N, N)
                     query = F.interpolate(query, (N * 2, N * 2), mode="bilinear", align_corners=False)
                     query = query.flatten(2).permute(0, 2, 1)
 

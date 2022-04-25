@@ -442,8 +442,10 @@ class RAFT(nn.Module):
                     if o_i >= 1:
                         # bs, HW, N
                         attention_pos = list()
+                        masks = masks.flatten(start_dim=0, end_dim=1)
                         for H_, W_ in spatial_shapes:
                             this_mask = F.interpolate(masks, size=(H_, W_), mode="bilinear", align_corners=False)
+                            this_mask = torch.stack(this_mask.split(bs, dim=0), dim=1)
                             this_mask = this_mask.squeeze(2).flatten(2).permute(0, 2, 1)
                             attention_pos.append(torch.bmm(this_mask, query_pos.detach()))
                         attention_pos = torch.cat(attention_pos, dim=1)

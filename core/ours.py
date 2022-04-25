@@ -405,7 +405,7 @@ class RAFT(nn.Module):
 
                 if I_H != H or I_W != W:
                     flow = F.interpolate(flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
-                    masks = masks.reshape(self.num_keypoints, 1, H, W)
+                    masks = masks.reshape(bs, self.num_keypoints, 1, H, W)
                     # masks = F.interpolate(masks, size=(I_H, I_W), mode="bilinear", align_corners=False)
                     # masks = masks.view(bs, self.num_keypoints, I_H, I_W)
 

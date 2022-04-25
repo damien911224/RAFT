@@ -358,22 +358,22 @@ class RAFT(nn.Module):
         for o_i in range(self.outer_iterations):
             for i_i in range(self.inner_iterations):
                 if o_i >= 1:
-                    N = round(math.sqrt(self.num_keypoints)) * (2 ** (o_i - 1))
+                    N = round(math.sqrt(self.num_keypoints)) * (2 + (o_i - 1) * 5)
                     reference_points = reference_points[:, :, 0].permute(0, 2, 1)
                     reference_points = reference_points.reshape(bs, 2, N, N)
-                    reference_points = F.interpolate(reference_points, (N + o_i, N + o_i),
+                    reference_points = F.interpolate(reference_points, (N + o_i * 5, N + o_i * 5),
                                                      mode="bilinear", align_corners=False)
                     reference_points = reference_points.flatten(2).permute(0, 2, 1)
                     reference_points = reference_points.unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
 
                     query = query.permute(0, 2, 1)
                     query = query.reshape(bs, self.d_model, N, N)
-                    query = F.interpolate(query, (N + o_i, N + o_i), mode="bilinear", align_corners=False)
+                    query = F.interpolate(query, (N + o_i * 5, N + o_i * 5), mode="bilinear", align_corners=False)
                     query = query.flatten(2).permute(0, 2, 1)
 
                     reference_flows = reference_flows.permute(0, 2, 1)
                     reference_flows = reference_flows.reshape(bs, 2, N, N)
-                    reference_flows = F.interpolate(reference_flows, (N + o_i, N + o_i),
+                    reference_flows = F.interpolate(reference_flows, (N + o_i * 5, N + o_i * 5),
                                                     mode="bilinear", align_corners=False)
                     reference_flows = reference_flows.flatten(2).permute(0, 2, 1)
 

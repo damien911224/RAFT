@@ -370,12 +370,12 @@ class RAFT(nn.Module):
             this_start_index = level_start_index[l_i]
             this_length = this_H * this_W
             this_src = torch.cat(src[:, this_start_index:this_start_index + this_length].split(bs, dim=0), dim=1)
-            this_src_pos = (src_pos[:, this_start_index:this_start_index + this_length].unsqueeze(1) + \
+            this_src_pos = (src_pos[:, this_start_index:this_start_index + this_length].unsqueeze(1) +
                             self.img_pos_embed.weight[None, :2, None]).flatten(start_dim=1, end_dim=2)
             new_src.append(this_src)
             new_src_pos.append(this_src_pos)
         src = new_src
-        src_pos = src_pos
+        src_pos = new_src_pos
 
         # flow_predictions = list()
         # sparse_predictions = list()

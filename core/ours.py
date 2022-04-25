@@ -463,11 +463,11 @@ class RAFT(nn.Module):
         sparse_predictions = list()
         for o_i in range(self.outer_iterations):
             root = round(math.sqrt(self.num_keypoints))
-            base_reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
+            base_reference_points = self.get_reference_points([(root, root), ], device=image1.device).squeeze(2)
             base_reference_points = base_reference_points.repeat(bs, 1, 1)
             reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, 2, 1)
             reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2),
-                                          device=src.device) + 0.5
+                                          device=image1.device) + 0.5
             context_flow = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=image1.device)
             for i_i in range(self.inner_iterations):
                 this_spatial_shapes = spatial_shapes[i_i].unsqueeze(0).repeat(2, 1)

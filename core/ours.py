@@ -61,7 +61,7 @@ class RAFT(nn.Module):
         self.outer_iterations = 6
         self.inner_iterations = 1
         # self.inner_iterations = self.num_feature_levels
-        self.num_keypoints = 100
+        self.num_keypoints = 200
         # self.num_keypoints = 25
 
         self.encoder = \
@@ -154,7 +154,7 @@ class RAFT(nn.Module):
         self.flow_embed = MLP(self.d_model, self.d_model, 2, 3)
         self.context_embed = MLP(self.d_model, self.up_dim, self.up_dim, 3)
         # self.reference_embed = MLP(self.d_model, self.d_model, 2, 3)
-        # self.confidence_embed = MLP(self.d_model, self.d_model, 1, 3)
+        self.confidence_embed = MLP(self.d_model, self.d_model, 2, 3)
         self.context_pos_embed = nn.Linear(self.d_model, self.up_dim)
         self.use_dab = True
         if self.use_dab:
@@ -180,6 +180,7 @@ class RAFT(nn.Module):
         # self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(self.outer_iterations)])
         self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(self.outer_iterations * self.inner_iterations)])
         self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(self.outer_iterations * self.inner_iterations)])
+        self.confidence_embed = nn.ModuleList([copy.deepcopy(self.confidence_embed) for _ in range(self.outer_iterations * self.inner_iterations)])
 
         self.reset_parameters()
 
@@ -418,6 +419,15 @@ class RAFT(nn.Module):
                 #     reference_flows = F.interpolate(reference_flows, (N + step, N + step),
                 #                                     mode="bilinear", align_corners=False)
                 #     reference_flows = reference_flows.flatten(2).permute(0, 2, 1)
+                split = 0
+                # bs, n, 2
+                if o_i >= 1:
+                    confidence_embed = self.confidence_embed[o_i](query)
+                    confidence_onehot = F.gumbel_softmax(confidence_embed, tau=1, hard=True, eps=1e-10, dim=-1)
+                    # bs, n, 1
+                    query_mask = confidence_onehot[..., 1].unsqueeze(-1)
+                    query = query * query_mask
+                split = 0
 
                 if self.use_dab:
                     # if o_i >= 1:

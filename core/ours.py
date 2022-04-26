@@ -67,7 +67,7 @@ class RAFT(nn.Module):
         self.encoder = \
             nn.ModuleList((DeformableTransformerEncoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
                                                              dropout=0.1, activation="gelu",
-                                                             n_levels=self.num_feature_levels,
+                                                             n_levels=self.num_feature_levels * 2,
                                                              n_heads=8, n_points=4)
                            for _ in range(self.encoder_iterations)))
 
@@ -338,13 +338,15 @@ class RAFT(nn.Module):
         #     D2.append(x2)
         _, c, h, w = D1[-1].shape
         # bs, hw, c
-        src_pos = [self.get_embedding(feat, self.col_pos_embed, self.row_pos_embed) + self.lvl_pos_embed.weight[i]
-                   for i, feat in enumerate(D1)]
+        raw_src_pos = [self.get_embedding(feat, self.col_pos_embed, self.row_pos_embed) + self.lvl_pos_embed.weight[i]
+                       for i, feat in enumerate(D1)]
+        # raw_src_pos = torch.flatten(
+        #     torch.cat(raw_src_pos, dim=1).unsqueeze(1) + self.img_pos_embed.weight[None, :2, None],
+        #     start_dim=1, end_dim=2)
+        raw_src_pos = torch.cat(raw_src_pos, dim=1)
         raw_context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed)
-        raw_context_pos = self.context_pos_embed(raw_context_pos + self.img_pos_embed.weight[None, -1][:, None])
-        # src_pos = torch.flatten(torch.cat(src_pos, dim=1).unsqueeze(1) + self.img_pos_embed.weight[None, :2, None],
-        #                         start_dim=1, end_dim=2)
-        src_pos = torch.cat(src_pos, dim=1)
+        raw_context_pos = self.context_pos_embed(raw_context_pos)
+        # raw_context_pos = self.context_pos_embed(raw_context_pos + self.img_pos_embed.weight[None, -1][:, None])
         src = [self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1)
                for i, (feat1, feat2) in enumerate(zip(D1, D2))]
         # src = torch.cat(torch.cat(src, dim=1).split(bs, dim=0), dim=1)
@@ -364,7 +366,7 @@ class RAFT(nn.Module):
 
         src_ref = self.get_reference_points(spatial_shapes, device=src.device)
         for i in range(len(self.encoder)):
-            src = self.encoder[i](src, src_pos, src_ref, spatial_shapes, level_start_index)
+            src = self.encoder[i](src, raw_src_pos, src_ref, spatial_shapes, level_start_index)
 
         # new_src = list()
         # new_src_pos = list()
@@ -381,7 +383,8 @@ class RAFT(nn.Module):
         # src_pos = new_src_pos
 
         src = torch.cat(src.split(bs, dim=0), dim=1)
-        raw_src_pos = (src_pos.unsqueeze(1) + self.img_pos_embed.weight[None, :2, None]).flatten(start_dim=1, end_dim=2)
+        raw_src_pos = (raw_src_pos.unsqueeze(1) +
+                       self.img_pos_embed.weight[None, :2, None]).flatten(start_dim=1, end_dim=2)
         spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 2, dtype=torch.long, device=src.device)
         level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
@@ -417,25 +420,27 @@ class RAFT(nn.Module):
                 #     reference_flows = reference_flows.flatten(2).permute(0, 2, 1)
 
                 if self.use_dab:
-                    if o_i >= 1:
-                        # bs, HW, N
-                        attention_pos = list()
-                        masks = masks.flatten(start_dim=0, end_dim=1)
-                        for H_, W_ in spatial_shapes:
-                            this_mask = F.interpolate(masks, size=(H_, W_), mode="bilinear", align_corners=False)
-                            this_mask = torch.stack(this_mask.split(bs, dim=0), dim=1)
-                            this_mask = this_mask.squeeze(2).flatten(2).permute(0, 2, 1)
-                            attention_pos.append(torch.bmm(this_mask, query_pos.detach()))
-                        attention_pos = torch.cat(attention_pos, dim=1)
-                        # bs, HW, d_model
-                        src_pos = raw_src_pos + self.src_pos_head(attention_pos)
-                        src_pos_scale = self.src_scale(src) if not (o_i == 0 and i_i == 0) else 1
-                        src_pos = src_pos_scale * src_pos
+                    # if o_i >= 1:
+                    #     # bs, HW, N
+                    #     attention_pos = list()
+                    #     masks = masks.flatten(start_dim=0, end_dim=1)
+                    #     for H_, W_ in spatial_shapes:
+                    #         this_mask = F.interpolate(masks, size=(H_, W_), mode="bilinear", align_corners=False)
+                    #         this_mask = torch.stack(this_mask.split(bs, dim=0), dim=1)
+                    #         this_mask = this_mask.squeeze(2).flatten(2).permute(0, 2, 1)
+                    #         attention_pos.append(torch.bmm(this_mask, query_pos.detach()))
+                    #     attention_pos = torch.cat(attention_pos, dim=1)
+                    #     # bs, HW, d_model
+                    #     src_pos = raw_src_pos + self.src_pos_head(attention_pos)
+                    #     src_pos_scale = self.src_scale(src) if not (o_i == 0 and i_i == 0) else 1
+                    #     src_pos = src_pos_scale * src_pos
+                    #
+                    #     if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
+                    #         src_pos = src_pos + self.src_high_dim_query_proj(src)
+                    # else:
+                    #     src_pos = raw_src_pos
 
-                        if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
-                            src_pos = src_pos + self.src_high_dim_query_proj(src)
-                    else:
-                        src_pos = raw_src_pos
+                    src_pos = raw_src_pos
 
                     raw_query_pos = torch.cat((reference_points[:, :, 0], reference_flows), dim=-1)
                     if self.no_sine_embed:

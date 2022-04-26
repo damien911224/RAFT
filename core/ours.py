@@ -61,13 +61,13 @@ class RAFT(nn.Module):
         self.outer_iterations = 6
         self.inner_iterations = 1
         # self.inner_iterations = self.num_feature_levels
-        self.num_keypoints = 100
-        # self.num_keypoints = 25
+        # self.num_keypoints = 100
+        self.num_keypoints = 25
 
         self.encoder = \
             nn.ModuleList((DeformableTransformerEncoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
                                                              dropout=0.1, activation="gelu",
-                                                             n_levels=self.num_feature_levels * 1,
+                                                             n_levels=self.num_feature_levels * 2,
                                                              n_heads=8, n_points=4)
                            for _ in range(self.encoder_iterations)))
 
@@ -340,17 +340,17 @@ class RAFT(nn.Module):
         # bs, hw, c
         raw_src_pos = [self.get_embedding(feat, self.col_pos_embed, self.row_pos_embed) + self.lvl_pos_embed.weight[i]
                        for i, feat in enumerate(D1)]
-        # raw_src_pos = torch.flatten(
-        #     torch.cat(raw_src_pos, dim=1).unsqueeze(1) + self.img_pos_embed.weight[None, :2, None],
-        #     start_dim=1, end_dim=2)
-        raw_src_pos = torch.cat(raw_src_pos, dim=1)
+        raw_src_pos = torch.flatten(
+            torch.cat(raw_src_pos, dim=1).unsqueeze(1) + self.img_pos_embed.weight[None, :2, None],
+            start_dim=1, end_dim=2)
+        # raw_src_pos = torch.cat(raw_src_pos, dim=1)
         raw_context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed)
         raw_context_pos = self.context_pos_embed(raw_context_pos)
         # raw_context_pos = self.context_pos_embed(raw_context_pos + self.img_pos_embed.weight[None, -1][:, None])
         src = [self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1)
                for i, (feat1, feat2) in enumerate(zip(D1, D2))]
-        # src = torch.cat(torch.cat(src, dim=1).split(bs, dim=0), dim=1)
-        src = torch.cat(src, dim=1)
+        src = torch.cat(torch.cat(src, dim=1).split(bs, dim=0), dim=1)
+        # src = torch.cat(src, dim=1)
 
         # bs, HW, CU1
         _, C, H, W = U1.shape
@@ -361,7 +361,7 @@ class RAFT(nn.Module):
         if not self.use_dab:
             query_pos = self.query_pos_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
 
-        spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 1, dtype=torch.long, device=src.device)
+        spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 2, dtype=torch.long, device=src.device)
         level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
         src_ref = self.get_reference_points(spatial_shapes, device=src.device)
@@ -382,11 +382,11 @@ class RAFT(nn.Module):
         # src = new_src
         # src_pos = new_src_pos
 
-        src = torch.cat(src.split(bs, dim=0), dim=1)
-        raw_src_pos = (raw_src_pos.unsqueeze(1) +
-                       self.img_pos_embed.weight[None, :2, None]).flatten(start_dim=1, end_dim=2)
-        spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 2, dtype=torch.long, device=src.device)
-        level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
+        # src = torch.cat(src.split(bs, dim=0), dim=1)
+        # raw_src_pos = (raw_src_pos.unsqueeze(1) +
+        #                self.img_pos_embed.weight[None, :2, None]).flatten(start_dim=1, end_dim=2)
+        # spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 2, dtype=torch.long, device=src.device)
+        # level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
         flow_predictions = list()
         sparse_predictions = list()
@@ -398,26 +398,26 @@ class RAFT(nn.Module):
         context_flow = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=src.device)
         for o_i in range(self.outer_iterations):
             for i_i in range(self.inner_iterations):
-                # if o_i >= 1:
-                #     step = 1
-                #     N = round(math.sqrt(self.num_keypoints)) + ((o_i - 1) * step)
-                #     reference_points = reference_points[:, :, 0].permute(0, 2, 1)
-                #     reference_points = reference_points.reshape(bs, 2, N, N)
-                #     reference_points = F.interpolate(reference_points, (N + step, N + step),
-                #                                      mode="bilinear", align_corners=False)
-                #     reference_points = reference_points.flatten(2).permute(0, 2, 1)
-                #     reference_points = reference_points.unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
-                #
-                #     query = query.permute(0, 2, 1)
-                #     query = query.reshape(bs, self.d_model, N, N)
-                #     query = F.interpolate(query, (N + step, N + step), mode="bilinear", align_corners=False)
-                #     query = query.flatten(2).permute(0, 2, 1)
-                #
-                #     reference_flows = reference_flows.permute(0, 2, 1)
-                #     reference_flows = reference_flows.reshape(bs, 2, N, N)
-                #     reference_flows = F.interpolate(reference_flows, (N + step, N + step),
-                #                                     mode="bilinear", align_corners=False)
-                #     reference_flows = reference_flows.flatten(2).permute(0, 2, 1)
+                if o_i >= 1:
+                    step = 1
+                    N = round(math.sqrt(self.num_keypoints)) + ((o_i - 1) * step)
+                    reference_points = reference_points[:, :, 0].permute(0, 2, 1)
+                    reference_points = reference_points.reshape(bs, 2, N, N)
+                    reference_points = F.interpolate(reference_points, (N + step, N + step),
+                                                     mode="bilinear", align_corners=False)
+                    reference_points = reference_points.flatten(2).permute(0, 2, 1)
+                    reference_points = reference_points.unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
+
+                    query = query.permute(0, 2, 1)
+                    query = query.reshape(bs, self.d_model, N, N)
+                    query = F.interpolate(query, (N + step, N + step), mode="bilinear", align_corners=False)
+                    query = query.flatten(2).permute(0, 2, 1)
+
+                    reference_flows = reference_flows.permute(0, 2, 1)
+                    reference_flows = reference_flows.reshape(bs, 2, N, N)
+                    reference_flows = F.interpolate(reference_flows, (N + step, N + step),
+                                                    mode="bilinear", align_corners=False)
+                    reference_flows = reference_flows.flatten(2).permute(0, 2, 1)
 
                 if self.use_dab:
                     # if o_i >= 1:

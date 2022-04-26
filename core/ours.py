@@ -464,25 +464,27 @@ class RAFT(nn.Module):
                     if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
                         context_pos = context_pos + self.context_high_dim_query_proj(U1)
 
-                    if o_i >= 1:
-                        # bs, HW, N
-                        attention_pos = list()
-                        masks = masks.flatten(start_dim=0, end_dim=1)
-                        for H_, W_ in spatial_shapes:
-                            this_mask = F.interpolate(masks, size=(H_, W_), mode="bilinear", align_corners=False)
-                            this_mask = torch.stack(this_mask.split(bs, dim=0), dim=1)
-                            this_mask = this_mask.squeeze(2).flatten(2).permute(0, 2, 1)
-                            attention_pos.append(torch.bmm(this_mask, query_pos.detach()))
-                        attention_pos = torch.cat(attention_pos, dim=1)
-                        # bs, HW, d_model
-                        src_pos = raw_src_pos + self.src_pos_head(attention_pos)
-                        src_pos_scale = self.src_scale(src) if not (o_i == 0 and i_i == 0) else 1
-                        src_pos = src_pos_scale * src_pos
+                    # if o_i >= 1:
+                    #     # bs, HW, N
+                    #     attention_pos = list()
+                    #     masks = masks.flatten(start_dim=0, end_dim=1)
+                    #     for H_, W_ in spatial_shapes:
+                    #         this_mask = F.interpolate(masks, size=(H_, W_), mode="bilinear", align_corners=False)
+                    #         this_mask = torch.stack(this_mask.split(bs, dim=0), dim=1)
+                    #         this_mask = this_mask.squeeze(2).flatten(2).permute(0, 2, 1)
+                    #         attention_pos.append(torch.bmm(this_mask, query_pos.detach()))
+                    #     attention_pos = torch.cat(attention_pos, dim=1)
+                    #     # bs, HW, d_model
+                    #     src_pos = raw_src_pos + self.src_pos_head(attention_pos)
+                    #     src_pos_scale = self.src_scale(src) if not (o_i == 0 and i_i == 0) else 1
+                    #     src_pos = src_pos_scale * src_pos
+                    #
+                    #     if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
+                    #         src_pos = src_pos + self.src_high_dim_query_proj(src)
+                    # else:
+                    #     src_pos = raw_src_pos
 
-                        if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
-                            src_pos = src_pos + self.src_high_dim_query_proj(src)
-                    else:
-                        src_pos = raw_src_pos
+                    src_pos = raw_src_pos
 
                 query = self.decoder[o_i](query, query_pos, reference_points,
                                           src, src_pos, spatial_shapes, level_start_index)

@@ -39,7 +39,7 @@ class RAFT(nn.Module):
         if "dropout" not in self.args:
             self.args.dropout = 0
 
-        self.extractor = BasicEncoder(base_channel=64, norm_fn="instance")
+        self.extractor = BasicEncoder(base_channel=64, norm_fn="group")
         self.up_dim = self.extractor.up_dim
         # self.feature_extractor = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
         # self.context_extractor = BasicEncoder(base_channel=64, norm_fn="batch")
@@ -54,7 +54,7 @@ class RAFT(nn.Module):
             in_channels = channels[l_i]
             input_proj_list.append(nn.Sequential(
                 nn.Conv1d(in_channels, self.d_model, kernel_size=1, padding=0),
-                nn.GroupNorm(32, self.d_model)))
+                nn.GroupNorm(16, self.d_model)))
         self.input_proj = nn.ModuleList(input_proj_list)
 
         self.encoder_iterations = 1

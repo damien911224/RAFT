@@ -121,7 +121,7 @@ class BasicEncoder(nn.Module):
         self.norm_fn = norm_fn
 
         if self.norm_fn == "group":
-            self.norm1 = nn.GroupNorm(num_groups=base_channel // 8, num_channels=base_channel)
+            self.norm1 = nn.GroupNorm(num_groups=16, num_channels=base_channel)
         elif self.norm_fn == "batch":
             self.norm1 = nn.BatchNorm2d(base_channel)
         elif self.norm_fn == "instance":
@@ -197,7 +197,7 @@ class BasicEncoder(nn.Module):
         layer1 = nn.Upsample(scale_factor=scale, mode="bilinear")
         layer2 = nn.Conv2d(self.in_planes, dim, kernel_size=3, padding=1)
         if self.norm_fn == "group":
-            layer3 = nn.GroupNorm(num_groups=dim // 8, num_channels=dim)
+            layer3 = nn.GroupNorm(num_groups=16, num_channels=dim)
         elif self.norm_fn == "batch":
             layer3 = nn.BatchNorm2d(dim)
         elif self.norm_fn == "instance":
@@ -214,7 +214,7 @@ class BasicEncoder(nn.Module):
     def _get_norm_func(self, channel, norm_fn="batch"):
 
         if norm_fn == "group":
-            norm = nn.GroupNorm(num_groups=channel // 8, num_channels=channel)
+            norm = nn.GroupNorm(num_groups=16, num_channels=channel)
         elif norm_fn == "batch":
             norm = nn.BatchNorm2d(channel)
         elif norm_fn == "instance":
@@ -270,7 +270,7 @@ class SmallEncoder(nn.Module):
         self.norm_fn = norm_fn
 
         if self.norm_fn == "group":
-            self.norm1 = nn.GroupNorm(num_groups=8, num_channels=32)
+            self.norm1 = nn.GroupNorm(num_groups=16, num_channels=32)
 
         elif self.norm_fn == "batch":
             self.norm1 = nn.BatchNorm2d(32)

@@ -228,7 +228,7 @@ class Logger:
         image2 = np.transpose(image2, (0, 2, 3, 1))
         targets = targets.detach().cpu().numpy()
         targets = np.transpose(targets, (0, 2, 3, 1))
-        sampled_indices = random.sample(range(len(targets)), 10)
+        sampled_indices = random.sample(range(len(targets)), min(10, len(targets)))
         for i_i, n_i in enumerate(sampled_indices):
             this_image1 = image1[n_i]
             this_image2 = image2[n_i]

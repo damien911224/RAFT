@@ -108,14 +108,14 @@ def fetch_optimizer(args, model):
     optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.wdecay, eps=args.epsilon)
 
     # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, round(args.num_steps * 0.8))
-    scheduler = optim.lr_scheduler.OneCycleLR(optimizer, args.lr, args.num_steps+100,
-        pct_start=0.05, cycle_momentum=False, anneal_strategy='linear')
-    # scheduler = torch.optim.lr_scheduler.OneCycleLR(
-    #     optimizer, args.lr,
-    #     args.num_steps + 10,
-    #     pct_start=0.05,
-    #     cycle_momentum=False,
-    #     anneal_strategy='cos')
+    # scheduler = optim.lr_scheduler.OneCycleLR(optimizer, args.lr, args.num_steps+100,
+    #     pct_start=0.05, cycle_momentum=False, anneal_strategy='linear')
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        optimizer, args.lr,
+        args.num_steps + 10,
+        pct_start=0.05,
+        cycle_momentum=False,
+        anneal_strategy='cos')
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
     #     optimizer, first_cycle_steps=200, T_mult=1.0, max_lr=0.1, min_lr=0.001, warmup_steps=50, gamma=0.5)
 

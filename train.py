@@ -117,10 +117,8 @@ def fetch_optimizer(args, model):
     #     pct_start=0.05,
     #     cycle_momentum=False,
     #     anneal_strategy='cos')
-    scheduler = CosineAnnealingWarmupRestarts(
-        optimizer, first_cycle_steps=1000, cycle_mult=1.5,
-        max_lr=args.lr, min_lr=args.lr * 0.01,
-        warmup_steps=100, gamma=0.9)
+    scheduler = CosineAnnealingWarmRestarts(
+        optimizer, 1000, T_mult=1.5, eta_min=0, last_epoch=- 1, verbose=False)
 
     return optimizer, scheduler
     

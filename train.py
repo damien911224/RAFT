@@ -117,7 +117,7 @@ def fetch_optimizer(args, model):
     #     pct_start=0.05,
     #     cycle_momentum=False,
     #     anneal_strategy='cos')
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmupRestarts(
+    scheduler = CosineAnnealingWarmupRestarts(
         optimizer, first_cycle_steps=1000, T_mult=1.5,
         max_lr=args.lr, min_lr=args.lr * 0.01,
         warmup_steps=100, gamma=0.9)

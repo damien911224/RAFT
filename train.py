@@ -63,8 +63,8 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
     for i in range(n_predictions):
         # i_weight = gamma ** (n_predictions - i - 1)
         i_weight = 1.0
-        # i_loss = (flow_preds[0][i] - flow_gt).abs()
-        i_loss = (flow_preds[0][i] - flow_gt).square()
+        i_loss = (flow_preds[0][i] - flow_gt).abs()
+        # i_loss = (flow_preds[0][i] - flow_gt).square()
         flow_loss += i_weight * (dense_valid[:, None] * i_loss).mean()
 
         ref, sparse_flow, _, _ = flow_preds[1][i]
@@ -76,8 +76,8 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
         sparse_gt = torch.gather(flatten_gt, 1, coords.unsqueeze(-1).repeat(1, 1, 2))
         sparse_valid = torch.gather(flatten_valid, 1, coords)
         sparse_valid = (sparse_valid >= 0.5) & (torch.sum(sparse_gt ** 2, dim=-1).sqrt() < max_flow)
-        # sparse_i_loss = (sparse_flow * scale - sparse_gt).abs()
-        sparse_i_loss = (sparse_flow * scale - sparse_gt).square()
+        sparse_i_loss = (sparse_flow * scale - sparse_gt).abs()
+        # sparse_i_loss = (sparse_flow * scale - sparse_gt).square()
         sparse_loss += i_weight * (sparse_valid[..., None] * sparse_i_loss).mean()
 
     loss = flow_loss + sparse_loss

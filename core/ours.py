@@ -39,7 +39,7 @@ class RAFT(nn.Module):
         if "dropout" not in self.args:
             self.args.dropout = 0
 
-        self.extractor = BasicEncoder(base_channel=64, norm_fn="group")
+        self.extractor = BasicEncoder(base_channel=64, norm_fn="instance")
         self.up_dim = self.extractor.up_dim
         # self.feature_extractor = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
         # self.context_extractor = BasicEncoder(base_channel=64, norm_fn="batch")

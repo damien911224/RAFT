@@ -1,7 +1,7 @@
 #!/bin/bash
 mkdir -p checkpoints
 # 0: insnorm_onehot
-# 1: base
+# 1: gn-onehot
 # 2: insnorm
 # 3: incref
 python -u train.py --name chairs-base-onehot-GN --stage chairs --validation chairs --gpus 0 --num_steps 1000000 --batch_size 16 --lr 0.0001 --image_size 352 480 --wdecay 0.0001

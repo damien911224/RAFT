@@ -49,7 +49,7 @@ class RAFT(nn.Module):
         input_proj_list = []
         # channels = (512, 1024, 2048)
         channels = (128, 192, 256)
-        self.d_model = channels[0] // 2
+        self.d_model = channels[0]
         for l_i in range(self.num_feature_levels):
             in_channels = channels[l_i]
             input_proj_list.append(nn.Sequential(
@@ -58,7 +58,7 @@ class RAFT(nn.Module):
         self.input_proj = nn.ModuleList(input_proj_list)
 
         self.encoder_iterations = 1
-        self.outer_iterations = 3
+        self.outer_iterations = 6
         self.inner_iterations = 1
         # self.inner_iterations = self.num_feature_levels
         self.num_keypoints = 100

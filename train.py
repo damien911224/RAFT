@@ -23,6 +23,7 @@ import flow_vis
 import random
 
 from torch.utils.tensorboard import SummaryWriter
+from utils.scheduler import CosineAnnealingWarmupRestarts
 
 try:
     from torch.cuda.amp import GradScaler
@@ -110,14 +111,16 @@ def fetch_optimizer(args, model):
     # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, round(args.num_steps * 0.8))
     # scheduler = optim.lr_scheduler.OneCycleLR(optimizer, args.lr, args.num_steps+100,
     #     pct_start=0.05, cycle_momentum=False, anneal_strategy='linear')
-    scheduler = torch.optim.lr_scheduler.OneCycleLR(
-        optimizer, args.lr,
-        args.num_steps + 10,
-        pct_start=0.05,
-        cycle_momentum=False,
-        anneal_strategy='cos')
-    # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
-    #     optimizer, first_cycle_steps=200, T_mult=1.0, max_lr=0.1, min_lr=0.001, warmup_steps=50, gamma=0.5)
+    # scheduler = torch.optim.lr_scheduler.OneCycleLR(
+    #     optimizer, args.lr,
+    #     args.num_steps + 10,
+    #     pct_start=0.05,
+    #     cycle_momentum=False,
+    #     anneal_strategy='cos')
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmupRestarts(
+        optimizer, first_cycle_steps=1000, T_mult=1.5,
+        max_lr=args.lr, min_lr=args.lr * 0.01,
+        warmup_steps=100, gamma=0.9)
 
     return optimizer, scheduler
     

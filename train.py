@@ -366,7 +366,7 @@ def train(args):
             loss, metrics = sequence_loss(flow_predictions, flow, valid, args.gamma)
             # scaler.scale(loss).backward()
             # scaler.unscale_(optimizer)
-            # torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
 
             loss.backward()
             optimizer.step()

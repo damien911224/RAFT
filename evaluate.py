@@ -107,6 +107,8 @@ def validate_sintel(model, logger=None, iters=32):
         val_dataset = datasets.MpiSintel(split='training', dstype=dstype)
         epe_list = []
 
+        # random_idx = random.sample(range(len(val_dataset)), 10)
+        # image_idx = 0
         for val_id in range(len(val_dataset)):
             image1, image2, flow_gt, _ = val_dataset[val_id]
             image1 = image1[None].cuda()
@@ -115,11 +117,19 @@ def validate_sintel(model, logger=None, iters=32):
             padder = InputPadder(image1.shape)
             image1, image2 = padder.pad(image1, image2)
 
-            flow_low, flow_pr = model(image1, image2, iters=iters, test_mode=True)
-            flow = padder.unpad(flow_pr[0]).cpu()
+            # flow_low, flow_pr = model(image1, image2, iters=iters, test_mode=True)
+            # flow = padder.unpad(flow_pr[0]).cpu()
+            #
+            # epe = torch.sum((flow - flow_gt)**2, dim=0).sqrt()
+            # epe_list.append(epe.view(-1).numpy())
 
-            epe = torch.sum((flow - flow_gt)**2, dim=0).sqrt()
+            preds = model(image1, image2, iters=iters, test_mode=True)
+            epe = torch.sum((padder.unpad(preds[0][-1].squeeze(0).cpu()) - flow_gt) ** 2, dim=0).sqrt()
             epe_list.append(epe.view(-1).numpy())
+
+            # if val_id in random_idx:
+            #     logger.write_image(image1.squeeze(0), image2.squeeze(0), flow_gt, preds, phase="V", idx=image_idx)
+            #     image_idx += 1
 
         epe_all = np.concatenate(epe_list)
         epe = np.mean(epe_all)
@@ -139,6 +149,9 @@ def validate_kitti(model, logger=None, iters=24):
     model.eval()
     val_dataset = datasets.KITTI(split='training')
 
+    # random_idx = random.sample(range(len(val_dataset)), 10)
+    # image_idx = 0
+
     out_list, epe_list = [], []
     for val_id in range(len(val_dataset)):
         image1, image2, flow_gt, valid_gt = val_dataset[val_id]
@@ -148,8 +161,13 @@ def validate_kitti(model, logger=None, iters=24):
         padder = InputPadder(image1.shape, mode='kitti')
         image1, image2 = padder.pad(image1, image2)
 
-        flow_low, flow_pr = model(image1, image2, iters=iters, test_mode=True)
-        flow = padder.unpad(flow_pr[0]).cpu()
+        # flow_low, flow_pr = model(image1, image2, iters=iters, test_mode=True)
+        # flow = padder.unpad(flow_pr[0]).cpu()
+
+        preds = model(image1, image2, iters=iters, test_mode=True)
+        flow = padder.unpad(preds[0][-1].squeeze(0).cpu())
+        # epe = torch.sum((padder.unpad(preds[0][-1].squeeze(0).cpu()) - flow_gt) ** 2, dim=0).sqrt()
+        # epe_list.append(epe.view(-1).numpy())
 
         epe = torch.sum((flow - flow_gt)**2, dim=0).sqrt()
         mag = torch.sum(flow_gt**2, dim=0).sqrt()
@@ -161,6 +179,10 @@ def validate_kitti(model, logger=None, iters=24):
         out = ((epe > 3.0) & ((epe/mag) > 0.05)).float()
         epe_list.append(epe[val].mean().item())
         out_list.append(out[val].cpu().numpy())
+
+        # if val_id in random_idx:
+        #     logger.write_image(image1.squeeze(0), image2.squeeze(0), flow_gt, preds, phase="V", idx=image_idx)
+        #     image_idx += 1
 
     epe_list = np.array(epe_list)
     out_list = np.concatenate(out_list)

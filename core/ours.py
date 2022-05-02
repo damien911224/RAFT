@@ -158,7 +158,7 @@ class RAFT(nn.Module):
         # self.reference_embed = MLP(self.d_model, self.d_model, 2, 3)
         self.confidence_embed = MLP(self.d_model, self.d_model, 2, 3)
         self.context_pos_embed = nn.Linear(self.d_model, self.up_dim)
-        self.use_dab = True
+        self.use_dab = False
         if self.use_dab:
             self.context_flow_head = MLP(2, self.up_dim, self.up_dim, 3)
             self.context_scale = MLP(self.up_dim, self.up_dim, self.up_dim, 2)

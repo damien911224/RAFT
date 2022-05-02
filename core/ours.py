@@ -508,7 +508,7 @@ class RAFT(nn.Module):
                 # bs, n, 2
                 flow_embed = self.flow_embed[o_i](query)
                 # flow_embed = flow_embed + inverse_sigmoid(reference_flows)
-                flow_embed = flow_embed + inverse_sigmoid(reference_points)
+                reference_points = flow_embed + inverse_sigmoid(reference_points)
 
                 # src_points = reference_points[:, :, 0].detach()
                 # dst_points = (inverse_sigmoid(src_points) + flow_embed).sigmoid()
@@ -516,9 +516,9 @@ class RAFT(nn.Module):
                 # # reference_points[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
                 # reference_flows = flow_embed.detach().sigmoid()
 
-                flow_embed = flow_embed.sigmoid()
-                src_points = flow_embed[..., :2]
-                dst_points = flow_embed[..., 2:]
+                reference_points = reference_points.sigmoid()
+                src_points = reference_points[..., :2]
+                dst_points = reference_points[..., 2:]
                 key_flow = src_points - dst_points
 
                 # bs, HW, n
@@ -539,7 +539,8 @@ class RAFT(nn.Module):
                     # masks = masks.view(bs, self.num_keypoints, I_H, I_W)
 
                 flow_predictions.append(flow)
-                sparse_predictions.append((reference_points[:, :, 0], key_flow, masks, scores))
+                # sparse_predictions.append((reference_points[:, :, 0], key_flow, masks, scores))
+                sparse_predictions.append((reference_points[..., :2], key_flow, masks, scores))
 
         # flow_predictions = list()
         # sparse_predictions = list()

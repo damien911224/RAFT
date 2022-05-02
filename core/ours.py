@@ -151,7 +151,7 @@ class RAFT(nn.Module):
 
         self.query_embed = nn.Embedding(self.num_keypoints, self.d_model)
         self.query_pos_embed = nn.Embedding(self.num_keypoints, self.d_model)
-        self.reference_embed = nn.Embedding(self.num_keypoints, 4)
+        # self.reference_embed = nn.Embedding(self.num_keypoints, 4)
         # self.flow_embed = MLP(self.d_model, self.d_model, 2, 3)
         self.flow_embed = MLP(self.d_model, self.d_model, 4, 3)
         self.context_embed = MLP(self.d_model, self.up_dim, self.up_dim, 3)
@@ -209,7 +209,7 @@ class RAFT(nn.Module):
         # nn.init.normal_(self.context_col_pos_embed.weight)
         nn.init.xavier_uniform_(self.query_embed.weight)
         nn.init.normal_(self.query_pos_embed.weight)
-        nn.init.uniform_(self.reference_embed.weight)
+        # nn.init.uniform_(self.reference_embed.weight)
         # nn.init.xavier_uniform_(self.reference_embed.weight)
         nn.init.normal_(self.lvl_pos_embed.weight)
         nn.init.normal_(self.img_pos_embed.weight)
@@ -393,13 +393,13 @@ class RAFT(nn.Module):
 
         flow_predictions = list()
         sparse_predictions = list()
-        # root = round(math.sqrt(self.num_keypoints))
-        # base_reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
-        # base_reference_points = base_reference_points.repeat(bs, 1, 1)
-        # reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
-        # reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2), device=src.device) + 0.5
-        reference_points = self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
-        reference_points_input = torch.stack(reference_points.split(2, dim=-1), dim=2).repeat(1, 1, self.num_feature_levels, 1)
+        root = round(math.sqrt(self.num_keypoints))
+        base_reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
+        base_reference_points = base_reference_points.repeat(bs, 1, 1)
+        reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
+        reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2), device=src.device) + 0.5
+        # reference_points = self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
+        # reference_points_input = torch.stack(reference_points.split(2, dim=-1), dim=2).repeat(1, 1, self.num_feature_levels, 1)
         context_flow = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=src.device)
         for o_i in range(self.outer_iterations):
             for i_i in range(self.inner_iterations):
@@ -456,8 +456,8 @@ class RAFT(nn.Module):
 
                     # src_pos = raw_src_pos
 
-                    # raw_query_pos = torch.cat((reference_points[:, :, 0], reference_flows), dim=-1)
-                    raw_query_pos = reference_points.detach()
+                    raw_query_pos = torch.cat((reference_points[:, :, 0], reference_flows), dim=-1)
+                    # raw_query_pos = reference_points.detach()
                     if self.no_sine_embed:
                         raw_query_pos = self.ref_point_head(raw_query_pos)
                     else:
@@ -501,27 +501,27 @@ class RAFT(nn.Module):
 
                     src_pos = raw_src_pos
 
-                # query = self.decoder[o_i](query, query_pos, reference_points,
-                #                           src, src_pos, spatial_shapes, level_start_index)
-                query = self.decoder[o_i](query, query_pos, reference_points_input,
+                query = self.decoder[o_i](query, query_pos, reference_points,
                                           src, src_pos, spatial_shapes, level_start_index)
+                # query = self.decoder[o_i](query, query_pos, reference_points_input,
+                #                           src, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, 2
                 flow_embed = self.flow_embed[o_i](query)
-                # flow_embed = flow_embed + inverse_sigmoid(reference_flows)
-                reference_points = flow_embed + inverse_sigmoid(reference_points)
+                flow_embed = flow_embed + inverse_sigmoid(reference_flows)
+                # reference_points = flow_embed + inverse_sigmoid(reference_points)
 
-                # src_points = reference_points[:, :, 0].detach()
-                # dst_points = (inverse_sigmoid(src_points) + flow_embed).sigmoid()
-                # key_flow = src_points - dst_points
-                # # reference_points[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
-                # reference_flows = flow_embed.detach().sigmoid()
-
-                reference_points = reference_points.sigmoid()
-                src_points = reference_points[..., :2]
-                dst_points = reference_points[..., 2:]
+                src_points = reference_points[:, :, 0].detach()
+                dst_points = (inverse_sigmoid(src_points) + flow_embed).sigmoid()
                 key_flow = src_points - dst_points
-                reference_points = reference_points.detach()
+                # reference_points[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
+                reference_flows = flow_embed.detach().sigmoid()
+
+                # reference_points = reference_points.sigmoid()
+                # src_points = reference_points[..., :2]
+                # dst_points = reference_points[..., 2:]
+                # key_flow = src_points - dst_points
+                # reference_points = reference_points.detach()
 
                 # bs, HW, n
                 context = self.context_embed[o_i](query)
@@ -541,8 +541,8 @@ class RAFT(nn.Module):
                     # masks = masks.view(bs, self.num_keypoints, I_H, I_W)
 
                 flow_predictions.append(flow)
-                # sparse_predictions.append((reference_points[:, :, 0], key_flow, masks, scores))
-                sparse_predictions.append((reference_points[..., :2], key_flow, masks, scores))
+                sparse_predictions.append((reference_points[:, :, 0], key_flow, masks, scores))
+                # sparse_predictions.append((reference_points[..., :2], key_flow, masks, scores))
 
         # flow_predictions = list()
         # sparse_predictions = list()

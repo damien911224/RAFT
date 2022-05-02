@@ -48,7 +48,7 @@ SUM_FREQ = 100
 VAL_FREQ = 5000
 
 
-def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
+def sequence_loss(flow_preds, flow_gt, valid, sparse_lambda=1.0, gamma=0.8, max_flow=MAX_FLOW):
     """ Loss function defined over sequence of flow predictions """
 
     n_predictions = len(flow_preds[0])
@@ -81,7 +81,7 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
         # sparse_i_loss = (sparse_flow * scale - sparse_gt).square()
         sparse_loss += i_weight * (sparse_valid[..., None] * sparse_i_loss).mean()
 
-    loss = flow_loss + sparse_loss
+    loss = flow_loss + sparse_loss * sparse_lambda
 
     epe = torch.sum((flow_preds[0][-1] - flow_gt)**2, dim=1).sqrt()
     epe = epe.view(-1)[dense_valid.view(-1)]
@@ -372,7 +372,8 @@ def train(args):
                 image2 = (image2 + stdv * torch.randn(*image2.shape).cuda()).clamp(0.0, 255.0)
 
             flow_predictions = model(image1, image2, iters=args.iters)
-            loss, metrics = sequence_loss(flow_predictions, flow, valid, args.gamma)
+            sparse_lambda = 1.0 if self.total_steps < 20000 else 0.0
+            loss, metrics = sequence_loss(flow_predictions, flow, valid, sparse_lambda, args.gamma)
             # scaler.scale(loss).backward()
             # scaler.unscale_(optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)

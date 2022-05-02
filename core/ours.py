@@ -507,7 +507,9 @@ class RAFT(nn.Module):
                 # bs, n, 2
                 flow_embed = self.flow_embed[o_i](query)
                 # flow_embed = flow_embed + inverse_sigmoid(reference_flows)
-                flow_embed = flow_embed + inverse_sigmoid(reference_points)
+                flow_embed = flow_embed + inverse_sigmoid(torch.cat((reference_points[:, :, 0],
+                                                                     reference_points[:, :, self.num_feature_levels]),
+                                                                    dim=-1))
 
                 # src_points = reference_points[:, :, 0].detach()
                 # dst_points = (inverse_sigmoid(src_points) + flow_embed).sigmoid()

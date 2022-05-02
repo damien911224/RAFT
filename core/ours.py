@@ -520,6 +520,7 @@ class RAFT(nn.Module):
                 src_points = reference_points[..., :2]
                 dst_points = reference_points[..., 2:]
                 key_flow = src_points - dst_points
+                reference_points = reference_points.detach()
 
                 # bs, HW, n
                 context = self.context_embed[o_i](query)

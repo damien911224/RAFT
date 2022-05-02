@@ -372,7 +372,8 @@ def train(args):
                 image2 = (image2 + stdv * torch.randn(*image2.shape).cuda()).clamp(0.0, 255.0)
 
             flow_predictions = model(image1, image2, iters=args.iters)
-            sparse_lambda = 1.0 if total_steps < 20000 else 0.0
+            # sparse_lambda = 1.0 if total_steps < 20000 else 0.0
+            sparse_lambda = 1.0
             loss, metrics = sequence_loss(flow_predictions, flow, valid, sparse_lambda, args.gamma)
             # scaler.scale(loss).backward()
             # scaler.unscale_(optimizer)

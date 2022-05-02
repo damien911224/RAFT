@@ -500,6 +500,9 @@ class RAFT(nn.Module):
                     #     src_pos = raw_src_pos
 
                     src_pos = raw_src_pos
+                else:
+                    context_pos = raw_context_pos
+                    src_pos = raw_src_pos
 
                 query = self.decoder[o_i](query, query_pos, reference_points,
                                           src, src_pos, spatial_shapes, level_start_index)

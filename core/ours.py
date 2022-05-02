@@ -397,8 +397,8 @@ class RAFT(nn.Module):
         # base_reference_points = base_reference_points.repeat(bs, 1, 1)
         # reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
         # reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2), device=src.device) + 0.5
-        reference_points = torch.stack(self.reference_embed.weight.split(2, dim=-1), dim=1)
-        reference_points = reference_points.unsqueeze(0).repeat(bs, 1, self.num_feature_levels, 1)
+        reference_points = self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
+        reference_points_input = torch.stack(reference_points.split(2, dim=-1), dim=2).repeat(1, 1, self.num_feature_levels, 1)
         context_flow = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=src.device)
         for o_i in range(self.outer_iterations):
             for i_i in range(self.inner_iterations):
@@ -456,8 +456,7 @@ class RAFT(nn.Module):
                     # src_pos = raw_src_pos
 
                     # raw_query_pos = torch.cat((reference_points[:, :, 0], reference_flows), dim=-1)
-                    raw_query_pos = torch.cat((reference_points[:, :, 0],
-                                               reference_points[:, :, self.num_feature_levels]), dim=-1)
+                    raw_query_pos = torch.cat((reference_points[..., :2], reference_points[..., 2:]), dim=-1)
                     if self.no_sine_embed:
                         raw_query_pos = self.ref_point_head(raw_query_pos)
                     else:
@@ -501,15 +500,15 @@ class RAFT(nn.Module):
 
                     src_pos = raw_src_pos
 
-                query = self.decoder[o_i](query, query_pos, reference_points,
+                # query = self.decoder[o_i](query, query_pos, reference_points,
+                #                           src, src_pos, spatial_shapes, level_start_index)
+                query = self.decoder[o_i](query, query_pos, reference_points_input,
                                           src, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, 2
                 flow_embed = self.flow_embed[o_i](query)
                 # flow_embed = flow_embed + inverse_sigmoid(reference_flows)
-                flow_embed = flow_embed + inverse_sigmoid(torch.cat((reference_points[:, :, 0],
-                                                                     reference_points[:, :, self.num_feature_levels]),
-                                                                    dim=-1))
+                flow_embed = flow_embed + inverse_sigmoid(reference_points)
 
                 # src_points = reference_points[:, :, 0].detach()
                 # dst_points = (inverse_sigmoid(src_points) + flow_embed).sigmoid()

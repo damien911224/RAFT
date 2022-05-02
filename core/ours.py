@@ -457,7 +457,7 @@ class RAFT(nn.Module):
                     # src_pos = raw_src_pos
 
                     # raw_query_pos = torch.cat((reference_points[:, :, 0], reference_flows), dim=-1)
-                    raw_query_pos = reference_points
+                    raw_query_pos = reference_points.detach()
                     if self.no_sine_embed:
                         raw_query_pos = self.ref_point_head(raw_query_pos)
                     else:

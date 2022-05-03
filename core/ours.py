@@ -162,8 +162,7 @@ class RAFT(nn.Module):
         if self.use_dab:
             self.context_flow_head = MLP(2, self.up_dim, self.up_dim, 3)
             self.context_scale = MLP(self.up_dim, self.up_dim, self.up_dim, 2)
-            self.src_pos_head = MLP(self.d_model, self.d_model, self.d_model, 3)
-            self.src_scale = MLP(self.d_model, self.d_model, self.d_model, 2)
+            self.attention_pos_head = MLP(self.up_dim, self.d_model, self.d_model, 3)
 
             self.no_sine_embed = True
             self.query_scale = MLP(self.d_model, self.d_model, self.d_model, 2)
@@ -424,13 +423,13 @@ class RAFT(nn.Module):
                 #                                     mode="bilinear", align_corners=False)
                 #     reference_flows = reference_flows.flatten(2).permute(0, 2, 1)
                 split = 0
-                # if o_i >= 1:
-                #     # bs, n, 2
-                #     confidence_embed = self.confidence_embed[o_i](query)
-                #     confidence_onehot = F.gumbel_softmax(confidence_embed, tau=1, hard=True, eps=1e-10, dim=-1)
-                #     # bs, n, 1
-                #     query_mask = confidence_onehot[..., 1].unsqueeze(-1)
-                #     query = query * query_mask
+                if not (o_i == 0 and i_i == 0):
+                    # bs, n, 2
+                    confidence_embed = self.confidence_embed[o_i](query)
+                    confidence_onehot = F.gumbel_softmax(confidence_embed, tau=1, hard=True, eps=1e-10, dim=-1)
+                    # bs, n, 1
+                    query_mask = confidence_onehot[..., 1].unsqueeze(-1)
+                    query = query * query_mask
                 split = 0
 
                 if self.use_dab:
@@ -466,18 +465,25 @@ class RAFT(nn.Module):
                     pos_scale = self.query_scale(query) if not (o_i == 0 and i_i == 0) else 1
                     query_pos = pos_scale * raw_query_pos
 
+                    if not (o_i == 0 and i_i == 0):
+                        masks = masks.flatten(start_dim=0, end_dim=1)
+                        attention_pos = torch.bmm(masks, context_pos.detach())
+                        query_pos = query_pos + self.attention_pos_head(attention_pos)
+
                     if self.inner_iterations > 1:
                         query_pos = query_pos + self.iter_pos_embed.weight[i_i].unsqueeze(0)
 
                     if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
                         query_pos = query_pos + self.high_dim_query_proj(query)
 
-                    context_pos = raw_context_pos + self.context_flow_head(context_flow.detach())
-                    context_pos_scale = self.context_scale(U1) if not (o_i == 0 and i_i == 0) else 1
-                    context_pos = context_pos_scale * context_pos
+                    # context_pos = raw_context_pos + self.context_flow_head(context_flow.detach())
+                    # context_pos_scale = self.context_scale(U1) if not (o_i == 0 and i_i == 0) else 1
+                    # context_pos = context_pos_scale * context_pos
+                    #
+                    # if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
+                    #     context_pos = context_pos + self.context_high_dim_query_proj(U1)
 
-                    if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
-                        context_pos = context_pos + self.context_high_dim_query_proj(U1)
+                    context_pos = raw_context_pos
 
                     # if o_i >= 1:
                     #     # bs, HW, N

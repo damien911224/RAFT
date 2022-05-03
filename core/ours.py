@@ -424,13 +424,13 @@ class RAFT(nn.Module):
                 #                                     mode="bilinear", align_corners=False)
                 #     reference_flows = reference_flows.flatten(2).permute(0, 2, 1)
                 split = 0
-                if o_i >= 1:
-                    # bs, n, 2
-                    confidence_embed = self.confidence_embed[o_i](query)
-                    confidence_onehot = F.gumbel_softmax(confidence_embed, tau=1, hard=True, eps=1e-10, dim=-1)
-                    # bs, n, 1
-                    query_mask = confidence_onehot[..., 1].unsqueeze(-1)
-                    query = query * query_mask
+                # if o_i >= 1:
+                #     # bs, n, 2
+                #     confidence_embed = self.confidence_embed[o_i](query)
+                #     confidence_onehot = F.gumbel_softmax(confidence_embed, tau=1, hard=True, eps=1e-10, dim=-1)
+                #     # bs, n, 1
+                #     query_mask = confidence_onehot[..., 1].unsqueeze(-1)
+                #     query = query * query_mask
                 split = 0
 
                 if self.use_dab:

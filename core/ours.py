@@ -476,14 +476,14 @@ class RAFT(nn.Module):
                     if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
                         query_pos = query_pos + self.high_dim_query_proj(query)
 
-                    # context_pos = raw_context_pos + self.context_flow_head(context_flow.detach())
-                    # context_pos_scale = self.context_scale(U1) if not (o_i == 0 and i_i == 0) else 1
-                    # context_pos = context_pos_scale * context_pos
-                    #
-                    # if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
-                    #     context_pos = context_pos + self.context_high_dim_query_proj(U1)
+                    context_pos = raw_context_pos + self.context_flow_head(context_flow.detach())
+                    context_pos_scale = self.context_scale(U1) if not (o_i == 0 and i_i == 0) else 1
+                    context_pos = context_pos_scale * context_pos
 
-                    context_pos = raw_context_pos
+                    if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
+                        context_pos = context_pos + self.context_high_dim_query_proj(U1)
+
+                    # context_pos = raw_context_pos
 
                     # if o_i >= 1:
                     #     # bs, HW, N

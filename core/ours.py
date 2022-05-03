@@ -466,7 +466,7 @@ class RAFT(nn.Module):
                     query_pos = pos_scale * raw_query_pos
 
                     if not (o_i == 0 and i_i == 0):
-                        masks = masks.flatten(start_dim=0, end_dim=1)
+                        masks = masks.flatten(2)
                         attention_pos = torch.bmm(masks, context_pos.detach())
                         query_pos = query_pos + self.attention_pos_head(attention_pos)
 

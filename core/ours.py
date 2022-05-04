@@ -77,14 +77,14 @@ class RAFT(nn.Module):
         self.encoder = \
             nn.ModuleList((DeformableTransformerEncoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
                                                              dropout=0.1, activation="gelu",
-                                                             n_levels=self.num_feature_levels * 3,
+                                                             n_levels=self.num_feature_levels * 2,
                                                              n_heads=8, n_points=4)
                            for _ in range(self.encoder_iterations)))
 
         self.decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
                                                              dropout=0.1, activation="gelu",
-                                                             n_levels=self.num_feature_levels * 3,
+                                                             n_levels=self.num_feature_levels * 2,
                                                              n_heads=8, n_points=4, self_deformable=False)
                            for _ in range(self.outer_iterations)))
 
@@ -152,7 +152,7 @@ class RAFT(nn.Module):
         #                    for _ in range(6)))
 
         self.lvl_pos_embed = nn.Embedding(self.num_feature_levels, self.d_model)
-        self.img_pos_embed = nn.Embedding(2 + 1 + 1, self.d_model)
+        self.img_pos_embed = nn.Embedding(2 + 1, self.d_model)
         self.row_pos_embed = nn.Embedding(w // (2 ** 2), self.d_model // 2)
         self.col_pos_embed = nn.Embedding(h // (2 ** 2), self.d_model // 2)
 
@@ -352,7 +352,7 @@ class RAFT(nn.Module):
         raw_src_pos = [self.get_embedding(feat, self.col_pos_embed, self.row_pos_embed) + self.lvl_pos_embed.weight[i]
                        for i, feat in enumerate(D1)]
         raw_src_pos = torch.flatten(
-            torch.cat(raw_src_pos, dim=1).unsqueeze(1) + self.img_pos_embed.weight[None, :3, None],
+            torch.cat(raw_src_pos, dim=1).unsqueeze(1) + self.img_pos_embed.weight[None, :2, None],
             start_dim=1, end_dim=2)
         # raw_src_pos = torch.cat(raw_src_pos, dim=1)
         raw_context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed)
@@ -410,7 +410,7 @@ class RAFT(nn.Module):
         root = round(math.sqrt(self.num_keypoints))
         base_reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
         base_reference_points = base_reference_points.repeat(bs, 1, 1)
-        reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, self.num_feature_levels * 3, 1)
+        reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
         reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2), device=src.device) + 0.5
         # reference_points = self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
         # reference_points_input = torch.stack(reference_points.split(2, dim=-1), dim=2).repeat(1, 1, self.num_feature_levels, 1)

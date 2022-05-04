@@ -53,8 +53,8 @@ class RAFT(nn.Module):
         for l_i in range(self.num_feature_levels):
             in_channels = channels[l_i]
             input_proj_list.append(nn.Sequential(
-                nn.Conv1d(in_channels, self.d_model, kernel_size=1, padding=0),
-                nn.GroupNorm(16, self.d_model)))
+                nn.Conv1d(in_channels, self.d_model // 2, kernel_size=1, padding=0),
+                nn.GroupNorm(16, self.d_model // 2)))
         self.input_proj = nn.ModuleList(input_proj_list)
 
         h, w = args.image_size[0], args.image_size[1]
@@ -64,7 +64,7 @@ class RAFT(nn.Module):
             # corr_proj_list.append(nn.Sequential(
             #     nn.Conv1d(in_channels, self.d_model, kernel_size=1, padding=0),
             #     nn.GroupNorm(16, self.d_model)))
-            corr_proj_list.append(MLP(in_channels, self.d_model, self.d_model, 3))
+            corr_proj_list.append(MLP(in_channels, self.d_model // 2, self.d_model // 2, 3))
         self.corr_proj = nn.ModuleList(corr_proj_list)
 
         self.encoder_iterations = 1
@@ -358,8 +358,13 @@ class RAFT(nn.Module):
         raw_context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed)
         # raw_context_pos = self.context_pos_embed(raw_context_pos)
         raw_context_pos = self.context_pos_embed(raw_context_pos + self.img_pos_embed.weight[None, -1][:, None])
+        # src = [torch.cat((self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1),
+        #                   self.corr_proj[i](torch.bmm(feat1.flatten(2).permute(0, 2, 1), feat2.flatten(2)))), dim=0)
+        #        for i, (feat1, feat2) in enumerate(zip(D1, D2))]
         src = [torch.cat((self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1),
-                          self.corr_proj[i](torch.bmm(feat1.flatten(2).permute(0, 2, 1), feat2.flatten(2)))), dim=0)
+                          self.corr_proj[i](torch.cat((torch.bmm(feat1.flatten(2).permute(0, 2, 1), feat2.flatten(2)),
+                                                       torch.bmm(feat2.flatten(2).permute(0, 2, 1), feat2.flatten(2))),
+                                                      dim=0))), dim=-1)
                for i, (feat1, feat2) in enumerate(zip(D1, D2))]
         src = torch.cat(torch.cat(src, dim=1).split(bs, dim=0), dim=1)
         # src = torch.cat(src, dim=1)

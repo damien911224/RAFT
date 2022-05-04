@@ -46,16 +46,25 @@ class RAFT(nn.Module):
         # self.up_dim = self.context_extractor.up_dim
         self.num_feature_levels = 3
 
-        input_proj_list = []
         # channels = (512, 1024, 2048)
         channels = (128, 192, 256)
         self.d_model = channels[0]
+        input_proj_list = list()
         for l_i in range(self.num_feature_levels):
             in_channels = channels[l_i]
             input_proj_list.append(nn.Sequential(
                 nn.Conv1d(in_channels, self.d_model, kernel_size=1, padding=0),
                 nn.GroupNorm(16, self.d_model)))
         self.input_proj = nn.ModuleList(input_proj_list)
+
+        h, w = args.image_size[0], args.image_size[1]
+        corr_proj_list = list()
+        for l_i in range(self.num_feature_levels):
+            in_channels = (w // (2 ** (3 + l_i))) * (h // (2 ** (3 + l_i)))
+            corr_proj_list.append(nn.Sequential(
+                nn.Conv1d(in_channels, self.d_model, kernel_size=1, padding=0),
+                nn.GroupNorm(16, self.d_model)))
+        self.corr_proj = nn.ModuleList(corr_proj_list)
 
         self.encoder_iterations = 1
         self.outer_iterations = 6
@@ -67,14 +76,14 @@ class RAFT(nn.Module):
         self.encoder = \
             nn.ModuleList((DeformableTransformerEncoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
                                                              dropout=0.1, activation="gelu",
-                                                             n_levels=self.num_feature_levels * 2,
+                                                             n_levels=self.num_feature_levels * 3,
                                                              n_heads=8, n_points=4)
                            for _ in range(self.encoder_iterations)))
 
         self.decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
                                                              dropout=0.1, activation="gelu",
-                                                             n_levels=self.num_feature_levels * 2,
+                                                             n_levels=self.num_feature_levels * 3,
                                                              n_heads=8, n_points=4, self_deformable=False)
                            for _ in range(self.outer_iterations)))
 
@@ -141,9 +150,8 @@ class RAFT(nn.Module):
         #                                                      self_deformable=False)
         #                    for _ in range(6)))
 
-        h, w = args.image_size[0], args.image_size[1]
         self.lvl_pos_embed = nn.Embedding(self.num_feature_levels, self.d_model)
-        self.img_pos_embed = nn.Embedding(3, self.d_model)
+        self.img_pos_embed = nn.Embedding(2 + 1 + 1, self.d_model)
         self.row_pos_embed = nn.Embedding(w // (2 ** 2), self.d_model // 2)
         self.col_pos_embed = nn.Embedding(h // (2 ** 2), self.d_model // 2)
 
@@ -343,13 +351,15 @@ class RAFT(nn.Module):
         raw_src_pos = [self.get_embedding(feat, self.col_pos_embed, self.row_pos_embed) + self.lvl_pos_embed.weight[i]
                        for i, feat in enumerate(D1)]
         raw_src_pos = torch.flatten(
-            torch.cat(raw_src_pos, dim=1).unsqueeze(1) + self.img_pos_embed.weight[None, :2, None],
+            torch.cat(raw_src_pos, dim=1).unsqueeze(1) + self.img_pos_embed.weight[None, :3, None],
             start_dim=1, end_dim=2)
         # raw_src_pos = torch.cat(raw_src_pos, dim=1)
         raw_context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed)
         # raw_context_pos = self.context_pos_embed(raw_context_pos)
         raw_context_pos = self.context_pos_embed(raw_context_pos + self.img_pos_embed.weight[None, -1][:, None])
-        src = [self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1)
+        src = [torch.cat((self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1),
+                          self.corr_proj[i](torch.bmm(feat1.flatten(2).permute(0, 2, 1),
+                                                      feat2.flatten(2)).permute(0, 2, 1)).permute(0, 2, 1)), dim=0)
                for i, (feat1, feat2) in enumerate(zip(D1, D2))]
         src = torch.cat(torch.cat(src, dim=1).split(bs, dim=0), dim=1)
         # src = torch.cat(src, dim=1)
@@ -363,7 +373,7 @@ class RAFT(nn.Module):
         if not self.use_dab:
             query_pos = self.query_pos_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
 
-        spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 2, dtype=torch.long, device=src.device)
+        spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 3, dtype=torch.long, device=src.device)
         level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
         src_ref = self.get_reference_points(spatial_shapes, device=src.device)
@@ -395,7 +405,7 @@ class RAFT(nn.Module):
         root = round(math.sqrt(self.num_keypoints))
         base_reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
         base_reference_points = base_reference_points.repeat(bs, 1, 1)
-        reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
+        reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, self.num_feature_levels * 3, 1)
         reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2), device=src.device) + 0.5
         # reference_points = self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
         # reference_points_input = torch.stack(reference_points.split(2, dim=-1), dim=2).repeat(1, 1, self.num_feature_levels, 1)
@@ -423,13 +433,13 @@ class RAFT(nn.Module):
                 #                                     mode="bilinear", align_corners=False)
                 #     reference_flows = reference_flows.flatten(2).permute(0, 2, 1)
                 split = 0
-                if not (o_i == 0 and i_i == 0):
-                    # bs, n, 2
-                    confidence_embed = self.confidence_embed[o_i](query)
-                    confidence_onehot = F.gumbel_softmax(confidence_embed, tau=1, hard=True, eps=1e-10, dim=-1)
-                    # bs, n, 1
-                    query_mask = confidence_onehot[..., 1].unsqueeze(-1)
-                    query = query * query_mask
+                # if not (o_i == 0 and i_i == 0):
+                #     # bs, n, 2
+                #     confidence_embed = self.confidence_embed[o_i](query)
+                #     confidence_onehot = F.gumbel_softmax(confidence_embed, tau=1, hard=True, eps=1e-10, dim=-1)
+                #     # bs, n, 1
+                #     query_mask = confidence_onehot[..., 1].unsqueeze(-1)
+                #     query = query * query_mask
                 split = 0
 
                 if self.use_dab:

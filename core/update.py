@@ -135,30 +135,51 @@ class BasicUpdateBlock(nn.Module):
         mask = .25 * self.mask(net)
         return net, mask, delta_flow
 
+class MLP(nn.Module):
+    """ Very simple multi-layer perceptron (also called FFN)"""
+
+    def __init__(self, input_dim, hidden_dim, output_dim, num_layers, last_activate=False):
+        super().__init__()
+        self.num_layers = num_layers
+        self.last_activate = last_activate
+        h = [hidden_dim] * (num_layers - 1)
+        # self.layers = nn.ModuleList(nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
+        self.layers = nn.ModuleList(nn.Conv1d(n, k, kernel_size=1, padding=0)
+                                    for n, k in zip([input_dim] + h, h + [output_dim]))
+        self.norms = nn.ModuleList(nn.GroupNorm(32, k)
+                                   for n, k in zip([input_dim] + h, h + [output_dim]))
+
+    def forward(self, x):
+        x = x.permute(0, 2, 1)
+        for i, (layer, norm) in enumerate(zip(self.layers, self.norms)):
+        # for i, layer in enumerate(self.layers):
+        #     x = F.relu(layer(x)) if i < self.num_layers - 1 else layer(x)
+            # x = F.relu(norm(layer(x))) if i < self.num_layers - 1 else layer(x)
+            x = F.gelu(norm(layer(x))) if (i < self.num_layers - 1) or self.last_activate else layer(x)
+        x = x.permute(0, 2, 1)
+        return x
+
 class UpdateBlock(nn.Module):
     def __init__(self, args, hidden_dim=128, input_dim=128):
         super(UpdateBlock, self).__init__()
         self.args = args
         self.encoder = BasicMotionEncoder(args)
         # self.gru = SepConvGRU(hidden_dim=hidden_dim, input_dim=128+hidden_dim)
-        self.decoder = SepConvGRU(hidden_dim=hidden_dim, input_dim=128+hidden_dim)
-        self.flow_head = FlowHead(hidden_dim, hidden_dim=256)
-
-        self.mask = nn.Sequential(
-            nn.Conv2d(128, 256, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(256, 64*9, 1, padding=0))
+        self.decoder = nn.TransformerDecoderLayer(d_model=256, dim_feedforward=256 * 4,
+                                                  nhead=8, dropout=0.1, activation="relu")
+        self.flow_head = MLP(256, 256, 2, 3)
+        self.mask_head = MLP(256, 256, 2, 3)
 
     def forward(self, net, inp, corr, flow, upsample=True):
         motion_features = self.encoder(flow, corr)
         inp = torch.cat([inp, motion_features], dim=1)
 
-        net = self.gru(net, inp)
+        net = self.decoder(net, inp)
         delta_flow = self.flow_head(net)
 
         # scale mask to balence gradients
-        mask = .25 * self.mask(net)
-        return net, mask, delta_flow
+        # mask = .25 * self.mask(net)
+        return net, delta_flow
 
 
 

@@ -135,65 +135,30 @@ class BasicUpdateBlock(nn.Module):
         mask = .25 * self.mask(net)
         return net, mask, delta_flow
 
-class PositionEmbedding(nn.Module):
-
-    def __init__(self, args, hidden_dim=256):
-        super(PositionEmbedding, self).__init__()
+class UpdateBlock(nn.Module):
+    def __init__(self, args, hidden_dim=128, input_dim=128):
+        super(UpdateBlock, self).__init__()
         self.args = args
-        self.hidden_dim = hidden_dim
-        self.w, self.h = args.image_size[1] // 8, args.image_size[0] // 8
-        # self.embedding = nn.Embedding(num_embeddings=w * h, embedding_dim=hidden_dim)
-        # pos_indices = torch.arange(start=0, end=w * h, dtype=torch.int)
-        # self.register_buffer('pos_indices', pos_indices)
-        self.H_embedding = nn.Parameter(torch.empty((1, hidden_dim // 2, self.h, 1)))
-        self.W_embedding = nn.Parameter(torch.empty((1, hidden_dim // 2, 1, self.w)))
+        self.encoder = BasicMotionEncoder(args)
+        # self.gru = SepConvGRU(hidden_dim=hidden_dim, input_dim=128+hidden_dim)
+        self.decoder = SepConvGRU(hidden_dim=hidden_dim, input_dim=128+hidden_dim)
+        self.flow_head = FlowHead(hidden_dim, hidden_dim=256)
 
-    def forward(self, net):
-        PE = torch.cat((self.H_embedding.repeat((1, 1, 1, self.w)),
-                        self.W_embedding.repeat((1, 1, self.h, 1))), dim=1)
-
-        n, c, h, w = net.size()
-        if h != self.h or w != self.w:
-            PE = F.interpolate(PE, size=(h, w), mode='bilinear', align_corners=True)
-
-        # pe = self.embedding(self.pos_indices).view((1, h, w, c))
-        # pe = pe.permute((0, 3, 1, 2))
-        net = net + PE
-
-        return net
-
-class Decoder(nn.Module):
-
-    def __init__(self, args, hidden_dim=256, num_heads=8, ff_dim=1024, dropout=0.1):
-        super(Decoder, self).__init__()
-        self.args = args
-        self.hidden_dim = hidden_dim
-        self.decoder = nn.TransformerDecoderLayer(hidden_dim, num_heads,
-                                                  dim_feedforward=ff_dim, dropout=dropout)
-        # self.decoder = nn.MultiheadAttention(hidden_dim, num_heads, dropout=dropout)
-        self.head = nn.Sequential(
-            nn.Conv2d(hidden_dim, hidden_dim, 3, padding=1),
+        self.mask = nn.Sequential(
+            nn.Conv2d(128, 256, 3, padding=1),
             nn.ReLU(inplace=True),
-            nn.Conv2d(hidden_dim, 2, 1, padding=0))
+            nn.Conv2d(256, 64*9, 1, padding=0))
 
-    def forward(self, query, key):
-        q_n, q_c, q_h, q_w = query.size()
-        k_n, k_c, k_t, k_h, k_w = key.size()
+    def forward(self, net, inp, corr, flow, upsample=True):
+        motion_features = self.encoder(flow, corr)
+        inp = torch.cat([inp, motion_features], dim=1)
 
-        query = query.permute((2, 3, 0, 1))
-        key = key.permute((2, 3, 4, 0, 1))
+        net = self.gru(net, inp)
+        delta_flow = self.flow_head(net)
 
-        query = query.view((q_h * q_w, q_n, q_c))
-        key = key.view((k_t * k_h * k_w, k_n, k_c))
-
-        net = self.decoder(query, key)
-
-        net = net.permute((1, 2, 0))
-        net = net.view((q_n, q_c, q_h, q_w))
-
-        preds = self.head(net)
-
-        return net, preds
+        # scale mask to balence gradients
+        mask = .25 * self.mask(net)
+        return net, mask, delta_flow
 
 
 

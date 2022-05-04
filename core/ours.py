@@ -3,12 +3,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from update import BasicUpdateBlock, SmallUpdateBlock
+# from update import BasicUpdateBlock, SmallUpdateBlock
 from extractor import BasicEncoder, SmallEncoder
 from backbone import Backbone
 from corr import CorrBlock, AlternateCorrBlock
 from utils.utils import bilinear_sampler, coords_grid, upflow8
-from update import Decoder, PositionEmbedding
+# from update import Decoder, PositionEmbedding
 
 from deformable import DeformableTransformerEncoderLayer, DeformableTransformerDecoderLayer
 from utils.misc import inverse_sigmoid

@@ -359,8 +359,7 @@ class RAFT(nn.Module):
         # raw_context_pos = self.context_pos_embed(raw_context_pos)
         raw_context_pos = self.context_pos_embed(raw_context_pos + self.img_pos_embed.weight[None, -1][:, None])
         src = [torch.cat((self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1),
-                          self.corr_proj[i](torch.bmm(feat1.flatten(2).permute(0, 2, 1),
-                                                      feat2.flatten(2)).permute(0, 2, 1)).permute(0, 2, 1)), dim=0)
+                          self.corr_proj[i](torch.bmm(feat1.flatten(2).permute(0, 2, 1), feat2.flatten(2)))), dim=0)
                for i, (feat1, feat2) in enumerate(zip(D1, D2))]
         src = torch.cat(torch.cat(src, dim=1).split(bs, dim=0), dim=1)
         # src = torch.cat(src, dim=1)

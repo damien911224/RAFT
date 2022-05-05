@@ -367,7 +367,7 @@ class RAFT(nn.Module):
                                                       feat2.flatten(2)).view(bs * h * w, 1, h, w),
                                             ((self.args.image_size[0] // (2 ** (3 + i))),
                                              (self.args.image_size[1] // (2 ** (3 + i)))),
-                                            mode="bilinear", align_corners=False).view(bs, hw, -1)
+                                            mode="bilinear", align_corners=False).view(bs, h * w, -1)
                               if h != self.args.image_size[0] // (2 ** (3 + i)) or
                                  w != self.args.image_size[1] // (2 ** (3 + i))
                               else torch.bmm(feat1.flatten(2).permute(0, 2, 1), feat2.flatten(2)),
@@ -375,7 +375,7 @@ class RAFT(nn.Module):
                                                       feat1.flatten(2)).view(bs * h * w, 1, h, w),
                                             ((self.args.image_size[0] // (2 ** (3 + i))),
                                              (self.args.image_size[1] // (2 ** (3 + i)))),
-                                            mode="bilinear", align_corners=False).view(bs, hw, -1)
+                                            mode="bilinear", align_corners=False).view(bs, h * w, -1)
                               if h != self.args.image_size[0] // (2 ** (3 + i)) or
                                  w != self.args.image_size[1] // (2 ** (3 + i))
                               else torch.bmm(feat2.flatten(2).permute(0, 2, 1), feat1.flatten(2))

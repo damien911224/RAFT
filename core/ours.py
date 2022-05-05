@@ -364,20 +364,20 @@ class RAFT(nn.Module):
         src = [torch.cat((self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1),
                           self.corr_proj[i](torch.cat((
                               F.interpolate(torch.bmm(feat1.flatten(2).permute(0, 2, 1),
-                                                      feat2.flatten(2)),
-                                            ((args.image_size[0] // (2 ** (3 + i))),
-                                             (args.image_size[1] // (2 ** (3 + i)))),
-                                            mode="bilinear", align_corners=False)
-                              if feat1.shape[2] != args.image_size[0] // (2 ** (3 + i)) or
-                                 feat1.shape[3] != args.image_size[1] // (2 ** (3 + i))
+                                                      feat2.flatten(2)).view(bs * h * w, 1, h, w),
+                                            ((self.args.image_size[0] // (2 ** (3 + i))),
+                                             (self.args.image_size[1] // (2 ** (3 + i)))),
+                                            mode="bilinear", align_corners=False).view(bs, hw, -1)
+                              if h != self.args.image_size[0] // (2 ** (3 + i)) or
+                                 w != self.args.image_size[1] // (2 ** (3 + i))
                               else torch.bmm(feat1.flatten(2).permute(0, 2, 1), feat2.flatten(2)),
                               F.interpolate(torch.bmm(feat2.flatten(2).permute(0, 2, 1),
-                                                      feat1.flatten(2)),
-                                            ((args.image_size[0] // (2 ** (3 + i))),
-                                             (args.image_size[1] // (2 ** (3 + i)))),
-                                            mode="bilinear", align_corners=False)
-                              if feat1.shape[2] != args.image_size[0] // (2 ** (3 + i)) or
-                                 feat1.shape[3] != args.image_size[1] // (2 ** (3 + i))
+                                                      feat1.flatten(2)).view(bs * h * w, 1, h, w),
+                                            ((self.args.image_size[0] // (2 ** (3 + i))),
+                                             (self.args.image_size[1] // (2 ** (3 + i)))),
+                                            mode="bilinear", align_corners=False).view(bs, hw, -1)
+                              if h != self.args.image_size[0] // (2 ** (3 + i)) or
+                                 w != self.args.image_size[1] // (2 ** (3 + i))
                               else torch.bmm(feat2.flatten(2).permute(0, 2, 1), feat1.flatten(2))
                           ), dim=0))), dim=-1)
                for i, (feat1, feat2) in enumerate(zip(D1, D2))]

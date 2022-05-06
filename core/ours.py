@@ -577,7 +577,6 @@ class RAFT(nn.Module):
                 key_flow = src_points - dst_points
                 reference_flows = flow_embed.detach().sigmoid()
                 reference_points[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
-                src_ref[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
 
                 # reference_points = reference_points.sigmoid()
                 # src_points = reference_points[..., :2]
@@ -594,6 +593,11 @@ class RAFT(nn.Module):
                 context_flow = torch.bmm(context_flow, key_flow)
                 # bs, 2, H, W
                 flow = context_flow.permute(0, 2, 1).view(bs, 2, H, W)
+
+                src_points = src_ref[:, :, 0].detach()
+                dst_points = src_points + flow
+                src_ref[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
+
                 flow = flow * torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
 
                 if I_H != H or I_W != W:

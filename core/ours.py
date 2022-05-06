@@ -39,22 +39,22 @@ class RAFT(nn.Module):
         if "dropout" not in self.args:
             self.args.dropout = 0
 
-        # self.extractor = BasicEncoder(base_channel=64, norm_fn="instance")
-        # self.up_dim = self.extractor.up_dim
-        self.extractor = Backbone("resnet50", train_backbone=True, return_interm_layers=True, dilation=False)
+        self.extractor = BasicEncoder(base_channel=64, norm_fn="instance")
+        self.up_dim = self.extractor.up_dim
+        # self.extractor = Backbone("resnet50", train_backbone=True, return_interm_layers=True, dilation=False)
         # self.feature_extractor = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
         # self.context_extractor = BasicEncoder(base_channel=64, norm_fn="batch")
         # self.up_dim = self.context_extractor.up_dim
         self.num_feature_levels = 3
 
-        channels = (512, 1024, 2048)
-        # channels = (128, 192, 256)
-        # self.d_model = channels[0]
-        self.d_model = channels[0] // 2
-        self.up_dim = self.d_model
-        self.extractor_embed = nn.Sequential(
-                nn.Conv2d(channels[0], self.d_model, kernel_size=1, padding=0),
-                nn.GroupNorm(16, self.d_model))
+        # channels = (512, 1024, 2048)
+        channels = (128, 192, 256)
+        self.d_model = channels[0]
+        # self.d_model = channels[0] // 2
+        # self.up_dim = self.d_model
+        # self.extractor_embed = nn.Sequential(
+        #         nn.Conv2d(channels[0], self.d_model, kernel_size=1, padding=0),
+        #         nn.GroupNorm(16, self.d_model))
 
         input_proj_list = list()
         for l_i in range(self.num_feature_levels):
@@ -81,7 +81,7 @@ class RAFT(nn.Module):
         #     corr_proj_list.append(MLP(in_channels, self.d_model // 2, self.d_model // 2, 3))
         # self.corr_proj = nn.ModuleList(corr_proj_list)
 
-        self.encoder_iterations = 1
+        self.encoder_iterations = 6
         self.outer_iterations = 6
         self.inner_iterations = 1
         # self.inner_iterations = self.num_feature_levels
@@ -352,16 +352,16 @@ class RAFT(nn.Module):
         image2 = image2.contiguous()
         bs, _, I_H, I_W = image1.shape
 
-        # D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
-        features = self.extractor(torch.cat((image1, image2), dim=0))
+        D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
+        # features = self.extractor(torch.cat((image1, image2), dim=0))
         # _, _, U1 = self.context_extractor(torch.cat((image1, image2), dim=0))
-        D1 = list()
-        D2 = list()
-        for f_i in range(len(features)):
-            x1, x2 = features["{}".format(f_i)].split(bs, dim=0)
-            D1.append(x1)
-            D2.append(x2)
-        U1 = self.extractor_embed(D1[0])
+        # D1 = list()
+        # D2 = list()
+        # for f_i in range(len(features)):
+        #     x1, x2 = features["{}".format(f_i)].split(bs, dim=0)
+        #     D1.append(x1)
+        #     D2.append(x2)
+        # U1 = self.extractor_embed(D1[0])
 
         _, c, h, w = D1[-1].shape
         # bs, hw, c

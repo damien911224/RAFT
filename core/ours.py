@@ -595,7 +595,7 @@ class RAFT(nn.Module):
                 flow = context_flow.permute(0, 2, 1).view(bs, 2, H, W)
 
                 src_points = src_ref[:, :, 0].detach()
-                dst_points = src_points + flow
+                dst_points = src_points + flow.flatten(2).permute(0, 2, 1)
                 src_ref[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
 
                 flow = flow * torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)

@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # from update import BasicUpdateBlock, SmallUpdateBlock
-from extractor import BasicEncoder, SmallEncoder
+from extractor import BasicEncoder, CNNEncoder, CNNDecoder
 from backbone import Backbone
 from corr import CorrBlock, AlternateCorrBlock
 from utils.utils import bilinear_sampler, coords_grid, upflow8
@@ -39,12 +39,16 @@ class RAFT(nn.Module):
         if "dropout" not in self.args:
             self.args.dropout = 0
 
-        self.extractor = BasicEncoder(base_channel=64, norm_fn="instance")
-        self.up_dim = self.extractor.up_dim
+        # self.extractor = BasicEncoder(base_channel=64, norm_fn="instance")
+        # self.up_dim = self.extractor.up_dim
         # self.extractor = Backbone("resnet50", train_backbone=True, return_interm_layers=True, dilation=False)
         # self.feature_extractor = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
         # self.context_extractor = BasicEncoder(base_channel=64, norm_fn="batch")
         # self.up_dim = self.context_extractor.up_dim
+
+        self.cnn_encoder = CNNEncoder(base_channel=64, norm_fn="instance")
+        self.cnn_decoder = CNNDecoder(base_channel=64, norm_fn="batch")
+        self.up_dim = self.cnn_decoder.up_dim
         self.num_feature_levels = 3
 
         # channels = (512, 1024, 2048)
@@ -74,15 +78,15 @@ class RAFT(nn.Module):
         self.input_proj = nn.ModuleList(input_proj_list)
         corr_proj_list = list()
         for l_i in range(self.num_feature_levels):
-            in_channels = (w // (2 ** (3 + l_i))) * (h // (2 ** (3 + l_i)))
-            # in_channels = (2 * 4 + 1) ** 2
+            # in_channels = (w // (2 ** (3 + l_i))) * (h // (2 ** (3 + l_i)))
+            in_channels = (2 * 4 + 1) ** 2
             # corr_proj_list.append(nn.Sequential(
             #     nn.Conv1d(in_channels, self.d_model, kernel_size=1, padding=0),
             #     nn.GroupNorm(16, self.d_model)))
             corr_proj_list.append(MLP(in_channels, self.d_model // 2, self.d_model // 2, 3))
         self.corr_proj = nn.ModuleList(corr_proj_list)
 
-        self.encoder_iterations = 1
+        self.encoder_iterations = 0
         self.outer_iterations = 6
         self.inner_iterations = 1
         # self.inner_iterations = self.num_feature_levels
@@ -305,8 +309,8 @@ class RAFT(nn.Module):
     def get_reference_points(self, spatial_shapes, device):
         reference_points_list = []
         for lvl, (H_, W_) in enumerate(spatial_shapes):
-            ref_y, ref_x = torch.meshgrid(torch.linspace(0.0, H_ - 1.0, H_, dtype=torch.float32, device=device) / (H_ - 1),
-                                          torch.linspace(0.0, W_ - 1.0, W_, dtype=torch.float32, device=device) / (W_ - 1))
+            ref_y, ref_x = torch.meshgrid(torch.linspace(0.5, H_ - 0.5, H_, dtype=torch.float32, device=device) / H_,
+                                          torch.linspace(0.5, W_ - 0.5, W_, dtype=torch.float32, device=device) / W_)
             ref_y = ref_y.reshape(-1)[None]
             ref_x = ref_x.reshape(-1)[None]
             ref = torch.stack((ref_x, ref_y), -1)
@@ -353,7 +357,9 @@ class RAFT(nn.Module):
         image2 = image2.contiguous()
         bs, _, I_H, I_W = image1.shape
 
-        D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
+        # D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
+        E1, E2 = self.cnn_encoder(torch.cat((image1, image2), dim=0))
+        D1, D2, U1 = self.cnn_decoder(torch.cat((image1, image2), dim=0))
         # features = self.extractor(torch.cat((image1, image2), dim=0))
         # _, _, U1 = self.context_extractor(torch.cat((image1, image2), dim=0))
         # D1 = list()
@@ -377,37 +383,38 @@ class RAFT(nn.Module):
         raw_context_pos = self.context_pos_embed(raw_context_pos + self.img_pos_embed.weight[None, -1][:, None])
         # src = [self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1)
         #        for i, (feat1, feat2) in enumerate(zip(D1, D2))]
+        # src = [torch.cat((self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1),
+        #                   self.corr_proj[i](torch.cat((
+        #                       F.interpolate(torch.bmm(feat1.flatten(2).permute(0, 2, 1),
+        #                                               feat2.flatten(2)).view(bs * feat1.shape[2] * feat1.shape[3], 1,
+        #                                                                      feat1.shape[2], feat1.shape[3]),
+        #                                     ((self.args.image_size[0] // (2 ** (3 + i))),
+        #                                      (self.args.image_size[1] // (2 ** (3 + i)))),
+        #                                     mode="bilinear", align_corners=False).view(
+        #                           bs, feat1.shape[2] * feat1.shape[3], -1)
+        #                       if feat1.shape[2] != self.args.image_size[0] // (2 ** (3 + i)) or
+        #                          feat1.shape[3] != self.args.image_size[1] // (2 ** (3 + i))
+        #                       else torch.bmm(feat1.flatten(2).permute(0, 2, 1), feat2.flatten(2)),
+        #                       F.interpolate(torch.bmm(feat2.flatten(2).permute(0, 2, 1),
+        #                                               feat1.flatten(2)).view(bs * feat1.shape[2] * feat1.shape[3], 1,
+        #                                                                      feat1.shape[2], feat1.shape[3]),
+        #                                     ((self.args.image_size[0] // (2 ** (3 + i))),
+        #                                      (self.args.image_size[1] // (2 ** (3 + i)))),
+        #                                     mode="bilinear", align_corners=False).view(
+        #                           bs, feat1.shape[2] * feat1.shape[3], -1)
+        #                       if feat1.shape[2] != self.args.image_size[0] // (2 ** (3 + i)) or
+        #                          feat1.shape[3] != self.args.image_size[1] // (2 ** (3 + i))
+        #                       else torch.bmm(feat2.flatten(2).permute(0, 2, 1), feat1.flatten(2))
+        #                   ), dim=0))), dim=-1)
+        #        for i, (feat1, feat2) in enumerate(zip(D1, D2))]
+        corr_01 = [CorrBlock(feat1, feat2, radius=4)(
+            self.get_reference_points([feat1.shape[2:], ], device=feat1.device))
+                      for i, (feat1, feat2) in enumerate(zip(E1, E2))]
+        corr_02 = [CorrBlock(feat1, feat2, radius=4)(
+            self.get_reference_points([feat1.shape[2:], ], device=feat1.device))
+                      for i, (feat1, feat2) in enumerate(zip(E2, E1))]
         src = [torch.cat((self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1),
-                          self.corr_proj[i](torch.cat((
-                              F.interpolate(torch.bmm(feat1.flatten(2).permute(0, 2, 1),
-                                                      feat2.flatten(2)).view(bs * feat1.shape[2] * feat1.shape[3], 1,
-                                                                             feat1.shape[2], feat1.shape[3]),
-                                            ((self.args.image_size[0] // (2 ** (3 + i))),
-                                             (self.args.image_size[1] // (2 ** (3 + i)))),
-                                            mode="bilinear", align_corners=False).view(
-                                  bs, feat1.shape[2] * feat1.shape[3], -1)
-                              if feat1.shape[2] != self.args.image_size[0] // (2 ** (3 + i)) or
-                                 feat1.shape[3] != self.args.image_size[1] // (2 ** (3 + i))
-                              else torch.bmm(feat1.flatten(2).permute(0, 2, 1), feat2.flatten(2)),
-                              F.interpolate(torch.bmm(feat2.flatten(2).permute(0, 2, 1),
-                                                      feat1.flatten(2)).view(bs * feat1.shape[2] * feat1.shape[3], 1,
-                                                                             feat1.shape[2], feat1.shape[3]),
-                                            ((self.args.image_size[0] // (2 ** (3 + i))),
-                                             (self.args.image_size[1] // (2 ** (3 + i)))),
-                                            mode="bilinear", align_corners=False).view(
-                                  bs, feat1.shape[2] * feat1.shape[3], -1)
-                              if feat1.shape[2] != self.args.image_size[0] // (2 ** (3 + i)) or
-                                 feat1.shape[3] != self.args.image_size[1] // (2 ** (3 + i))
-                              else torch.bmm(feat2.flatten(2).permute(0, 2, 1), feat1.flatten(2))
-                          ), dim=0))), dim=-1)
-               for i, (feat1, feat2) in enumerate(zip(D1, D2))]
-        corr_fn_01 = [CorrBlock(feat1, feat2, radius=4) for i, (feat1, feat2) in enumerate(zip(D1, D2))]
-        corr_fn_02 = [CorrBlock(feat1, feat2, radius=4) for i, (feat1, feat2) in enumerate(zip(D2, D1))]
-        src = [torch.cat((self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1),
-                          self.corr_proj[i](torch.cat((
-                              torch.bmm(feat1.flatten(2).permute(0, 2, 1), feat2.flatten(2)),
-                              torch.bmm(feat2.flatten(2).permute(0, 2, 1), feat1.flatten(2))
-                          ), dim=0))), dim=-1)
+                          self.corr_proj[i](torch.cat((corr_01[i], corr_02[i]), dim=0))), dim=-1)
                for i, (feat1, feat2) in enumerate(zip(D1, D2))]
         src = torch.cat(torch.cat(src, dim=1).split(bs, dim=0), dim=1)
         # src = torch.cat(src, dim=1)
@@ -576,7 +583,7 @@ class RAFT(nn.Module):
                 # bs, n, 2
                 flow_embed = self.flow_embed[o_i](query)
                 flow_embed = flow_embed + inverse_sigmoid(reference_flows)
-                # reference_points = flow_embed + inverse_sigmoid(reference_points)
+                reference_points = flow_embed + inverse_sigmoid(reference_points)
 
                 src_points = reference_points[:, :, 0].detach()
                 dst_points = (inverse_sigmoid(src_points) + flow_embed).sigmoid()

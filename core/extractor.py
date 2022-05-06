@@ -339,10 +339,9 @@ class SmallEncoder(nn.Module):
         return x
 
 
-class Decoder(nn.Module):
-
-    def __init__(self, base_channel=64, norm_fn="batch"):
-        super(Decoder, self).__init__()
+class CNNEncoder(nn.Module):
+    def __init__(self, base_channel=64, norm_fn="instance"):
+        super(CNNEncoder, self).__init__()
         self.norm_fn = norm_fn
 
         if self.norm_fn == "group":
@@ -365,41 +364,6 @@ class Decoder(nn.Module):
         self.down_layer4 = self._make_down_layer(round(base_channel * 2 * 1.5), stride=2)
         self.down_layer5 = self._make_down_layer(base_channel * 2 * 2, stride=2)
         self.down_dim = self.in_planes
-        # self.up_layer1 = self._make_up_layer(round(base_channel * 1.5), scale=2.0)
-        # self.up_layer2 = self._make_up_layer(base_channel * 2, scale=2.0)
-        # self.up_dim = self.in_planes
-        # self.top_layer = \
-        #     nn.Sequential(*(nn.Conv2d(base_channel * 2 * 2, round(base_channel * 2 * 1.5), kernel_size=1, padding=0),
-        #                     self._get_norm_func(base_channel * 2, norm_fn=self.norm_fn)))
-
-        self.up_top1 = \
-            nn.Sequential(*(nn.Conv2d(base_channel * 2, round(base_channel * 1.5), kernel_size=1, padding=0),
-                            self._get_norm_func(round(base_channel * 1.5), norm_fn=self.norm_fn)))
-        self.up_lateral1 = \
-            nn.Sequential(*(nn.Conv2d(round(base_channel * 1.5), round(base_channel * 1.5), kernel_size=1, padding=0),
-                            self._get_norm_func(round(base_channel * 1.5), norm_fn=self.norm_fn)))
-        self.up_smooth1 = \
-            nn.Sequential(*(nn.Conv2d(round(base_channel * 1.5), round(base_channel * 1.5), kernel_size=3, padding=1),
-                            self._get_norm_func(round(base_channel * 1.5), norm_fn=self.norm_fn),
-                            nn.GELU()))
-        # self.up_top2 = \
-        #     nn.Sequential(*(nn.Conv2d(round(base_channel * 1.5), base_channel, kernel_size=1, padding=0),
-        #                     self._get_norm_func(base_channel, norm_fn=self.norm_fn)))
-        # self.up_lateral2 = \
-        #     nn.Sequential(*(nn.Conv2d(base_channel, base_channel, kernel_size=1, padding=0),
-        #                     self._get_norm_func(base_channel, norm_fn=self.norm_fn)))
-        # self.up_smooth2 = \
-        #     nn.Sequential(*(nn.Conv2d(base_channel, base_channel, kernel_size=3, padding=1),
-        #                     self._get_norm_func(base_channel, norm_fn=self.norm_fn),
-        #                     nn.GELU()))
-        # self.up_dim = base_channel
-
-        # self.up_smooth2 = nn.Conv2d(base_channel * 2, base_channel * 2, kernel_size=3, padding=1)
-        # self.up_lateral2 = nn.Conv2d(base_channel * 2, base_channel * 2, kernel_size=1, padding=0)
-        # self.up_layer3 = self._make_up_layer(base_channel * 2, scale=2.0)
-        self.in_planes = base_channel * 2
-        self.up_layer1 = self._make_up_layer(round(base_channel * 1.5), scale=2.0)
-        self.up_dim = self.in_planes
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -460,28 +424,120 @@ class Decoder(nn.Module):
         D4 = self.down_layer4(D3)
         D5 = self.down_layer5(D4)
 
-        # D5_x1, D5_x2 = torch.split(D5, D5.shape[0] // 2, dim=0)
-
-        # U1 = self.up_layer1(D5_x1)
-        # U2 = self.up_layer2(U1)
-
-        # D1_x1, D1_x2 = torch.split(D1, D1.shape[0] // 2, dim=0)
-        D2_x1, D2_x2 = torch.split(D2, D2.shape[0] // 2, dim=0)
         D3_x1, D3_x2 = torch.split(D3, D3.shape[0] // 2, dim=0)
         D4_x1, D4_x2 = torch.split(D4, D4.shape[0] // 2, dim=0)
         D5_x1, D5_x2 = torch.split(D5, D5.shape[0] // 2, dim=0)
 
-        # T = self.top_layer(D5_x1)
+        X1 = (D3_x1, D4_x1, D5_x1)
+        X2 = (D3_x2, D4_x2, D5_x2)
+
+        return X1, X2
+
+
+class CNNDecoder(nn.Module):
+    def __init__(self, base_channel=64, norm_fn="batch"):
+        super(CNNDecoder, self).__init__()
+        self.norm_fn = norm_fn
+
+        if self.norm_fn == "group":
+            self.norm1 = nn.GroupNorm(num_groups=16, num_channels=base_channel)
+        elif self.norm_fn == "batch":
+            self.norm1 = nn.BatchNorm2d(base_channel)
+        elif self.norm_fn == "instance":
+            self.norm1 = nn.InstanceNorm2d(base_channel)
+        elif self.norm_fn == "none":
+            self.norm1 = nn.Sequential()
+
+        self.conv1 = nn.Conv2d(3, base_channel, kernel_size=7, stride=2, padding=3)
+        self.relu1 = nn.GELU()
+
+        self.in_planes = base_channel
+        self.down_layer1 = self._make_down_layer(base_channel, stride=1)
+        self.down_layer2 = self._make_down_layer(round(base_channel * 1.5), stride=2)
+        self.down_layer3 = self._make_down_layer(base_channel * 2, stride=2)
+
+        self.up_top1 = \
+            nn.Sequential(*(nn.Conv2d(base_channel * 2, round(base_channel * 1.5), kernel_size=1, padding=0),
+                            self._get_norm_func(round(base_channel * 1.5), norm_fn=self.norm_fn)))
+        self.up_lateral1 = \
+            nn.Sequential(*(nn.Conv2d(round(base_channel * 1.5), round(base_channel * 1.5), kernel_size=1, padding=0),
+                            self._get_norm_func(round(base_channel * 1.5), norm_fn=self.norm_fn)))
+        self.up_smooth1 = \
+            nn.Sequential(*(nn.Conv2d(round(base_channel * 1.5), round(base_channel * 1.5), kernel_size=3, padding=1),
+                            self._get_norm_func(round(base_channel * 1.5), norm_fn=self.norm_fn),
+                            nn.GELU()))
+        self.in_planes = base_channel * 2
+        self.up_layer1 = self._make_up_layer(round(base_channel * 1.5), scale=2.0)
+        self.up_dim = self.in_planes
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+            elif isinstance(m, (nn.BatchNorm2d, nn.InstanceNorm2d, nn.GroupNorm)):
+                if m.weight is not None:
+                    nn.init.constant_(m.weight, 1)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+
+    def _make_down_layer(self, dim, stride=1):
+        layer1 = ResidualBlock(self.in_planes, dim, self.norm_fn, stride=stride)
+        layer2 = ResidualBlock(dim, dim, self.norm_fn, stride=1)
+        layers = (layer1, layer2)
+
+        self.in_planes = dim
+        return nn.Sequential(*layers)
+
+    def _make_up_layer(self, dim, scale=2.0):
+        layer1 = nn.Upsample(scale_factor=scale, mode="bilinear")
+        layer2 = nn.Conv2d(self.in_planes, dim, kernel_size=3, padding=1)
+        if self.norm_fn == "group":
+            layer3 = nn.GroupNorm(num_groups=16, num_channels=dim)
+        elif self.norm_fn == "batch":
+            layer3 = nn.BatchNorm2d(dim)
+        elif self.norm_fn == "instance":
+            layer3 = nn.InstanceNorm2d(dim)
+        else:
+            layer3 = nn.Sequential()
+        # layer4 = nn.ReLU()
+        layer4 = nn.GELU()
+        layers = (layer1, layer2, layer3, layer4)
+
+        self.in_planes = dim
+        return nn.Sequential(*layers)
+
+    def _get_norm_func(self, channel, norm_fn="batch"):
+
+        if norm_fn == "group":
+            norm = nn.GroupNorm(num_groups=16, num_channels=channel)
+        elif norm_fn == "batch":
+            norm = nn.BatchNorm2d(channel)
+        elif norm_fn == "instance":
+            norm = nn.InstanceNorm2d(channel)
+        elif norm_fn == "none":
+            norm = nn.Sequential()
+
+        return norm
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.norm1(x)
+        x = self.relu1(x)
+
+        D1 = self.down_layer1(x)
+        D2 = self.down_layer2(D1)
+        D3 = self.down_layer3(D2)
+
+        D2_x1, D2_x2 = torch.split(D2, D2.shape[0] // 2, dim=0)
+        D3_x1, D3_x2 = torch.split(D3, D3.shape[0] // 2, dim=0)
+        D4_x1, D4_x2 = torch.split(D4, D4.shape[0] // 2, dim=0)
+        D5_x1, D5_x2 = torch.split(D5, D5.shape[0] // 2, dim=0)
 
         T1 = self.up_top1(D3_x1)
         D2_x1 = self.up_lateral1(D2_x1)
         U1 = self.up_smooth1(F.gelu(F.interpolate(T1, scale_factor=2.0, mode="bilinear", align_corners=False) + D2_x1))
         # T2 = self.up_top2(U1)
         # D1_x1 = self.up_lateral2(D1_x1)
-        # U2 = self.up_smooth2(F.relu(F.upsample(T2, scale_factor=2.0, mode="bilinear") + D1_x1))
-
-        # U1 = self.up_layer1(D3_x1)
-        # U2 = self.up_layer2(U1)
+        # U2 = self.up_smooth2(F.gelu(F.upsample(T2, scale_factor=2.0, mode="bilinear") + D1_x1))
 
         X1 = (D3_x1, D4_x1, D5_x1)
         X2 = (D3_x2, D4_x2, D5_x2)

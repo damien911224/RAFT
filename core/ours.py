@@ -412,10 +412,12 @@ class RAFT(nn.Module):
         #                   ), dim=0))), dim=-1)
         #        for i, (feat1, feat2) in enumerate(zip(D1, D2))]
         corr_01 = [CorrBlock(feat1, feat2, radius=4)(
-            self.get_reference_points([feat1.shape[2:], ], device=feat1.device, normalize=False).squeeze(2))
+            self.get_reference_points([feat1.shape[2:], ],
+                                      device=feat1.device, normalize=False).squeeze(2).repeat(bs, 1, 1))
                       for i, (feat1, feat2) in enumerate(zip(E1, E2))]
         corr_02 = [CorrBlock(feat1, feat2, radius=4)(
-            self.get_reference_points([feat1.shape[2:], ], device=feat1.device, normalize=False).squeeze(2))
+            self.get_reference_points([feat1.shape[2:], ],
+                                      device=feat1.device, normalize=False).squeeze(2).repeat(bs, 1, 1))
                       for i, (feat1, feat2) in enumerate(zip(E2, E1))]
         src = [torch.cat((self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1),
                           self.corr_proj[i](torch.cat((corr_01[i], corr_02[i]), dim=0))), dim=-1)

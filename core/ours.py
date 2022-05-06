@@ -568,9 +568,6 @@ class RAFT(nn.Module):
                     context_pos = raw_context_pos
                     src_pos = raw_src_pos
 
-                corr_src = [self.input_proj[i](torch.cat((corr_fn_01[i](reference_points), ), dim=0)).permute(0, 2, 1)
-                            for i, (feat1, feat2) in enumerate(zip(D1, D2))]
-
                 query = self.decoder[o_i](query, query_pos, reference_points,
                                           src, src_pos, spatial_shapes, level_start_index)
                 # query = self.decoder[o_i](query, query_pos, reference_points_input,

@@ -39,33 +39,45 @@ class RAFT(nn.Module):
         if "dropout" not in self.args:
             self.args.dropout = 0
 
-        self.extractor = BasicEncoder(base_channel=64, norm_fn="instance")
-        self.up_dim = self.extractor.up_dim
+        # self.extractor = BasicEncoder(base_channel=64, norm_fn="instance")
+        # self.up_dim = self.extractor.up_dim
+        self.extractor = Backbone("resnet50", train_backbone=True, return_interm_layers=True, dilation=False)
         # self.feature_extractor = Backbone("resnet50", train_backbone=False, return_interm_layers=True, dilation=False)
         # self.context_extractor = BasicEncoder(base_channel=64, norm_fn="batch")
         # self.up_dim = self.context_extractor.up_dim
         self.num_feature_levels = 3
 
-        # channels = (512, 1024, 2048)
-        channels = (128, 192, 256)
-        self.d_model = channels[0]
+        channels = (512, 1024, 2048)
+        # channels = (128, 192, 256)
+        # self.d_model = channels[0]
+        self.d_model = channels[0] // 2
+        self.up_dim = self.d_model
+        self.extractor_embed = MLP(channels[0], self.d_model, self.d_model, 3)
+
         input_proj_list = list()
         for l_i in range(self.num_feature_levels):
             in_channels = channels[l_i]
             input_proj_list.append(nn.Sequential(
-                nn.Conv1d(in_channels, self.d_model // 2, kernel_size=1, padding=0),
-                nn.GroupNorm(16, self.d_model // 2)))
+                nn.Conv1d(in_channels, self.d_model, kernel_size=1, padding=0),
+                nn.GroupNorm(16, self.d_model)))
         self.input_proj = nn.ModuleList(input_proj_list)
 
         h, w = args.image_size[0], args.image_size[1]
-        corr_proj_list = list()
-        for l_i in range(self.num_feature_levels):
-            in_channels = (w // (2 ** (3 + l_i))) * (h // (2 ** (3 + l_i)))
-            # corr_proj_list.append(nn.Sequential(
-            #     nn.Conv1d(in_channels, self.d_model, kernel_size=1, padding=0),
-            #     nn.GroupNorm(16, self.d_model)))
-            corr_proj_list.append(MLP(in_channels, self.d_model // 2, self.d_model // 2, 3))
-        self.corr_proj = nn.ModuleList(corr_proj_list)
+        # input_proj_list = list()
+        # for l_i in range(self.num_feature_levels):
+        #     in_channels = channels[l_i]
+        #     input_proj_list.append(nn.Sequential(
+        #         nn.Conv1d(in_channels, self.d_model // 2, kernel_size=1, padding=0),
+        #         nn.GroupNorm(16, self.d_model // 2)))
+        # self.input_proj = nn.ModuleList(input_proj_list)
+        # corr_proj_list = list()
+        # for l_i in range(self.num_feature_levels):
+        #     in_channels = (w // (2 ** (3 + l_i))) * (h // (2 ** (3 + l_i)))
+        #     # corr_proj_list.append(nn.Sequential(
+        #     #     nn.Conv1d(in_channels, self.d_model, kernel_size=1, padding=0),
+        #     #     nn.GroupNorm(16, self.d_model)))
+        #     corr_proj_list.append(MLP(in_channels, self.d_model // 2, self.d_model // 2, 3))
+        # self.corr_proj = nn.ModuleList(corr_proj_list)
 
         self.encoder_iterations = 1
         self.outer_iterations = 6
@@ -338,15 +350,17 @@ class RAFT(nn.Module):
         image2 = image2.contiguous()
         bs, _, I_H, I_W = image1.shape
 
-        D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
-        # features = self.feature_extractor(torch.cat((image1, image2), dim=0))
+        # D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
+        features = self.feature_extractor(torch.cat((image1, image2), dim=0))
         # _, _, U1 = self.context_extractor(torch.cat((image1, image2), dim=0))
-        # D1 = list()
-        # D2 = list()
-        # for f_i in range(len(features)):
-        #     x1, x2 = features["{}".format(f_i)].split(bs, dim=0)
-        #     D1.append(x1)
-        #     D2.append(x2)
+        D1 = list()
+        D2 = list()
+        for f_i in range(len(features)):
+            x1, x2 = features["{}".format(f_i)].split(bs, dim=0)
+            D1.append(x1)
+            D2.append(x2)
+        U1 = self.extractor_embed(D1[0])
+
         _, c, h, w = D1[-1].shape
         # bs, hw, c
         raw_src_pos = [self.get_embedding(feat, self.col_pos_embed, self.row_pos_embed) + self.lvl_pos_embed.weight[i]
@@ -358,33 +372,32 @@ class RAFT(nn.Module):
         raw_context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed)
         # raw_context_pos = self.context_pos_embed(raw_context_pos)
         raw_context_pos = self.context_pos_embed(raw_context_pos + self.img_pos_embed.weight[None, -1][:, None])
-        # src = [torch.cat((self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1),
-        #                   self.corr_proj[i](torch.bmm(feat1.flatten(2).permute(0, 2, 1), feat2.flatten(2)))), dim=0)
-        #        for i, (feat1, feat2) in enumerate(zip(D1, D2))]
-        src = [torch.cat((self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1),
-                          self.corr_proj[i](torch.cat((
-                              F.interpolate(torch.bmm(feat1.flatten(2).permute(0, 2, 1),
-                                                      feat2.flatten(2)).view(bs * feat1.shape[2] * feat1.shape[3], 1,
-                                                                             feat1.shape[2], feat1.shape[3]),
-                                            ((self.args.image_size[0] // (2 ** (3 + i))),
-                                             (self.args.image_size[1] // (2 ** (3 + i)))),
-                                            mode="bilinear", align_corners=False).view(
-                                  bs, feat1.shape[2] * feat1.shape[3], -1)
-                              if feat1.shape[2] != self.args.image_size[0] // (2 ** (3 + i)) or
-                                 feat1.shape[3] != self.args.image_size[1] // (2 ** (3 + i))
-                              else torch.bmm(feat1.flatten(2).permute(0, 2, 1), feat2.flatten(2)),
-                              F.interpolate(torch.bmm(feat2.flatten(2).permute(0, 2, 1),
-                                                      feat1.flatten(2)).view(bs * feat1.shape[2] * feat1.shape[3], 1,
-                                                                             feat1.shape[2], feat1.shape[3]),
-                                            ((self.args.image_size[0] // (2 ** (3 + i))),
-                                             (self.args.image_size[1] // (2 ** (3 + i)))),
-                                            mode="bilinear", align_corners=False).view(
-                                  bs, feat1.shape[2] * feat1.shape[3], -1)
-                              if feat1.shape[2] != self.args.image_size[0] // (2 ** (3 + i)) or
-                                 feat1.shape[3] != self.args.image_size[1] // (2 ** (3 + i))
-                              else torch.bmm(feat2.flatten(2).permute(0, 2, 1), feat1.flatten(2))
-                          ), dim=0))), dim=-1)
+        src = [self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1)
                for i, (feat1, feat2) in enumerate(zip(D1, D2))]
+        # src = [torch.cat((self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1),
+        #                   self.corr_proj[i](torch.cat((
+        #                       F.interpolate(torch.bmm(feat1.flatten(2).permute(0, 2, 1),
+        #                                               feat2.flatten(2)).view(bs * feat1.shape[2] * feat1.shape[3], 1,
+        #                                                                      feat1.shape[2], feat1.shape[3]),
+        #                                     ((self.args.image_size[0] // (2 ** (3 + i))),
+        #                                      (self.args.image_size[1] // (2 ** (3 + i)))),
+        #                                     mode="bilinear", align_corners=False).view(
+        #                           bs, feat1.shape[2] * feat1.shape[3], -1)
+        #                       if feat1.shape[2] != self.args.image_size[0] // (2 ** (3 + i)) or
+        #                          feat1.shape[3] != self.args.image_size[1] // (2 ** (3 + i))
+        #                       else torch.bmm(feat1.flatten(2).permute(0, 2, 1), feat2.flatten(2)),
+        #                       F.interpolate(torch.bmm(feat2.flatten(2).permute(0, 2, 1),
+        #                                               feat1.flatten(2)).view(bs * feat1.shape[2] * feat1.shape[3], 1,
+        #                                                                      feat1.shape[2], feat1.shape[3]),
+        #                                     ((self.args.image_size[0] // (2 ** (3 + i))),
+        #                                      (self.args.image_size[1] // (2 ** (3 + i)))),
+        #                                     mode="bilinear", align_corners=False).view(
+        #                           bs, feat1.shape[2] * feat1.shape[3], -1)
+        #                       if feat1.shape[2] != self.args.image_size[0] // (2 ** (3 + i)) or
+        #                          feat1.shape[3] != self.args.image_size[1] // (2 ** (3 + i))
+        #                       else torch.bmm(feat2.flatten(2).permute(0, 2, 1), feat1.flatten(2))
+        #                   ), dim=0))), dim=-1)
+        #        for i, (feat1, feat2) in enumerate(zip(D1, D2))]
         src = torch.cat(torch.cat(src, dim=1).split(bs, dim=0), dim=1)
         # src = torch.cat(src, dim=1)
 

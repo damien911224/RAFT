@@ -10,7 +10,7 @@ except:
 
 
 class CorrBlock:
-    def __init__(self, fmap1, fmap2, num_levels=4, radius=4):
+    def __init__(self, fmap1, fmap2, num_levels=1, radius=4):
         self.num_levels = num_levels
         self.radius = radius
         self.corr_pyramid = []

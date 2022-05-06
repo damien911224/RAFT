@@ -306,11 +306,15 @@ class RAFT(nn.Module):
 
         return this_embed
 
-    def get_reference_points(self, spatial_shapes, device):
+    def get_reference_points(self, spatial_shapes, device, normalize=True):
         reference_points_list = []
         for lvl, (H_, W_) in enumerate(spatial_shapes):
-            ref_y, ref_x = torch.meshgrid(torch.linspace(0.5, H_ - 0.5, H_, dtype=torch.float32, device=device) / H_,
-                                          torch.linspace(0.5, W_ - 0.5, W_, dtype=torch.float32, device=device) / W_)
+            if normalize:
+                ref_y, ref_x = torch.meshgrid(torch.linspace(0.5, H_ - 0.5, H_, dtype=torch.float32, device=device) / H_,
+                                              torch.linspace(0.5, W_ - 0.5, W_, dtype=torch.float32, device=device) / W_)
+            else:
+                ref_y, ref_x = torch.meshgrid(torch.linspace(0.5, H_ - 0.5, H_, dtype=torch.float32, device=device),
+                                              torch.linspace(0.5, W_ - 0.5, W_, dtype=torch.float32, device=device))
             ref_y = ref_y.reshape(-1)[None]
             ref_x = ref_x.reshape(-1)[None]
             ref = torch.stack((ref_x, ref_y), -1)
@@ -408,10 +412,10 @@ class RAFT(nn.Module):
         #                   ), dim=0))), dim=-1)
         #        for i, (feat1, feat2) in enumerate(zip(D1, D2))]
         corr_01 = [CorrBlock(feat1, feat2, radius=4)(
-            self.get_reference_points([feat1.shape[2:], ], device=feat1.device).squeeze(2))
+            self.get_reference_points([feat1.shape[2:], ], device=feat1.device, normalize=False).squeeze(2))
                       for i, (feat1, feat2) in enumerate(zip(E1, E2))]
         corr_02 = [CorrBlock(feat1, feat2, radius=4)(
-            self.get_reference_points([feat1.shape[2:], ], device=feat1.device).squeeze(2))
+            self.get_reference_points([feat1.shape[2:], ], device=feat1.device, normalize=False).squeeze(2))
                       for i, (feat1, feat2) in enumerate(zip(E2, E1))]
         src = [torch.cat((self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1),
                           self.corr_proj[i](torch.cat((corr_01[i], corr_02[i]), dim=0))), dim=-1)

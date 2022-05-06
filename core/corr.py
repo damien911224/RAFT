@@ -39,7 +39,7 @@ class CorrBlock:
             dy = torch.linspace(-r, r, 2*r+1, device=coords.device)
             delta = torch.stack(torch.meshgrid(dy, dx), axis=-1)
 
-            centroid_lvl = coords[:, None, None] / 2**i
+            centroid_lvl = coords[:, None, None]
             delta_lvl = delta.view(1, 2*r+1, 2*r+1, 2)
             coords_lvl = centroid_lvl + delta_lvl
 
@@ -53,6 +53,8 @@ class CorrBlock:
     @staticmethod
     def corr(fmap1, fmap2):
         batch, dim, ht, wd = fmap1.shape
+        print(fmap1.shape)
+        exit()
         fmap1 = fmap1.view(batch, dim, ht*wd)
         fmap2 = fmap2.view(batch, dim, ht*wd) 
         

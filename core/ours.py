@@ -52,7 +52,9 @@ class RAFT(nn.Module):
         # self.d_model = channels[0]
         self.d_model = channels[0] // 2
         self.up_dim = self.d_model
-        self.extractor_embed = MLP(channels[0], self.d_model, self.d_model, 3)
+        self.extractor_embed = nn.Sequential(
+                nn.Conv1d(channels[0], self.d_model, kernel_size=1, padding=0),
+                nn.GroupNorm(16, self.d_model))
 
         input_proj_list = list()
         for l_i in range(self.num_feature_levels):

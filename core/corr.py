@@ -30,6 +30,8 @@ class CorrBlock:
         r = self.radius
         # coords = coords.permute(0, 2, 3, 1)
         batch, hw, _ = coords.shape
+        print(coords.shape)
+        exit()
         coords = coords.flatten(0, 1)
 
         out_pyramid = []
@@ -53,8 +55,6 @@ class CorrBlock:
     @staticmethod
     def corr(fmap1, fmap2):
         batch, dim, ht, wd = fmap1.shape
-        print(fmap1.shape)
-        exit()
         fmap1 = fmap1.view(batch, dim, ht*wd)
         fmap2 = fmap2.view(batch, dim, ht*wd) 
         

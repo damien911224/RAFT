@@ -85,7 +85,7 @@ class RAFT(nn.Module):
         self.outer_iterations = 6
         self.inner_iterations = 1
         # self.inner_iterations = self.num_feature_levels
-        self.num_keypoints = 400
+        self.num_keypoints = 100
         # self.num_keypoints = 25
 
         self.encoder = \
@@ -481,6 +481,8 @@ class RAFT(nn.Module):
                     query = query * query_mask
                 split = 0
 
+                src = self.encoder[o_i](src, raw_src_pos, src_ref, spatial_shapes, level_start_index)
+
                 if self.use_dab:
                     # if o_i >= 1:
                     #     # bs, HW, N
@@ -572,8 +574,9 @@ class RAFT(nn.Module):
                 src_points = reference_points[:, :, 0].detach()
                 dst_points = (inverse_sigmoid(src_points) + flow_embed).sigmoid()
                 key_flow = src_points - dst_points
-                # reference_points[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
                 reference_flows = flow_embed.detach().sigmoid()
+                reference_points[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
+                src_ref[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
 
                 # reference_points = reference_points.sigmoid()
                 # src_points = reference_points[..., :2]

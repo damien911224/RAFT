@@ -62,8 +62,8 @@ def sequence_loss(flow_preds, flow_gt, valid, sparse_lambda=1.0, gamma=0.8, max_
     bs, _, I_H, I_W = flow_gt.shape
 
     for i in range(n_predictions):
-        # i_weight = gamma ** (n_predictions - i - 1)
-        i_weight = 1.0
+        i_weight = gamma ** (n_predictions - i - 1)
+        # i_weight = 1.0
         i_loss = (flow_preds[0][i] - flow_gt).abs()
         # i_loss = (flow_preds[0][i] - flow_gt).square()
         flow_loss += i_weight * (dense_valid[:, None] * i_loss).mean()

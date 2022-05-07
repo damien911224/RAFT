@@ -86,7 +86,7 @@ class RAFT(nn.Module):
             corr_proj_list.append(MLP(in_channels, self.d_model // 2, self.d_model // 2, 3))
         self.corr_proj = nn.ModuleList(corr_proj_list)
 
-        self.encoder_iterations = 0
+        self.encoder_iterations = 6
         self.outer_iterations = 6
         self.inner_iterations = 1
         # self.inner_iterations = self.num_feature_levels
@@ -541,8 +541,8 @@ class RAFT(nn.Module):
                         attention_pos = torch.bmm(masks, context_pos.detach())
                         query_pos = query_pos + self.attention_pos_head(attention_pos)
 
-                    if self.inner_iterations > 1:
-                        query_pos = query_pos + self.iter_pos_embed.weight[i_i].unsqueeze(0)
+                    # if self.inner_iterations > 1:
+                    #     query_pos = query_pos + self.iter_pos_embed.weight[i_i].unsqueeze(0)
 
                     if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
                         query_pos = query_pos + self.high_dim_query_proj(query)
@@ -595,7 +595,7 @@ class RAFT(nn.Module):
                 dst_points = (inverse_sigmoid(src_points) + flow_embed).sigmoid()
                 key_flow = src_points - dst_points
                 reference_flows = flow_embed.detach().sigmoid()
-                # reference_points[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
+                reference_points[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
                 split = 0
                 # reference_points = reference_points.sigmoid()
                 # src_points = reference_points[..., :2]

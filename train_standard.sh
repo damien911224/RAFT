@@ -2,7 +2,7 @@
 mkdir -p checkpoints
 # 0: base
 # 1: E3_N256
-# 2: E6_N400
+# 2: E1_N256_O1_I6
 # 3: attention_pos
 python -u train.py --name chairs-base --stage chairs --validation chairs --gpus 0 --num_steps 1000000 --batch_size 16 --lr 0.0002 --image_size 352 480 --wdecay 0.0001
 #python -u train.py --name raft-things --stage things --validation sintel --restore_ckpt checkpoints/raft-chairs.pth --gpus 0 1 --num_steps 100000 --batch_size 6 --lr 0.000125 --image_size 400 720 --wdecay 0.0001

@@ -351,7 +351,7 @@ class RAFT(nn.Module):
             raise ValueError("Unknown pos_tensor shape(-1):{}".format(pos_tensor.size(-1)))
         return pos
 
-    def forward(self, image1, image2, iters=6, test_mode=False):
+    def forward(self, image1, image2, iters=12, test_mode=False):
         """ Estimate optical flow between pair of frames """
         # with autocast(enabled=self.args.mixed_precision):
         image1 = 2 * (image1 / 255.0) - 1.0
@@ -472,7 +472,8 @@ class RAFT(nn.Module):
         # reference_points_input = torch.stack(reference_points.split(2, dim=-1), dim=2).repeat(1, 1, self.num_feature_levels, 1)
         context_flow = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=src.device)
         for o_i in range(self.outer_iterations):
-            for i_i in range(self.inner_iterations):
+            # for i_i in range(self.inner_iterations):
+            for i_i in range(iters):
                 # if o_i >= 1:
                 #     step = 1
                 #     N = round(math.sqrt(self.num_keypoints)) + ((o_i - 1) * step)

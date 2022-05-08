@@ -86,7 +86,7 @@ class RAFT(nn.Module):
             corr_proj_list.append(MLP(in_channels, self.d_model // 2, self.d_model // 2, 3))
         self.corr_proj = nn.ModuleList(corr_proj_list)
 
-        self.encoder_iterations = 1
+        self.encoder_iterations = 0
         self.outer_iterations = 6
         self.inner_iterations = 1
         # self.inner_iterations = self.num_feature_levels
@@ -495,13 +495,13 @@ class RAFT(nn.Module):
                 #                                     mode="bilinear", align_corners=False)
                 #     reference_flows = reference_flows.flatten(2).permute(0, 2, 1)
                 split = 0
-                if not (o_i == 0 and i_i == 0):
-                    # bs, n, 2
-                    confidence_embed = self.confidence_embed[o_i](query)
-                    confidence_onehot = F.gumbel_softmax(confidence_embed, tau=1, hard=True, eps=1e-10, dim=-1)
-                    # bs, n, 1
-                    query_mask = confidence_onehot[..., 1].unsqueeze(-1)
-                    query = query * query_mask
+                # if not (o_i == 0 and i_i == 0):
+                #     # bs, n, 2
+                #     confidence_embed = self.confidence_embed[o_i](query)
+                #     confidence_onehot = F.gumbel_softmax(confidence_embed, tau=1, hard=True, eps=1e-10, dim=-1)
+                #     # bs, n, 1
+                #     query_mask = confidence_onehot[..., 1].unsqueeze(-1)
+                #     query = query * query_mask
                 split = 0
 
                 if self.use_dab:
@@ -547,16 +547,16 @@ class RAFT(nn.Module):
 
                     if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
                         query_pos = query_pos + self.high_dim_query_proj(query)
+                    split = 0
+                    # context_pos = raw_context_pos + self.context_flow_head(context_flow.detach())
+                    # context_pos_scale = self.context_scale(U1) if not (o_i == 0 and i_i == 0) else 1
+                    # context_pos = context_pos_scale * context_pos
+                    #
+                    # if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
+                    #     context_pos = context_pos + self.context_high_dim_query_proj(U1)
 
-                    context_pos = raw_context_pos + self.context_flow_head(context_flow.detach())
-                    context_pos_scale = self.context_scale(U1) if not (o_i == 0 and i_i == 0) else 1
-                    context_pos = context_pos_scale * context_pos
-
-                    if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
-                        context_pos = context_pos + self.context_high_dim_query_proj(U1)
-
-                    # context_pos = raw_context_pos
-
+                    context_pos = raw_context_pos
+                    split = 0
                     # if o_i >= 1:
                     #     # bs, HW, N
                     #     attention_pos = list()

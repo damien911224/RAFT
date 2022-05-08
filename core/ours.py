@@ -86,8 +86,8 @@ class RAFT(nn.Module):
             corr_proj_list.append(MLP(in_channels, self.d_model // 2, self.d_model // 2, 3))
         self.corr_proj = nn.ModuleList(corr_proj_list)
 
-        self.encoder_iterations = 0
-        self.outer_iterations = 12
+        self.encoder_iterations = 1
+        self.outer_iterations = 6
         self.inner_iterations = 1
         # self.inner_iterations = self.num_feature_levels
         self.num_keypoints = 100
@@ -175,7 +175,7 @@ class RAFT(nn.Module):
         self.row_pos_embed = nn.Embedding(w // (2 ** 2), self.d_model // 2)
         self.col_pos_embed = nn.Embedding(h // (2 ** 2), self.d_model // 2)
 
-        self.iter_pos_embed = nn.Embedding(self.inner_iterations, self.d_model)
+        # self.iter_pos_embed = nn.Embedding(self.inner_iterations, self.d_model)
 
         self.query_embed = nn.Embedding(self.num_keypoints, self.d_model)
         self.query_pos_embed = nn.Embedding(self.num_keypoints, self.d_model)
@@ -202,7 +202,7 @@ class RAFT(nn.Module):
             if self.high_dim_query_update:
                 self.high_dim_query_proj = MLP(self.d_model, self.d_model, self.d_model, 2)
                 self.context_high_dim_query_proj = MLP(self.up_dim, self.up_dim, self.up_dim, 2)
-                self.src_high_dim_query_proj = MLP(self.d_model, self.d_model, self.d_model, 2)
+                # self.src_high_dim_query_proj = MLP(self.d_model, self.d_model, self.d_model, 2)
 
         # self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(self.outer_iterations)])
         # self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(self.outer_iterations)])

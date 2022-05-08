@@ -242,7 +242,7 @@ class RAFT(nn.Module):
         nn.init.normal_(self.img_pos_embed.weight)
         nn.init.normal_(self.row_pos_embed.weight)
         nn.init.normal_(self.col_pos_embed.weight)
-        nn.init.normal_(self.iter_pos_embed.weight)
+        # nn.init.normal_(self.iter_pos_embed.weight)
 
     def _get_clones(self, module, N):
         return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
@@ -472,8 +472,8 @@ class RAFT(nn.Module):
         # reference_points_input = torch.stack(reference_points.split(2, dim=-1), dim=2).repeat(1, 1, self.num_feature_levels, 1)
         context_flow = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=src.device)
         for o_i in range(self.outer_iterations):
-            # for i_i in range(self.inner_iterations):
-            for i_i in range(iters):
+            for i_i in range(self.inner_iterations):
+            # for i_i in range(iters):
                 # if o_i >= 1:
                 #     step = 1
                 #     N = round(math.sqrt(self.num_keypoints)) + ((o_i - 1) * step)

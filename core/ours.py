@@ -185,12 +185,12 @@ class RAFT(nn.Module):
         # self.flow_embed = MLP(self.d_model, self.d_model, 4, 3)
         self.context_embed = MLP(self.d_model, self.up_dim, self.up_dim, 3)
         # self.reference_embed = MLP(self.d_model, self.d_model, 2, 3)
-        self.confidence_embed = MLP(self.d_model, self.d_model, 2, 3)
+        # self.confidence_embed = MLP(self.d_model, self.d_model, 2, 3)
         self.context_pos_embed = nn.Linear(self.d_model, self.up_dim)
         self.use_dab = True
         if self.use_dab:
-            self.context_flow_head = MLP(2, self.up_dim, self.up_dim, 3)
-            self.context_scale = MLP(self.up_dim, self.up_dim, self.up_dim, 2)
+            # self.context_flow_head = MLP(2, self.up_dim, self.up_dim, 3)
+            # self.context_scale = MLP(self.up_dim, self.up_dim, self.up_dim, 2)
             self.attention_pos_head = MLP(self.up_dim, self.d_model, self.d_model, 3)
 
             self.no_sine_embed = True
@@ -199,10 +199,10 @@ class RAFT(nn.Module):
                 self.ref_point_head = MLP(4, self.d_model, self.d_model, 3)
             else:
                 self.ref_point_head = MLP(2 * self.d_model, self.d_model, self.d_model, 2)
-            self.high_dim_query_update = True
+            self.high_dim_query_update = False
             if self.high_dim_query_update:
                 self.high_dim_query_proj = MLP(self.d_model, self.d_model, self.d_model, 2)
-                self.context_high_dim_query_proj = MLP(self.up_dim, self.up_dim, self.up_dim, 2)
+                # self.context_high_dim_query_proj = MLP(self.up_dim, self.up_dim, self.up_dim, 2)
                 # self.src_high_dim_query_proj = MLP(self.d_model, self.d_model, self.d_model, 2)
 
         self.first_query = True
@@ -216,9 +216,9 @@ class RAFT(nn.Module):
         self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed)
                                             for _ in range(self.outer_iterations * self.inner_iterations +
                                                            int(self.first_query))])
-        self.confidence_embed = nn.ModuleList([copy.deepcopy(self.confidence_embed)
-                                               for _ in range(self.outer_iterations * self.inner_iterations +
-                                                              int(self.first_query))])
+        # self.confidence_embed = nn.ModuleList([copy.deepcopy(self.confidence_embed)
+        #                                        for _ in range(self.outer_iterations * self.inner_iterations +
+        #                                                       int(self.first_query))])
 
         self.reset_parameters()
 

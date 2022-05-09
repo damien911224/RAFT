@@ -619,7 +619,7 @@ class RAFT(nn.Module):
                 context_flow = torch.bmm(context_flow, key_flow)
                 # bs, 2, H, W
                 flow = context_flow.permute(0, 2, 1).view(bs, 2, H, W)
-                flow = flow * torch.as_tensor((I_W, I_H), dtype=torch.float32, device=src.device).view(1, 2, 1, 1)
+                flow = flow * torch.as_tensor((I_W, I_H), dtype=torch.float32, device=D1[0].device).view(1, 2, 1, 1)
 
                 if I_H != H or I_W != W:
                     flow = F.interpolate(flow, size=(I_H, I_W), mode="bilinear", align_corners=False)

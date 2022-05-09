@@ -199,7 +199,7 @@ class RAFT(nn.Module):
                 self.ref_point_head = MLP(4, self.d_model, self.d_model, 3)
             else:
                 self.ref_point_head = MLP(2 * self.d_model, self.d_model, self.d_model, 2)
-            self.high_dim_query_update = False
+            self.high_dim_query_update = True
             if self.high_dim_query_update:
                 self.high_dim_query_proj = MLP(self.d_model, self.d_model, self.d_model, 2)
                 # self.context_high_dim_query_proj = MLP(self.up_dim, self.up_dim, self.up_dim, 2)

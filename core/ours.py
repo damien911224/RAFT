@@ -451,7 +451,6 @@ class RAFT(nn.Module):
         for i in range(len(self.encoder)):
             src = self.encoder[i](src, raw_src_pos, src_ref, spatial_shapes, level_start_index)
         split = 0
-        print(spatial_shapes)
         if self.inner_iterations > 1:
             new_src = list()
             new_src_pos = list()
@@ -470,11 +469,8 @@ class RAFT(nn.Module):
                 this_src_pos = torch.cat((this_src_pos_01, this_src_pos_02), dim=1)
                 new_src.append(this_src)
                 new_src_pos.append(this_src_pos)
-                print(this_src.shape)
-                print(this_src_pos.shape)
             src = new_src[::-1]
             raw_src_pos = new_src_pos[::-1]
-        exit()
         split = 0
         flow_predictions = list()
         sparse_predictions = list()

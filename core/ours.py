@@ -577,7 +577,7 @@ class RAFT(nn.Module):
                     pos_scale = self.query_scale(query) if not (o_i == 0 and i_i == 0) else 1
                     query_pos = pos_scale * raw_query_pos
 
-                    if not (o_i == 0 and i_i == 0):
+                    if not (o_i == 0 and i_i == 0) or True:
                         masks = masks.flatten(2)
                         attention_pos = torch.bmm(masks, context_pos.detach())
                         query_pos = query_pos + self.attention_pos_head(attention_pos)
@@ -585,7 +585,7 @@ class RAFT(nn.Module):
                     if self.inner_iterations > 1:
                         query_pos = query_pos + self.iter_pos_embed.weight[i_i].unsqueeze(0)
 
-                    if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
+                    if self.high_dim_query_update and (not (o_i == 0 and i_i == 0) or True):
                         query_pos = query_pos + self.high_dim_query_proj(query)
                     split = 0
                     # context_pos = raw_context_pos + self.context_flow_head(context_flow.detach())

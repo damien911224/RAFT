@@ -88,8 +88,8 @@ class RAFT(nn.Module):
 
         self.encoder_iterations = 1
         self.outer_iterations = 6
-        self.inner_iterations = 1
-        # self.inner_iterations = self.num_feature_levels
+        # self.inner_iterations = 1
+        self.inner_iterations = self.num_feature_levels
         self.num_keypoints = 100
         # self.num_keypoints = 25
 
@@ -175,7 +175,7 @@ class RAFT(nn.Module):
         self.row_pos_embed = nn.Embedding(w // (2 ** 2), self.d_model // 2)
         self.col_pos_embed = nn.Embedding(h // (2 ** 2), self.d_model // 2)
 
-        # self.iter_pos_embed = nn.Embedding(self.inner_iterations, self.d_model)
+        self.iter_pos_embed = nn.Embedding(self.inner_iterations, self.d_model)
 
         self.query_embed = nn.Embedding(self.num_keypoints, self.d_model)
         self.query_pos_embed = nn.Embedding(self.num_keypoints, self.d_model)
@@ -242,7 +242,7 @@ class RAFT(nn.Module):
         nn.init.normal_(self.img_pos_embed.weight)
         nn.init.normal_(self.row_pos_embed.weight)
         nn.init.normal_(self.col_pos_embed.weight)
-        # nn.init.normal_(self.iter_pos_embed.weight)
+        nn.init.normal_(self.iter_pos_embed.weight)
 
     def _get_clones(self, module, N):
         return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
@@ -442,25 +442,25 @@ class RAFT(nn.Module):
         for i in range(len(self.encoder)):
             src = self.encoder[i](src, raw_src_pos, src_ref, spatial_shapes, level_start_index)
         split = 0
-        # new_src = list()
-        # new_src_pos = list()
-        # for l_i in range(self.num_feature_levels):
-        #     this_H, this_W = spatial_shapes[l_i]
-        #     this_start_index = level_start_index[l_i]
-        #     this_length = this_H * this_W
-        #     this_src = torch.cat(src[:, this_start_index:this_start_index + this_length].split(bs, dim=0), dim=1)
-        #     this_src_pos = (src_pos[:, this_start_index:this_start_index + this_length].unsqueeze(1) +
-        #                     self.img_pos_embed.weight[None, :2, None]).flatten(start_dim=1, end_dim=2)
-        #     new_src.append(this_src)
-        #     new_src_pos.append(this_src_pos)
-        # src = new_src
-        # src_pos = new_src_pos
-
-        # src = torch.cat(src.split(bs, dim=0), dim=1)
-        # raw_src_pos = (raw_src_pos.unsqueeze(1) +
-        #                self.img_pos_embed.weight[None, :2, None]).flatten(start_dim=1, end_dim=2)
-        # spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 2, dtype=torch.long, device=src.device)
-        # level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
+        new_src = list()
+        new_src_pos = list()
+        for l_i in range(self.num_feature_levels):
+            this_H, this_W = spatial_shapes[l_i]
+            this_start_index = level_start_index[l_i]
+            this_length = this_H * this_W
+            this_src_01 = src[:, this_start_index:this_start_index + this_length]
+            this_src_pos_01 = raw_src_pos[:, this_start_index:this_start_index + this_length]
+            this_H, this_W = spatial_shapes[l_i + self.num_feature_levels]
+            this_start_index = level_start_index[l_i + self.num_feature_levels]
+            this_length = this_H * this_W
+            this_src_02 = src[:, this_start_index:this_start_index + this_length]
+            this_src_pos_02 = raw_src_pos[:, this_start_index:this_start_index + this_length]
+            this_src = torch.cat((this_src_01, this_src_02), dim=2)
+            this_src_pos = torch.cat((this_src_pos_01, this_src_pos_02), dim=2)
+            new_src.append(this_src)
+            new_src_pos.append(this_src_pos)
+        src = new_src
+        raw_src_pos = new_src_pos
         split = 0
         flow_predictions = list()
         sparse_predictions = list()
@@ -471,7 +471,7 @@ class RAFT(nn.Module):
         reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2), device=src.device) + 0.5
         # reference_points = self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
         # reference_points_input = torch.stack(reference_points.split(2, dim=-1), dim=2).repeat(1, 1, self.num_feature_levels, 1)
-        context_flow = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=src.device)
+        # context_flow = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=src.device)
         for o_i in range(self.outer_iterations):
             for i_i in range(self.inner_iterations):
             # for i_i in range(iters):
@@ -504,6 +504,10 @@ class RAFT(nn.Module):
                 #     query_mask = confidence_onehot[..., 1].unsqueeze(-1)
                 #     query = query * query_mask
                 split = 0
+
+                spatial_shapes = torch.as_tensor([D1[i_i].shape[2:], ] * 2, dtype=torch.long, device=src[i_i].device)
+                level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
+                src_ref = self.get_reference_points(spatial_shapes, device=src[i_i].device)
 
                 if self.use_dab:
                     # if o_i >= 1:
@@ -543,8 +547,8 @@ class RAFT(nn.Module):
                         attention_pos = torch.bmm(masks, context_pos.detach())
                         query_pos = query_pos + self.attention_pos_head(attention_pos)
 
-                    # if self.inner_iterations > 1:
-                    #     query_pos = query_pos + self.iter_pos_embed.weight[i_i].unsqueeze(0)
+                    if self.inner_iterations > 1:
+                        query_pos = query_pos + self.iter_pos_embed.weight[i_i].unsqueeze(0)
 
                     if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
                         query_pos = query_pos + self.high_dim_query_proj(query)
@@ -583,13 +587,13 @@ class RAFT(nn.Module):
                     context_pos = raw_context_pos
                     src_pos = raw_src_pos
 
-                query = self.decoder[o_i](query, query_pos, reference_points,
-                                          src, src_pos, spatial_shapes, level_start_index)
+                query = self.decoder[o_i * i_i](query, query_pos, reference_points,
+                                                src[i_i], src_pos[i_i], spatial_shapes, level_start_index)
                 # query = self.decoder[o_i](query, query_pos, reference_points_input,
                 #                           src, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, 2
-                flow_embed = self.flow_embed[o_i](query)
+                flow_embed = self.flow_embed[o_i * i_i](query)
                 flow_embed = flow_embed + inverse_sigmoid(reference_flows)
                 # reference_points = flow_embed + inverse_sigmoid(reference_points)
 
@@ -606,7 +610,7 @@ class RAFT(nn.Module):
                 # reference_points = reference_points.detach()
 
                 # bs, HW, n
-                context = self.context_embed[o_i](query)
+                context = self.context_embed[o_i * i_i](query)
                 context_flow = F.softmax(torch.bmm(U1 + context_pos, context.permute(0, 2, 1)), dim=-1)
                 masks = context_flow.permute(0, 2, 1).detach()
                 scores = torch.max(context_flow, dim=1)[0].detach()

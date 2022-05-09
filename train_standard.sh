@@ -1,7 +1,7 @@
 #!/bin/bash
 mkdir -p checkpoints
 # 0: base
-# 1: base_E1
+# 1: base
 # 2: E0_N100_O1_I6 (gamma)
 # 3: base_no_context_pos_no_query_selection
 python -u train.py --name chairs-base --stage chairs --validation chairs --gpus 0 1 --num_steps 1000000 --batch_size 16 --lr 0.0002 --image_size 352 480 --wdecay 0.0001

@@ -172,7 +172,7 @@ class RAFT(nn.Module):
         #                    for _ in range(6)))
 
         self.lvl_pos_embed = nn.Embedding(self.num_feature_levels, self.d_model)
-        self.img_pos_embed = nn.Embedding(2 + 1, self.d_model)
+        self.img_pos_embed = nn.Embedding(2 + 1 + 1, self.d_model)
         self.row_pos_embed = nn.Embedding(w // (2 ** 2), self.d_model // 2)
         self.col_pos_embed = nn.Embedding(h // (2 ** 2), self.d_model // 2)
 
@@ -388,7 +388,7 @@ class RAFT(nn.Module):
         raw_src_pos = [self.get_embedding(feat, self.col_pos_embed, self.row_pos_embed) + self.lvl_pos_embed.weight[i]
                        for i, feat in enumerate(D1)]
         raw_src_pos = torch.flatten(
-            torch.cat(raw_src_pos, dim=1).unsqueeze(1) + self.img_pos_embed.weight[None, :2, None],
+            torch.cat(raw_src_pos, dim=1).unsqueeze(1) + self.img_pos_embed.weight[None, :-1, None],
             start_dim=1, end_dim=2)
         # raw_src_pos = torch.cat(raw_src_pos, dim=1)
         raw_context_pos = self.get_embedding(U1, self.col_pos_embed, self.row_pos_embed)

@@ -455,8 +455,8 @@ class RAFT(nn.Module):
             this_length = this_H * this_W
             this_src_02 = src[:, this_start_index:this_start_index + this_length]
             this_src_pos_02 = raw_src_pos[:, this_start_index:this_start_index + this_length]
-            this_src = torch.cat((this_src_01, this_src_02), dim=2)
-            this_src_pos = torch.cat((this_src_pos_01, this_src_pos_02), dim=2)
+            this_src = torch.cat((this_src_01, this_src_02), dim=1)
+            this_src_pos = torch.cat((this_src_pos_01, this_src_pos_02), dim=1)
             new_src.append(this_src)
             new_src_pos.append(this_src_pos)
         src = new_src

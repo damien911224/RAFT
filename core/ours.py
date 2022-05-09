@@ -105,7 +105,7 @@ class RAFT(nn.Module):
                                                              dropout=0.1, activation="gelu",
                                                              n_levels=2,
                                                              n_heads=8, n_points=4, self_deformable=False)
-                           for _ in range(self.outer_iterations)))
+                           for _ in range(self.outer_iterations * self.inner_iterations)))
 
         # self.encoder = \
         #     nn.ModuleList((DeformableTransformerEncoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
@@ -467,7 +467,8 @@ class RAFT(nn.Module):
         root = round(math.sqrt(self.num_keypoints))
         base_reference_points = self.get_reference_points([(root, root), ], device=D1[0].device).squeeze(2)
         base_reference_points = base_reference_points.repeat(bs, 1, 1)
-        reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
+        # reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
+        reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, 2, 1)
         reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2), device=D1[0].device) + 0.5
         # reference_points = self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
         # reference_points_input = torch.stack(reference_points.split(2, dim=-1), dim=2).repeat(1, 1, self.num_feature_levels, 1)
@@ -507,7 +508,6 @@ class RAFT(nn.Module):
 
                 spatial_shapes = torch.as_tensor([D1[i_i].shape[2:], ] * 2, dtype=torch.long, device=src[i_i].device)
                 level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
-                src_ref = self.get_reference_points(spatial_shapes, device=src[i_i].device)
 
                 if self.use_dab:
                     # if o_i >= 1:
@@ -601,7 +601,8 @@ class RAFT(nn.Module):
                 dst_points = (inverse_sigmoid(src_points) + flow_embed).sigmoid()
                 key_flow = src_points - dst_points
                 reference_flows = flow_embed.detach().sigmoid()
-                reference_points[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
+                # reference_points[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
+                reference_points[:, :, 1] = dst_points.detach().unsqueeze(2)
                 split = 0
                 # reference_points = reference_points.sigmoid()
                 # src_points = reference_points[..., :2]

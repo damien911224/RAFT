@@ -465,10 +465,10 @@ class RAFT(nn.Module):
         flow_predictions = list()
         sparse_predictions = list()
         root = round(math.sqrt(self.num_keypoints))
-        base_reference_points = self.get_reference_points([(root, root), ], device=src.device).squeeze(2)
+        base_reference_points = self.get_reference_points([(root, root), ], device=D1[0].device).squeeze(2)
         base_reference_points = base_reference_points.repeat(bs, 1, 1)
         reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
-        reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2), device=src.device) + 0.5
+        reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2), device=D1[0].device) + 0.5
         # reference_points = self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
         # reference_points_input = torch.stack(reference_points.split(2, dim=-1), dim=2).repeat(1, 1, self.num_feature_levels, 1)
         # context_flow = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=src.device)

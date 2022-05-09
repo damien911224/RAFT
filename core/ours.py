@@ -469,8 +469,8 @@ class RAFT(nn.Module):
                 this_src_pos = torch.cat((this_src_pos_01, this_src_pos_02), dim=1)
                 new_src.append(this_src)
                 new_src_pos.append(this_src_pos)
-            src = new_src
-            raw_src_pos = new_src_pos
+            src = new_src[::-1]
+            raw_src_pos = new_src_pos[::-1]
         split = 0
         flow_predictions = list()
         sparse_predictions = list()
@@ -547,7 +547,8 @@ class RAFT(nn.Module):
                 #     query = query * query_mask
                 split = 0
                 if self.inner_iterations > 1:
-                    spatial_shapes = torch.as_tensor([D1[i_i].shape[2:], ] * 2, dtype=torch.long, device=src[i_i].device)
+                    spatial_shapes = torch.as_tensor([D1[::-1][i_i].shape[2:], ] * 2,
+                                                     dtype=torch.long, device=src[i_i].device)
                     level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
                 if self.use_dab:

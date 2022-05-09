@@ -86,7 +86,7 @@ class RAFT(nn.Module):
             corr_proj_list.append(MLP(in_channels, self.d_model, self.d_model, 3))
         self.corr_proj = nn.ModuleList(corr_proj_list)
 
-        self.encoder_iterations = 0
+        self.encoder_iterations = 1
         self.outer_iterations = 6
         self.inner_iterations = 1
         # self.inner_iterations = self.num_feature_levels

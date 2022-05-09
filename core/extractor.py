@@ -468,8 +468,7 @@ class CNNDecoder(nn.Module):
             nn.Sequential(*(nn.Conv2d(round(base_channel * 1.5), round(base_channel * 1.5), kernel_size=3, padding=1),
                             self._get_norm_func(round(base_channel * 1.5), norm_fn=self.norm_fn),
                             nn.GELU()))
-        self.in_planes = base_channel * 2
-        self.up_layer1 = self._make_up_layer(round(base_channel * 1.5), scale=2.0)
+        self.in_planes = round(base_channel * 1.5)
         self.up_dim = self.in_planes
 
         for m in self.modules():
@@ -545,5 +544,8 @@ class CNNDecoder(nn.Module):
 
         X1 = (D3_x1, D4_x1, D5_x1)
         X2 = (D3_x2, D4_x2, D5_x2)
+
+        # X1 = (D3_x1, )
+        # U1 = X1[0]
 
         return X1, X2, U1

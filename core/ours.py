@@ -49,7 +49,7 @@ class RAFT(nn.Module):
         self.cnn_encoder = CNNEncoder(base_channel=64, norm_fn="instance")
         self.cnn_decoder = CNNDecoder(base_channel=64, norm_fn="batch")
         self.up_dim = self.cnn_decoder.up_dim
-        self.num_feature_levels = 3
+        self.num_feature_levels = 1
 
         # channels = (512, 1024, 2048)
         channels = (128, 192, 256)
@@ -73,8 +73,8 @@ class RAFT(nn.Module):
         for l_i in range(self.num_feature_levels):
             in_channels = channels[l_i]
             input_proj_list.append(nn.Sequential(
-                nn.Conv1d(in_channels, self.d_model // 2, kernel_size=1, padding=0),
-                nn.GroupNorm(16, self.d_model // 2)))
+                nn.Conv1d(in_channels, self.d_model, kernel_size=1, padding=0),
+                nn.GroupNorm(16, self.d_model)))
         self.input_proj = nn.ModuleList(input_proj_list)
         corr_proj_list = list()
         for l_i in range(self.num_feature_levels):
@@ -83,28 +83,28 @@ class RAFT(nn.Module):
             # corr_proj_list.append(nn.Sequential(
             #     nn.Conv1d(in_channels, self.d_model, kernel_size=1, padding=0),
             #     nn.GroupNorm(16, self.d_model)))
-            corr_proj_list.append(MLP(in_channels, self.d_model // 2, self.d_model // 2, 3))
+            corr_proj_list.append(MLP(in_channels, self.d_model, self.d_model, 3))
         self.corr_proj = nn.ModuleList(corr_proj_list)
 
-        self.encoder_iterations = 1
+        self.encoder_iterations = 0
         self.outer_iterations = 6
-        # self.inner_iterations = 1
-        self.inner_iterations = self.num_feature_levels
+        self.inner_iterations = 1
+        # self.inner_iterations = self.num_feature_levels
         self.num_keypoints = 100
         # self.num_keypoints = 25
 
         self.encoder = \
             nn.ModuleList((DeformableTransformerEncoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
                                                              dropout=0.1, activation="gelu",
-                                                             n_levels=self.num_feature_levels * 2,
+                                                             n_levels=self.num_feature_levels * 3,
                                                              n_heads=8, n_points=4)
                            for _ in range(self.encoder_iterations)))
 
         self.decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
                                                              dropout=0.1, activation="gelu",
-                                                             n_levels=2 if self.inner_iterations > 1
-                                                             else 2 * self.num_feature_levels,
+                                                             n_levels=3 if self.inner_iterations > 1
+                                                             else 3 * self.num_feature_levels,
                                                              n_heads=8, n_points=4, self_deformable=False)
                            for _ in range(self.outer_iterations * self.inner_iterations)))
 
@@ -205,7 +205,7 @@ class RAFT(nn.Module):
                 # self.context_high_dim_query_proj = MLP(self.up_dim, self.up_dim, self.up_dim, 2)
                 # self.src_high_dim_query_proj = MLP(self.d_model, self.d_model, self.d_model, 2)
 
-        self.first_query = True
+        self.first_query = False
 
         # self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(self.outer_iterations)])
         # self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(self.outer_iterations)])
@@ -425,12 +425,15 @@ class RAFT(nn.Module):
             self.get_reference_points([feat1.shape[2:], ],
                                       device=feat1.device, normalize=False).squeeze(2).repeat(bs, 1, 1))
                       for i, (feat1, feat2) in enumerate(zip(E1, E2))]
-        corr_02 = [CorrBlock(feat1, feat2, radius=4)(
-            self.get_reference_points([feat1.shape[2:], ],
-                                      device=feat1.device, normalize=False).squeeze(2).repeat(bs, 1, 1))
-                      for i, (feat1, feat2) in enumerate(zip(E2, E1))]
+        # corr_02 = [CorrBlock(feat1, feat2, radius=4)(
+        #     self.get_reference_points([feat1.shape[2:], ],
+        #                               device=feat1.device, normalize=False).squeeze(2).repeat(bs, 1, 1))
+        #               for i, (feat1, feat2) in enumerate(zip(E2, E1))]
+        # src = [torch.cat((self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1),
+        #                   self.corr_proj[i](torch.cat((corr_01[i], corr_02[i]), dim=0))), dim=-1)
+        #        for i, (feat1, feat2) in enumerate(zip(D1, D2))]
         src = [torch.cat((self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1),
-                          self.corr_proj[i](torch.cat((corr_01[i], corr_02[i]), dim=0))), dim=-1)
+                          self.corr_proj[i](corr_01[i])), dim=0)
                for i, (feat1, feat2) in enumerate(zip(D1, D2))]
         src = torch.cat(torch.cat(src, dim=1).split(bs, dim=0), dim=1)
         # src = torch.cat(src, dim=1)
@@ -444,7 +447,7 @@ class RAFT(nn.Module):
         if not self.use_dab:
             query_pos = self.query_pos_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
 
-        spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 2, dtype=torch.long, device=src.device)
+        spatial_shapes = torch.as_tensor([feat.shape[2:] for feat in D1] * 3, dtype=torch.long, device=src.device)
         level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
         src_ref = self.get_reference_points(spatial_shapes, device=src.device)
@@ -478,9 +481,9 @@ class RAFT(nn.Module):
         base_reference_points = self.get_reference_points([(root, root), ], device=D1[0].device).squeeze(2)
         base_reference_points = base_reference_points.repeat(bs, 1, 1)
         if self.inner_iterations > 1:
-            reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, 2, 1)
+            reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, 3, 1)
         else:
-            reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
+            reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, self.num_feature_levels * 3, 1)
         reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2), device=D1[0].device) + 0.5
         # reference_points = self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
         # reference_points_input = torch.stack(reference_points.split(2, dim=-1), dim=2).repeat(1, 1, self.num_feature_levels, 1)
@@ -647,8 +650,7 @@ class RAFT(nn.Module):
                 dst_points = (inverse_sigmoid(src_points) + flow_embed).sigmoid()
                 key_flow = src_points - dst_points
                 reference_flows = flow_embed.detach().sigmoid()
-                # reference_points[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
-                reference_points[:, :, 1] = dst_points.detach()
+                reference_points[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
                 split = 0
                 # reference_points = reference_points.sigmoid()
                 # src_points = reference_points[..., :2]

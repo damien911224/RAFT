@@ -73,8 +73,8 @@ class RAFT(nn.Module):
         for l_i in range(self.num_feature_levels):
             in_channels = channels[l_i]
             input_proj_list.append(nn.Sequential(
-                nn.Conv1d(in_channels, self.d_model // 2, kernel_size=1, padding=0),
-                nn.GroupNorm(16, self.d_model // 2)))
+                nn.Conv1d(in_channels, self.d_model, kernel_size=1, padding=0),
+                nn.GroupNorm(16, self.d_model)))
         self.input_proj = nn.ModuleList(input_proj_list)
         corr_proj_list = list()
         for l_i in range(self.num_feature_levels):
@@ -83,7 +83,7 @@ class RAFT(nn.Module):
             # corr_proj_list.append(nn.Sequential(
             #     nn.Conv1d(in_channels, self.d_model, kernel_size=1, padding=0),
             #     nn.GroupNorm(16, self.d_model)))
-            corr_proj_list.append(MLP(in_channels, self.d_model // 2, self.d_model // 2, 3))
+            corr_proj_list.append(MLP(in_channels, self.d_model, self.d_model, 3))
         self.corr_proj = nn.ModuleList(corr_proj_list)
 
         self.encoder_iterations = 1
@@ -425,16 +425,18 @@ class RAFT(nn.Module):
             self.get_reference_points([feat1.shape[2:], ],
                                       device=feat1.device, normalize=False).squeeze(2).repeat(bs, 1, 1))
                       for i, (feat1, feat2) in enumerate(zip(E2, E1))]
-        corr_02 = [CorrBlock(feat1, feat2, radius=4)(
-            self.get_reference_points([feat1.shape[2:], ],
-                                      device=feat1.device, normalize=False).squeeze(2).repeat(bs, 1, 1))
-                      for i, (feat1, feat2) in enumerate(zip(E1, E2))]
-        src = [torch.cat((self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1),
-                          self.corr_proj[i](torch.cat((corr_01[i], corr_02[i]), dim=0))), dim=-1)
-               for i, (feat1, feat2) in enumerate(zip(D1, D2))]
+        # corr_02 = [CorrBlock(feat1, feat2, radius=4)(
+        #     self.get_reference_points([feat1.shape[2:], ],
+        #                               device=feat1.device, normalize=False).squeeze(2).repeat(bs, 1, 1))
+        #               for i, (feat1, feat2) in enumerate(zip(E1, E2))]
+        # src = [torch.cat((self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1),
+        #                   self.corr_proj[i](torch.cat((corr_01[i], corr_02[i]), dim=0))), dim=-1)
+        #        for i, (feat1, feat2) in enumerate(zip(D1, D2))]
         # src = [torch.cat((self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1),
         #                   self.corr_proj[i](corr_01[i])), dim=0)
         #        for i, (feat1, feat2) in enumerate(zip(D1, D2))]
+        src = [torch.cat((self.input_proj[i](feat1).permute(0, 2, 1), self.corr_proj[i](corr_01[i])), dim=0)
+               for i, (feat1, feat2) in enumerate(zip(D1, D2))]
         src = torch.cat(torch.cat(src, dim=1).split(bs, dim=0), dim=1)
         # src = torch.cat(src, dim=1)
 

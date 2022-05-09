@@ -372,7 +372,8 @@ class RAFT(nn.Module):
 
         # D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
         E1, E2 = self.cnn_encoder(torch.cat((image1, image2), dim=0))
-        D1, D2, U1 = self.cnn_decoder(torch.cat((image1, image2), dim=0))
+        # D1, D2, U1 = self.cnn_decoder(torch.cat((image1, image2), dim=0))
+        D1, U1 = self.cnn_decoder(torch.cat((image1, image2), dim=0))
         # features = self.extractor(torch.cat((image1, image2), dim=0))
         # _, _, U1 = self.context_extractor(torch.cat((image1, image2), dim=0))
         # D1 = list()
@@ -435,8 +436,10 @@ class RAFT(nn.Module):
         # src = [torch.cat((self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1),
         #                   self.corr_proj[i](corr_01[i])), dim=0)
         #        for i, (feat1, feat2) in enumerate(zip(D1, D2))]
+        # src = [torch.cat((self.input_proj[i](feat1.flatten(2)).permute(0, 2, 1), self.corr_proj[i](corr_01[i])), dim=0)
+        #        for i, (feat1, feat2) in enumerate(zip(D1, D2))]
         src = [torch.cat((self.input_proj[i](feat1.flatten(2)).permute(0, 2, 1), self.corr_proj[i](corr_01[i])), dim=0)
-               for i, (feat1, feat2) in enumerate(zip(D1, D2))]
+               for i, feat1 in enumerate(D1)]
         src = torch.cat(torch.cat(src, dim=1).split(bs, dim=0), dim=1)
         # src = torch.cat(src, dim=1)
 
@@ -520,8 +523,8 @@ class RAFT(nn.Module):
             sparse_predictions.append((reference_points[:, :, 0], key_flow, masks, scores))
         split = 0
         for o_i in range(self.outer_iterations):
-            for i_i in range(self.inner_iterations):
-            # for i_i in range(iters):
+            # for i_i in range(self.inner_iterations):
+            for i_i in range(iters):
                 # if o_i >= 1:
                 #     step = 1
                 #     N = round(math.sqrt(self.num_keypoints)) + ((o_i - 1) * step)
@@ -638,13 +641,13 @@ class RAFT(nn.Module):
                     query = self.decoder[o_i * i_i](query, query_pos, reference_points,
                                                     src[i_i], src_pos[i_i], spatial_shapes, level_start_index)
                 else:
-                    query = self.decoder[o_i * i_i](query, query_pos, reference_points,
-                                                    src, src_pos, spatial_shapes, level_start_index)
+                    query = self.decoder[o_i](query, query_pos, reference_points,
+                                              src, src_pos, spatial_shapes, level_start_index)
                 # query = self.decoder[o_i](query, query_pos, reference_points_input,
                 #                           src, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, 2
-                flow_embed = self.flow_embed[o_i * i_i + int(self.first_query)](query)
+                flow_embed = self.flow_embed[o_i + int(self.first_query)](query)
                 flow_embed = flow_embed + inverse_sigmoid(reference_flows)
                 # reference_points = flow_embed + inverse_sigmoid(reference_points)
 
@@ -661,7 +664,7 @@ class RAFT(nn.Module):
                 # reference_points = reference_points.detach()
 
                 # bs, HW, n
-                context = self.context_embed[o_i * i_i + int(self.first_query)](query)
+                context = self.context_embed[o_i + int(self.first_query)](query)
                 context_flow = F.softmax(torch.bmm(U1 + context_pos, context.permute(0, 2, 1)), dim=-1)
                 masks = context_flow.permute(0, 2, 1).detach()
                 scores = torch.max(context_flow, dim=1)[0].detach()

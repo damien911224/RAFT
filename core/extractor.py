@@ -530,22 +530,26 @@ class CNNDecoder(nn.Module):
         D4 = self.down_layer4(D3)
         D5 = self.down_layer5(D4)
 
-        D2_x1, D2_x2 = torch.split(D2, D2.shape[0] // 2, dim=0)
-        D3_x1, D3_x2 = torch.split(D3, D3.shape[0] // 2, dim=0)
-        D4_x1, D4_x2 = torch.split(D4, D4.shape[0] // 2, dim=0)
-        D5_x1, D5_x2 = torch.split(D5, D5.shape[0] // 2, dim=0)
+        # D2_x1, D2_x2 = torch.split(D2, D2.shape[0] // 2, dim=0)
+        # D3_x1, D3_x2 = torch.split(D3, D3.shape[0] // 2, dim=0)
+        # D4_x1, D4_x2 = torch.split(D4, D4.shape[0] // 2, dim=0)
+        # D5_x1, D5_x2 = torch.split(D5, D5.shape[0] // 2, dim=0)
 
-        T1 = self.up_top1(D3_x1)
-        D2_x1 = self.up_lateral1(D2_x1)
+        # T1 = self.up_top1(D3_x1)
+        # D2_x1 = self.up_lateral1(D2_x1)
+        # U1 = self.up_smooth1(F.gelu(F.interpolate(T1, scale_factor=2.0, mode="bilinear", align_corners=False) + D2_x1))
+        # # T2 = self.up_top2(U1)
+        # # D1_x1 = self.up_lateral2(D1_x1)
+        # # U2 = self.up_smooth2(F.gelu(F.upsample(T2, scale_factor=2.0, mode="bilinear") + D1_x1))
+
+        # X1 = (D3_x1, D4_x1, D5_x1)
+        # X2 = (D3_x2, D4_x2, D5_x2)
+
+        T1 = self.up_top1(D3)
+        D2_x1 = self.up_lateral1(D2)
         U1 = self.up_smooth1(F.gelu(F.interpolate(T1, scale_factor=2.0, mode="bilinear", align_corners=False) + D2_x1))
-        # T2 = self.up_top2(U1)
-        # D1_x1 = self.up_lateral2(D1_x1)
-        # U2 = self.up_smooth2(F.gelu(F.upsample(T2, scale_factor=2.0, mode="bilinear") + D1_x1))
 
-        X1 = (D3_x1, D4_x1, D5_x1)
-        X2 = (D3_x2, D4_x2, D5_x2)
+        X1 = (D3, D4, D5)
 
-        # X1 = (D3_x1, )
-        # U1 = X1[0]
-
-        return X1, X2, U1
+        # return X1, X2, U1
+        return X1, U1

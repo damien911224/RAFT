@@ -205,15 +205,20 @@ class RAFT(nn.Module):
                 self.context_high_dim_query_proj = MLP(self.up_dim, self.up_dim, self.up_dim, 2)
                 # self.src_high_dim_query_proj = MLP(self.d_model, self.d_model, self.d_model, 2)
 
+        self.first_query = True
+
         # self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(self.outer_iterations)])
         # self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(self.outer_iterations)])
         # self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(self.outer_iterations)])
         self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed)
-                                         for _ in range(self.outer_iterations * self.inner_iterations + 1)])
+                                         for _ in range(self.outer_iterations * self.inner_iterations +
+                                                        int(self.first_query))])
         self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed)
-                                            for _ in range(self.outer_iterations * self.inner_iterations + 1)])
+                                            for _ in range(self.outer_iterations * self.inner_iterations +
+                                                           int(self.first_query))])
         self.confidence_embed = nn.ModuleList([copy.deepcopy(self.confidence_embed)
-                                               for _ in range(self.outer_iterations * self.inner_iterations + 1)])
+                                               for _ in range(self.outer_iterations * self.inner_iterations +
+                                                              int(self.first_query))])
 
         self.reset_parameters()
 
@@ -481,32 +486,33 @@ class RAFT(nn.Module):
         # reference_points_input = torch.stack(reference_points.split(2, dim=-1), dim=2).repeat(1, 1, self.num_feature_levels, 1)
         # context_flow = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=src.device)
         split = 0
-        context_pos = raw_context_pos
-        flow_embed = self.flow_embed[0](query)
-        flow_embed = flow_embed + inverse_sigmoid(reference_flows)
+        if self.first_query:
+            context_pos = raw_context_pos
+            flow_embed = self.flow_embed[0](query)
+            flow_embed = flow_embed + inverse_sigmoid(reference_flows)
 
-        src_points = reference_points[:, :, 0].detach()
-        dst_points = (inverse_sigmoid(src_points) + flow_embed).sigmoid()
-        key_flow = src_points - dst_points
-        reference_flows = flow_embed.detach().sigmoid()
-        reference_points[:, :, 1] = dst_points.detach()
-        split = 0
-        # bs, HW, n
-        context = self.context_embed[0](query)
-        context_flow = F.softmax(torch.bmm(U1 + context_pos, context.permute(0, 2, 1)), dim=-1)
-        masks = context_flow.permute(0, 2, 1).detach()
-        scores = torch.max(context_flow, dim=1)[0].detach()
-        # bs, HW, 2
-        context_flow = torch.bmm(context_flow, key_flow)
-        # bs, 2, H, W
-        flow = context_flow.permute(0, 2, 1).view(bs, 2, H, W)
-        flow = flow * torch.as_tensor((I_W, I_H), dtype=torch.float32, device=D1[0].device).view(1, 2, 1, 1)
-        if I_H != H or I_W != W:
-            flow = F.interpolate(flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
-            masks = masks.reshape(bs, -1, 1, H, W)
+            src_points = reference_points[:, :, 0].detach()
+            dst_points = (inverse_sigmoid(src_points) + flow_embed).sigmoid()
+            key_flow = src_points - dst_points
+            reference_flows = flow_embed.detach().sigmoid()
+            reference_points[:, :, 1] = dst_points.detach()
+            split = 0
+            # bs, HW, n
+            context = self.context_embed[0](query)
+            context_flow = F.softmax(torch.bmm(U1 + context_pos, context.permute(0, 2, 1)), dim=-1)
+            masks = context_flow.permute(0, 2, 1).detach()
+            scores = torch.max(context_flow, dim=1)[0].detach()
+            # bs, HW, 2
+            context_flow = torch.bmm(context_flow, key_flow)
+            # bs, 2, H, W
+            flow = context_flow.permute(0, 2, 1).view(bs, 2, H, W)
+            flow = flow * torch.as_tensor((I_W, I_H), dtype=torch.float32, device=D1[0].device).view(1, 2, 1, 1)
+            if I_H != H or I_W != W:
+                flow = F.interpolate(flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
+                masks = masks.reshape(bs, -1, 1, H, W)
 
-        flow_predictions.append(flow)
-        sparse_predictions.append((reference_points[:, :, 0], key_flow, masks, scores))
+            flow_predictions.append(flow)
+            sparse_predictions.append((reference_points[:, :, 0], key_flow, masks, scores))
         split = 0
         for o_i in range(self.outer_iterations):
             for i_i in range(self.inner_iterations):
@@ -577,7 +583,7 @@ class RAFT(nn.Module):
                     pos_scale = self.query_scale(query) if not (o_i == 0 and i_i == 0) else 1
                     query_pos = pos_scale * raw_query_pos
 
-                    if not (o_i == 0 and i_i == 0) or True:
+                    if not (o_i == 0 and i_i == 0) or self.first_query:
                         masks = masks.flatten(2)
                         attention_pos = torch.bmm(masks, context_pos.detach())
                         query_pos = query_pos + self.attention_pos_head(attention_pos)
@@ -585,7 +591,7 @@ class RAFT(nn.Module):
                     if self.inner_iterations > 1:
                         query_pos = query_pos + self.iter_pos_embed.weight[i_i].unsqueeze(0)
 
-                    if self.high_dim_query_update and (not (o_i == 0 and i_i == 0) or True):
+                    if self.high_dim_query_update and (not (o_i == 0 and i_i == 0) or self.first_query):
                         query_pos = query_pos + self.high_dim_query_proj(query)
                     split = 0
                     # context_pos = raw_context_pos + self.context_flow_head(context_flow.detach())
@@ -632,7 +638,7 @@ class RAFT(nn.Module):
                 #                           src, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, 2
-                flow_embed = self.flow_embed[o_i * i_i](query)
+                flow_embed = self.flow_embed[o_i * i_i + int(self.first_query)](query)
                 flow_embed = flow_embed + inverse_sigmoid(reference_flows)
                 # reference_points = flow_embed + inverse_sigmoid(reference_points)
 
@@ -650,7 +656,7 @@ class RAFT(nn.Module):
                 # reference_points = reference_points.detach()
 
                 # bs, HW, n
-                context = self.context_embed[o_i * i_i](query)
+                context = self.context_embed[o_i * i_i + int(self.first_query)](query)
                 context_flow = F.softmax(torch.bmm(U1 + context_pos, context.permute(0, 2, 1)), dim=-1)
                 masks = context_flow.permute(0, 2, 1).detach()
                 scores = torch.max(context_flow, dim=1)[0].detach()

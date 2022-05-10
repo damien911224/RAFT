@@ -79,7 +79,7 @@ class RAFT(nn.Module):
         corr_proj_list = list()
         for l_i in range(self.num_feature_levels):
             # in_channels = (w // (2 ** (3 + l_i))) * (h // (2 ** (3 + l_i)))
-            in_channels = 2 * (2 * 4 + 1) ** 2
+            in_channels = 1 * (2 * 4 + 1) ** 2
             # corr_proj_list.append(nn.Sequential(
             #     nn.Conv1d(in_channels, self.d_model, kernel_size=1, padding=0),
             #     nn.GroupNorm(16, self.d_model)))

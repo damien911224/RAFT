@@ -73,17 +73,17 @@ class RAFT(nn.Module):
         for l_i in range(self.num_feature_levels):
             in_channels = channels[l_i]
             input_proj_list.append(nn.Sequential(
-                nn.Conv1d(in_channels, self.d_model, kernel_size=1, padding=0),
-                nn.GroupNorm(16, self.d_model)))
+                nn.Conv1d(in_channels, self.d_model // 2, kernel_size=1, padding=0),
+                nn.GroupNorm(16, self.d_model // 2)))
         self.input_proj = nn.ModuleList(input_proj_list)
         corr_proj_list = list()
         for l_i in range(self.num_feature_levels):
             # in_channels = (w // (2 ** (3 + l_i))) * (h // (2 ** (3 + l_i)))
-            in_channels = (2 * 4 + 1) ** 2
+            in_channels = 2 * (2 * 4 + 1) ** 2
             # corr_proj_list.append(nn.Sequential(
             #     nn.Conv1d(in_channels, self.d_model, kernel_size=1, padding=0),
             #     nn.GroupNorm(16, self.d_model)))
-            corr_proj_list.append(MLP(in_channels, self.d_model, self.d_model, 3))
+            corr_proj_list.append(MLP(in_channels, self.d_model // 2, self.d_model // 2, 3))
         self.corr_proj = nn.ModuleList(corr_proj_list)
 
         self.encoder_iterations = 1
@@ -372,8 +372,8 @@ class RAFT(nn.Module):
 
         # D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
         E1, E2 = self.cnn_encoder(torch.cat((image1, image2), dim=0))
-        # D1, D2, U1 = self.cnn_decoder(torch.cat((image1, image2), dim=0))
-        D1, U1 = self.cnn_decoder(image1)
+        D1, D2, U1 = self.cnn_decoder(torch.cat((image1, image2), dim=0))
+        # D1, U1 = self.cnn_decoder(image1)
         # features = self.extractor(torch.cat((image1, image2), dim=0))
         # _, _, U1 = self.context_extractor(torch.cat((image1, image2), dim=0))
         # D1 = list()
@@ -425,21 +425,21 @@ class RAFT(nn.Module):
         corr_01 = [CorrBlock(feat1, feat2, radius=4)(
             self.get_reference_points([feat1.shape[2:], ],
                                       device=feat1.device, normalize=False).squeeze(2).repeat(bs, 1, 1))
+                      for i, (feat1, feat2) in enumerate(zip(E1, E2))]
+        corr_02 = [CorrBlock(feat1, feat2, radius=4)(
+            self.get_reference_points([feat1.shape[2:], ],
+                                      device=feat1.device, normalize=False).squeeze(2).repeat(bs, 1, 1))
                       for i, (feat1, feat2) in enumerate(zip(E2, E1))]
-        # corr_02 = [CorrBlock(feat1, feat2, radius=4)(
-        #     self.get_reference_points([feat1.shape[2:], ],
-        #                               device=feat1.device, normalize=False).squeeze(2).repeat(bs, 1, 1))
-        #               for i, (feat1, feat2) in enumerate(zip(E1, E2))]
-        # src = [torch.cat((self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1),
-        #                   self.corr_proj[i](torch.cat((corr_01[i], corr_02[i]), dim=0))), dim=-1)
-        #        for i, (feat1, feat2) in enumerate(zip(D1, D2))]
+        src = [torch.cat((self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1),
+                          self.corr_proj[i](torch.cat((corr_01[i], corr_02[i]), dim=0))), dim=-1)
+               for i, (feat1, feat2) in enumerate(zip(D1, D2))]
         # src = [torch.cat((self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1),
         #                   self.corr_proj[i](corr_01[i])), dim=0)
         #        for i, (feat1, feat2) in enumerate(zip(D1, D2))]
         # src = [torch.cat((self.input_proj[i](feat1.flatten(2)).permute(0, 2, 1), self.corr_proj[i](corr_01[i])), dim=0)
         #        for i, (feat1, feat2) in enumerate(zip(D1, D2))]
-        src = [torch.cat((self.input_proj[i](feat1.flatten(2)).permute(0, 2, 1), self.corr_proj[i](corr_01[i])), dim=0)
-               for i, feat1 in enumerate(D1)]
+        # src = [torch.cat((self.input_proj[i](feat1.flatten(2)).permute(0, 2, 1), self.corr_proj[i](corr_01[i])), dim=0)
+        #        for i, feat1 in enumerate(D1)]
         src = torch.cat(torch.cat(src, dim=1).split(bs, dim=0), dim=1)
         # src = torch.cat(src, dim=1)
 
@@ -523,8 +523,8 @@ class RAFT(nn.Module):
             sparse_predictions.append((reference_points[:, :, 0], key_flow, masks, scores))
         split = 0
         for o_i in range(self.outer_iterations):
-            # for i_i in range(self.inner_iterations):
-            for i_i in range(iters):
+            for i_i in range(self.inner_iterations):
+            # for i_i in range(iters):
                 # if o_i >= 1:
                 #     step = 1
                 #     N = round(math.sqrt(self.num_keypoints)) + ((o_i - 1) * step)
@@ -647,7 +647,7 @@ class RAFT(nn.Module):
                 #                           src, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, 2
-                flow_embed = self.flow_embed[o_i + int(self.first_query)](query)
+                flow_embed = self.flow_embed[o_i * i_i + int(self.first_query)](query)
                 flow_embed = flow_embed + inverse_sigmoid(reference_flows)
                 # reference_points = flow_embed + inverse_sigmoid(reference_points)
 
@@ -664,7 +664,7 @@ class RAFT(nn.Module):
                 # reference_points = reference_points.detach()
 
                 # bs, HW, n
-                context = self.context_embed[o_i + int(self.first_query)](query)
+                context = self.context_embed[o_i * i_i + int(self.first_query)](query)
                 context_flow = F.softmax(torch.bmm(U1 + context_pos, context.permute(0, 2, 1)), dim=-1)
                 masks = context_flow.permute(0, 2, 1).detach()
                 scores = torch.max(context_flow, dim=1)[0].detach()

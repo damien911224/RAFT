@@ -87,7 +87,7 @@ class RAFT(nn.Module):
         self.corr_proj = nn.ModuleList(corr_proj_list)
 
         self.encoder_iterations = 1
-        self.outer_iterations = 1
+        self.outer_iterations = 6
         self.inner_iterations = 1
         # self.inner_iterations = self.num_feature_levels
         self.num_keypoints = 100

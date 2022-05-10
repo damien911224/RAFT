@@ -542,8 +542,8 @@ class CNNDecoder(nn.Module):
         # D1_x1 = self.up_lateral2(D1_x1)
         # U2 = self.up_smooth2(F.gelu(F.upsample(T2, scale_factor=2.0, mode="bilinear") + D1_x1))
 
-        # X1 = (D3_x1, D4_x1, D5_x1)
-        # X2 = (D3_x2, D4_x2, D5_x2)
+        X1 = (D3_x1, D4_x1, D5_x1)
+        X2 = (D3_x2, D4_x2, D5_x2)
 
         # T1 = self.up_top1(D3)
         # D2_x1 = self.up_lateral1(D2)

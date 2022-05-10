@@ -196,7 +196,8 @@ class RAFT(nn.Module):
         if self.use_dab:
             # self.context_flow_head = MLP(2, self.up_dim, self.up_dim, 3)
             # self.context_scale = MLP(self.up_dim, self.up_dim, self.up_dim, 2)
-            self.attention_pos_head = MLP(self.up_dim, self.d_model, self.d_model, 3)
+            self.src_pos_head = MLP(2, self.d_model, self.d_model, 3)
+            self.src_scale_head = MLP(self.d_model, self.d_model, self.d_model, 3)
 
             self.no_sine_embed = True
             self.query_scale = MLP(self.d_model, self.d_model, self.d_model, 2)
@@ -208,7 +209,7 @@ class RAFT(nn.Module):
             if self.high_dim_query_update:
                 self.high_dim_query_proj = MLP(self.d_model, self.d_model, self.d_model, 2)
                 # self.context_high_dim_query_proj = MLP(self.up_dim, self.up_dim, self.up_dim, 2)
-                # self.src_high_dim_query_proj = MLP(self.d_model, self.d_model, self.d_model, 2)
+                self.src_high_dim_query_proj = MLP(self.d_model, self.d_model, self.d_model, 2)
 
         self.first_query = False
 
@@ -591,9 +592,9 @@ class RAFT(nn.Module):
 
                     # src_pos = raw_src_pos
 
-                    # raw_query_pos = torch.cat((reference_points[:, :, 0], reference_flows), dim=-1)
-                    raw_query_pos = torch.cat((reference_points[:, :, 0],
-                                               reference_points[:, :, self.num_feature_levels]), dim=-1)
+                    raw_query_pos = torch.cat((reference_points[:, :, 0], reference_flows), dim=-1)
+                    # raw_query_pos = torch.cat((reference_points[:, :, 0],
+                    #                            reference_points[:, :, self.num_feature_levels]), dim=-1)
                     # raw_query_pos = reference_points.detach()
                     if self.no_sine_embed:
                         raw_query_pos = self.ref_point_head(raw_query_pos)
@@ -623,27 +624,23 @@ class RAFT(nn.Module):
 
                     context_pos = raw_context_pos
                     split = 0
-                    # if o_i >= 1:
-                    #     # bs, HW, N
-                    #     attention_pos = list()
-                    #     masks = masks.flatten(start_dim=0, end_dim=1)
-                    #     for H_, W_ in spatial_shapes:
-                    #         this_mask = F.interpolate(masks, size=(H_, W_), mode="bilinear", align_corners=False)
-                    #         this_mask = torch.stack(this_mask.split(bs, dim=0), dim=1)
-                    #         this_mask = this_mask.squeeze(2).flatten(2).permute(0, 2, 1)
-                    #         attention_pos.append(torch.bmm(this_mask, query_pos.detach()))
-                    #     attention_pos = torch.cat(attention_pos, dim=1)
-                    #     # bs, HW, d_model
-                    #     src_pos = raw_src_pos + self.src_pos_head(attention_pos)
-                    #     src_pos_scale = self.src_scale(src) if not (o_i == 0 and i_i == 0) else 1
-                    #     src_pos = src_pos_scale * src_pos
-                    #
-                    #     if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
-                    #         src_pos = src_pos + self.src_high_dim_query_proj(src)
-                    # else:
-                    #     src_pos = raw_src_pos
+                    if not (o_i == 0 and i_i == 0):
+                        # bs, HW, N
+                        flow_pos = list()
+                        context_flow = context_flow.detach().permute(0, 2, 1).view(bs, 2, H, W)
+                        for H_, W_ in spatial_shapes:
+                            this_flow = F.interpolate(context_flow, size=(H_, W_), mode="bilinear", align_corners=False)
+                            flow_pos.append(this_flow)
+                        flow_pos = torch.cat(flow_pos, dim=1)
+                        # bs, HW, d_model
+                        src_pos = raw_src_pos + self.src_pos_head(flow_pos)
+                        src_pos_scale = self.src_scale(src) if not (o_i == 0 and i_i == 0) else 1
+                        src_pos = src_pos_scale * src_pos
 
-                    src_pos = raw_src_pos
+                        if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
+                            src_pos = src_pos + self.src_high_dim_query_proj(src)
+                    else:
+                        src_pos = raw_src_pos
                 else:
                     context_pos = raw_context_pos
                     src_pos = raw_src_pos

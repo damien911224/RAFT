@@ -559,6 +559,10 @@ class RAFT(nn.Module):
                 #     query_mask = confidence_onehot[..., 1].unsqueeze(-1)
                 #     query = query * query_mask
                 split = 0
+                if not (o_i == 0 or i_i == 0):
+                    src = self.updater[o_i * i_i]((src + src_pos).permute(1, 0, 2),
+                                                  (query + query_pos).permute(1, 0, 2)).permute(1, 0, 2)
+
                 if self.inner_iterations > 1:
                     spatial_shapes = torch.as_tensor([D1[::-1][i_i].shape[2:], ] * 2,
                                                      dtype=torch.long, device=src[i_i].device)
@@ -652,9 +656,6 @@ class RAFT(nn.Module):
                 #                           src, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, 2
-
-                src = self.updater[o_i * i_i]((src + src_pos).permute(1, 0, 2),
-                                              (query + query_pos).permute(1, 0, 2)).permute(1, 0, 2)
 
                 flow_embed = self.flow_embed[o_i * i_i + int(self.first_query)](query)
                 flow_embed = flow_embed + inverse_sigmoid(reference_flows)

@@ -198,7 +198,7 @@ class RAFT(nn.Module):
             # self.context_scale = MLP(self.up_dim, self.up_dim, self.up_dim, 2)
             self.attention_pos_head = MLP(self.up_dim, self.d_model, self.d_model, 3)
             self.src_pos_head = MLP(2, self.d_model, self.d_model, 3)
-            self.src_scale_head = MLP(self.d_model, self.d_model, self.d_model, 3)
+            self.src_scale = MLP(self.d_model, self.d_model, self.d_model, 3)
 
             self.no_sine_embed = True
             self.query_scale = MLP(self.d_model, self.d_model, self.d_model, 2)

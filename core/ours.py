@@ -108,6 +108,11 @@ class RAFT(nn.Module):
                                                              n_heads=8, n_points=4, self_deformable=False)
                            for _ in range(self.outer_iterations * self.inner_iterations)))
 
+        self.updater = \
+            nn.ModuleList((nn.TransformerDecoderLayer(d_model=self.d_model, dim_feedforward=self.d_model * 4,
+                                                      nhead=8, dropout=0.1, activation="gelu")
+                           for _ in range(self.outer_iterations * self.inner_iterations)))
+
         # self.encoder = \
         #     nn.ModuleList((DeformableTransformerEncoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
         #                                                      dropout=0.1, activation="gelu",
@@ -647,6 +652,10 @@ class RAFT(nn.Module):
                 #                           src, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, 2
+
+                src = self.updater[o_i * i_i]((src + src_pos).permute(1, 0, 2),
+                                              (query + query_pos).permute(1, 0, 2)).permute(1, 0, 2)
+
                 flow_embed = self.flow_embed[o_i * i_i + int(self.first_query)](query)
                 flow_embed = flow_embed + inverse_sigmoid(reference_flows)
                 # reference_points = flow_embed + inverse_sigmoid(reference_points)

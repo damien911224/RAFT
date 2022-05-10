@@ -108,10 +108,10 @@ class RAFT(nn.Module):
                                                              n_heads=8, n_points=4, self_deformable=False)
                            for _ in range(self.outer_iterations * self.inner_iterations)))
 
-        self.updater = \
-            nn.ModuleList((nn.TransformerDecoderLayer(d_model=self.d_model, dim_feedforward=self.d_model * 4,
-                                                      nhead=8, dropout=0.1, activation="gelu")
-                           for _ in range(self.outer_iterations * self.inner_iterations)))
+        # self.updater = \
+        #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=self.d_model, dim_feedforward=self.d_model * 4,
+        #                                               nhead=8, dropout=0.1, activation="gelu")
+        #                    for _ in range(self.outer_iterations * self.inner_iterations - 1)))
 
         # self.encoder = \
         #     nn.ModuleList((DeformableTransformerEncoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
@@ -559,9 +559,9 @@ class RAFT(nn.Module):
                 #     query_mask = confidence_onehot[..., 1].unsqueeze(-1)
                 #     query = query * query_mask
                 split = 0
-                if not (o_i == 0 or i_i == 0):
-                    src = self.updater[o_i * i_i]((src + src_pos).permute(1, 0, 2),
-                                                  (query + query_pos).permute(1, 0, 2)).permute(1, 0, 2)
+                # if not (o_i == 0 or i_i == 0):
+                #     src = self.updater[o_i * i_i]((src + src_pos).permute(1, 0, 2),
+                #                                   (query + query_pos).permute(1, 0, 2)).permute(1, 0, 2)
 
                 if self.inner_iterations > 1:
                     spatial_shapes = torch.as_tensor([D1[::-1][i_i].shape[2:], ] * 2,
@@ -591,7 +591,9 @@ class RAFT(nn.Module):
 
                     # src_pos = raw_src_pos
 
-                    raw_query_pos = torch.cat((reference_points[:, :, 0], reference_flows), dim=-1)
+                    # raw_query_pos = torch.cat((reference_points[:, :, 0], reference_flows), dim=-1)
+                    raw_query_pos = torch.cat((reference_points[:, :, 0],
+                                               reference_points[:, :, self.num_feature_levels]), dim=-1)
                     # raw_query_pos = reference_points.detach()
                     if self.no_sine_embed:
                         raw_query_pos = self.ref_point_head(raw_query_pos)

@@ -630,6 +630,7 @@ class RAFT(nn.Module):
                         context_flow = context_flow.detach().permute(0, 2, 1).view(bs, 2, H, W)
                         for H_, W_ in spatial_shapes:
                             this_flow = F.interpolate(context_flow, size=(H_, W_), mode="bilinear", align_corners=False)
+                            this_flow = this_flow.flatten(2).permute(0, 2, 1)
                             flow_pos.append(this_flow)
                         flow_pos = torch.cat(flow_pos, dim=1)
                         # bs, HW, d_model

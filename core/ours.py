@@ -634,29 +634,46 @@ class RAFT(nn.Module):
                     raw_query_pos = torch.cat((reference_points[:, :, 0],
                                                reference_points[:, :, self.num_feature_levels]), dim=-1)
                     # raw_query_pos = reference_points.detach()
+                    # if self.no_sine_embed:
+                    #     raw_query_pos = self.ref_point_head(raw_query_pos)
+                    # else:
+                    #     query_sine_embed = self.gen_sineembed_for_position(raw_query_pos)  # bs, nq, 256*2
+                    #     raw_query_pos = self.ref_point_head(query_sine_embed)  # bs, nq, 256
+                    # pos_scale = self.query_scale(query) if not (o_i == 0 and i_i == 0) else 1
+                    # query_pos = pos_scale * raw_query_pos
+                    #
+                    # if not (o_i == 0 and i_i == 0) or self.first_query:
+                    #     masks = masks.flatten(2)
+                    #     attention_pos = torch.bmm(masks, context_pos.detach())
+                    #     query_pos = query_pos + self.attention_pos_head(attention_pos)
+                    #
+                    # if self.inner_iterations > 1:
+                    #     query_pos = query_pos + self.iter_pos_embed.weight[i_i].unsqueeze(0)
+                    split = 0
+                    # if self.high_dim_query_update and (not (o_i == 0 and i_i == 0) or self.first_query):
+                    #     query_pos = query_pos + self.high_dim_query_proj(query)
+                    split = 0
                     if self.no_sine_embed:
                         raw_query_pos = self.ref_point_head(raw_query_pos)
                     else:
                         query_sine_embed = self.gen_sineembed_for_position(raw_query_pos)  # bs, nq, 256*2
                         raw_query_pos = self.ref_point_head(query_sine_embed)  # bs, nq, 256
-                    pos_scale = self.query_scale(query) if not (o_i == 0 and i_i == 0) else 1
-                    query_pos = pos_scale * raw_query_pos
+                    pos_scale = self.query_scale(motion_query)
+                    motion_query_pos = pos_scale * raw_query_pos
+                    pos_scale = self.query_scale(context_query)
+                    context_query_pos = pos_scale * raw_query_pos
 
-                    if not (o_i == 0 and i_i == 0) or self.first_query:
-                        masks = masks.flatten(2)
-                        attention_pos = torch.bmm(masks, context_pos.detach())
-                        query_pos = query_pos + self.attention_pos_head(attention_pos)
+                    # if not (o_i == 0 and i_i == 0) or self.first_query:
+                    #     masks = masks.flatten(2)
+                    #     attention_pos = torch.bmm(masks, context_pos.detach())
+                    #     query_pos = query_pos + self.attention_pos_head(attention_pos)
 
                     if self.inner_iterations > 1:
                         query_pos = query_pos + self.iter_pos_embed.weight[i_i].unsqueeze(0)
-                    split = 0
-                    # if self.high_dim_query_update and (not (o_i == 0 and i_i == 0) or self.first_query):
-                    #     query_pos = query_pos + self.high_dim_query_proj(query)
-                    split = 0
                     if self.high_dim_query_update:
-                        motion_query_pos = query_pos + self.motion_high_dim_query_proj(motion_query)
+                        motion_query_pos = motion_query_pos + self.motion_high_dim_query_proj(motion_query)
                         motion_query_pos = motion_query_pos + self.context2motion_high_dim_query_proj(context_query)
-                        context_query_pos = query_pos + self.context_high_dim_query_proj(context_query)
+                        context_query_pos = context_query_pos + self.context_high_dim_query_proj(context_query)
                         context_query_pos = context_query_pos + self.motion2context_high_dim_query_proj(motion_query)
                     split = 0
                     # context_pos = raw_context_pos + self.context_flow_head(context_flow.detach())

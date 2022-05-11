@@ -653,7 +653,7 @@ class RAFT(nn.Module):
                     # if self.high_dim_query_update and (not (o_i == 0 and i_i == 0) or self.first_query):
                     #     query_pos = query_pos + self.high_dim_query_proj(query)
                     split = 0
-                    if self.high_dim_query_update and (not (o_i == 0 and i_i == 0) or self.first_query):
+                    if self.high_dim_query_update:
                         motion_query_pos = query_pos + self.motion_high_dim_query_proj(motion_query)
                         motion_query_pos = query_pos + self.context2motion_high_dim_query_proj(context_query)
                         context_query_pos = query_pos + self.context_high_dim_query_proj(context_query)

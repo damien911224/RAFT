@@ -311,24 +311,6 @@ class DeformableTransformerDecoderLayer(nn.Module):
 
     def forward(self, tgt, query_pos, reference_points,
                 src, src_pos, src_spatial_shapes, level_start_index):
-        # # self attention
-        # if self.self_deformable:
-        #     tgt2, scores = self.self_attn(self.with_pos_embed(tgt, query_pos), reference_points,
-        #                                   self.with_pos_embed(tgt, src_pos), src_spatial_shapes, level_start_index)
-        # else:
-        #     q = k = self.with_pos_embed(tgt, query_pos)
-        #     tgt2 = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))[0].transpose(0, 1)
-        # tgt = tgt + self.dropout2(tgt2)
-        # tgt = self.norm2(tgt)
-
-        # cross attention
-        tgt2, scores = self.cross_attn(self.with_pos_embed(tgt, query_pos), reference_points,
-                                       self.with_pos_embed(src, src_pos), src_spatial_shapes, level_start_index)
-        # tgt2, scores = self.cross_attn(self.with_pos_embed(tgt, query_pos), reference_points,
-        #                                src, src_spatial_shapes, level_start_index)
-        tgt = tgt + self.dropout1(tgt2)
-        tgt = self.norm1(tgt)
-
         # self attention
         if self.self_deformable:
             tgt2, scores = self.self_attn(self.with_pos_embed(tgt, query_pos), reference_points,
@@ -338,6 +320,24 @@ class DeformableTransformerDecoderLayer(nn.Module):
             tgt2 = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))[0].transpose(0, 1)
         tgt = tgt + self.dropout2(tgt2)
         tgt = self.norm2(tgt)
+
+        # cross attention
+        tgt2, scores = self.cross_attn(self.with_pos_embed(tgt, query_pos), reference_points,
+                                       self.with_pos_embed(src, src_pos), src_spatial_shapes, level_start_index)
+        # tgt2, scores = self.cross_attn(self.with_pos_embed(tgt, query_pos), reference_points,
+        #                                src, src_spatial_shapes, level_start_index)
+        tgt = tgt + self.dropout1(tgt2)
+        tgt = self.norm1(tgt)
+
+        # # self attention
+        # if self.self_deformable:
+        #     tgt2, scores = self.self_attn(self.with_pos_embed(tgt, query_pos), reference_points,
+        #                                   self.with_pos_embed(tgt, src_pos), src_spatial_shapes, level_start_index)
+        # else:
+        #     q = k = self.with_pos_embed(tgt, query_pos)
+        #     tgt2 = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))[0].transpose(0, 1)
+        # tgt = tgt + self.dropout2(tgt2)
+        # tgt = self.norm2(tgt)
 
         # ffn
         tgt = self.forward_ffn(tgt)

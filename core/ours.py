@@ -192,7 +192,7 @@ class RAFT(nn.Module):
         self.iter_pos_embed = nn.Embedding(self.inner_iterations, self.d_model)
 
         # self.query_embed = nn.Embedding(self.num_keypoints, self.d_model)
-        self.moiton_query_embed = nn.Embedding(self.num_keypoints, self.d_model)
+        self.motion_query_embed = nn.Embedding(self.num_keypoints, self.d_model)
         self.context_query_embed = nn.Embedding(self.num_keypoints, self.d_model)
         self.query_pos_embed = nn.Embedding(self.num_keypoints, self.d_model)
         # self.reference_embed = nn.Embedding(self.num_keypoints, 4)

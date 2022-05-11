@@ -100,6 +100,13 @@ class RAFT(nn.Module):
                                                              n_heads=8, n_points=4)
                            for _ in range(self.encoder_iterations)))
 
+        self.context_encoder = \
+            nn.ModuleList((DeformableTransformerEncoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
+                                                             dropout=0.1, activation="gelu",
+                                                             n_levels=self.num_feature_levels * 2,
+                                                             n_heads=8, n_points=4)
+                           for _ in range(self.encoder_iterations)))
+
         self.decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
                                                              dropout=0.1, activation="gelu",
@@ -453,9 +460,9 @@ class RAFT(nn.Module):
             self.get_reference_points([feat1.shape[2:], ],
                                       device=feat1.device, normalize=False).squeeze(2).repeat(bs, 1, 1))
                       for i, (feat1, feat2) in enumerate(zip(E2, E1))]
-        src = [torch.cat((self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1),
-                          self.corr_proj[i](torch.cat((corr_01[i], corr_02[i]), dim=0))), dim=-1)
-               for i, (feat1, feat2) in enumerate(zip(D1, D2))]
+        # src = [torch.cat((self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1),
+        #                   self.corr_proj[i](torch.cat((corr_01[i], corr_02[i]), dim=0))), dim=-1)
+        #        for i, (feat1, feat2) in enumerate(zip(D1, D2))]
         # src = [torch.cat((self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1),
         #                   self.corr_proj[i](corr_01[i])), dim=0)
         #        for i, (feat1, feat2) in enumerate(zip(D1, D2))]
@@ -463,17 +470,17 @@ class RAFT(nn.Module):
         #        for i, (feat1, feat2) in enumerate(zip(D1, D2))]
         # src = [torch.cat((self.input_proj[i](feat1.flatten(2)).permute(0, 2, 1), self.corr_proj[i](corr_01[i])), dim=0)
         #        for i, feat1 in enumerate(D1)]
-        src = torch.cat(torch.cat(src, dim=1).split(bs, dim=0), dim=1)
+        # src = torch.cat(torch.cat(src, dim=1).split(bs, dim=0), dim=1)
         # src = torch.cat(src, dim=1)
 
         # bs, HW, CU1
         split = 0
-        context_src = [self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1)
-               for i, (feat1, feat2) in enumerate(zip(D1, D2))]
-        context_src = torch.cat(torch.cat(context_src, dim=1).split(bs, dim=0), dim=1)
         motion_src = [self.corr_proj[i](torch.cat((corr_01[i], corr_02[i]), dim=0))
                       for i, (feat1, feat2) in enumerate(zip(D1, D2))]
         motion_src = torch.cat(torch.cat(motion_src, dim=1).split(bs, dim=0), dim=1)
+        context_src = [self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1)
+               for i, (feat1, feat2) in enumerate(zip(D1, D2))]
+        context_src = torch.cat(torch.cat(context_src, dim=1).split(bs, dim=0), dim=1)
         split = 0
         _, C, H, W = U1.shape
         U1 = torch.flatten(U1, 2).permute(0, 2, 1)
@@ -489,8 +496,12 @@ class RAFT(nn.Module):
         level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
         src_ref = self.get_reference_points(spatial_shapes, device=src.device)
+        # for i in range(len(self.encoder)):
+        #     src = self.encoder[i](src, raw_src_pos, src_ref, spatial_shapes, level_start_index)
+        split = 0
         for i in range(len(self.encoder)):
-            src = self.encoder[i](src, raw_src_pos, src_ref, spatial_shapes, level_start_index)
+            motion_src = self.encoder[i](motion_src, raw_src_pos, src_ref, spatial_shapes, level_start_index)
+            context_src = self.context_encoder[i](context_src, raw_src_pos, src_ref, spatial_shapes, level_start_index)
         split = 0
         if self.inner_iterations > 1:
             new_src = list()
@@ -684,9 +695,9 @@ class RAFT(nn.Module):
                 # query = self.decoder[o_i](query, query_pos, reference_points,
                 #                           src, src_pos, spatial_shapes, level_start_index)
                 motion_query = self.decoder[o_i](motion_query, motion_query_pos, reference_points,
-                                                 src, src_pos, spatial_shapes, level_start_index)
+                                                 motion_src, src_pos, spatial_shapes, level_start_index)
                 context_query = self.decoder[o_i](context_query, context_query_pos, reference_points,
-                                                  src, src_pos, spatial_shapes, level_start_index)
+                                                  context_src, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, 2
 

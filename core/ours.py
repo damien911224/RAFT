@@ -625,24 +625,26 @@ class RAFT(nn.Module):
 
                     context_pos = raw_context_pos
                     split = 0
-                    if not (o_i == 0 and i_i == 0):
-                        # bs, HW, N
-                        flow_pos = list()
-                        context_flow = context_flow.detach().permute(0, 2, 1).view(bs, 2, H, W)
-                        for H_, W_ in spatial_shapes:
-                            this_flow = F.interpolate(context_flow, size=(H_, W_), mode="bilinear", align_corners=False)
-                            this_flow = this_flow.flatten(2).permute(0, 2, 1)
-                            flow_pos.append(this_flow)
-                        flow_pos = torch.cat(flow_pos, dim=1)
-                        # bs, HW, d_model
-                        src_pos = raw_src_pos + self.src_pos_head(flow_pos)
-                        src_pos_scale = self.src_scale(src) if not (o_i == 0 and i_i == 0) else 1
-                        src_pos = src_pos_scale * src_pos
-
-                        if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
-                            src_pos = src_pos + self.src_high_dim_query_proj(src)
-                    else:
-                        src_pos = raw_src_pos
+                    # if not (o_i == 0 and i_i == 0):
+                    #     # bs, HW, N
+                    #     flow_pos = list()
+                    #     context_flow = context_flow.detach().permute(0, 2, 1).view(bs, 2, H, W)
+                    #     for H_, W_ in spatial_shapes:
+                    #         this_flow = F.interpolate(context_flow, size=(H_, W_), mode="bilinear", align_corners=False)
+                    #         this_flow = this_flow.flatten(2).permute(0, 2, 1)
+                    #         flow_pos.append(this_flow)
+                    #     flow_pos = torch.cat(flow_pos, dim=1)
+                    #     # bs, HW, d_model
+                    #     src_pos = raw_src_pos + self.src_pos_head(flow_pos)
+                    #     src_pos_scale = self.src_scale(src) if not (o_i == 0 and i_i == 0) else 1
+                    #     src_pos = src_pos_scale * src_pos
+                    #
+                    #     if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
+                    #         src_pos = src_pos + self.src_high_dim_query_proj(src)
+                    # else:
+                    #     src_pos = raw_src_pos
+                    split = 0
+                    src_pos = raw_src_pos
                 else:
                     context_pos = raw_context_pos
                     src_pos = raw_src_pos

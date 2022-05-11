@@ -73,8 +73,8 @@ class RAFT(nn.Module):
         for l_i in range(self.num_feature_levels):
             in_channels = channels[l_i]
             input_proj_list.append(nn.Sequential(
-                nn.Conv1d(in_channels, self.d_model // 2, kernel_size=1, padding=0),
-                nn.GroupNorm(16, self.d_model // 2)))
+                nn.Conv1d(in_channels, self.d_model // 2 * 2, kernel_size=1, padding=0),
+                nn.GroupNorm(16, self.d_model // 2 * 2)))
         self.input_proj = nn.ModuleList(input_proj_list)
         corr_proj_list = list()
         for l_i in range(self.num_feature_levels):
@@ -83,7 +83,7 @@ class RAFT(nn.Module):
             # corr_proj_list.append(nn.Sequential(
             #     nn.Conv1d(in_channels, self.d_model, kernel_size=1, padding=0),
             #     nn.GroupNorm(16, self.d_model)))
-            corr_proj_list.append(MLP(in_channels, self.d_model // 2, self.d_model // 2, 3))
+            corr_proj_list.append(MLP(in_channels, self.d_model // 2 * 2, self.d_model // 2 * 2, 3))
         self.corr_proj = nn.ModuleList(corr_proj_list)
 
         self.encoder_iterations = 1
@@ -101,6 +101,14 @@ class RAFT(nn.Module):
                            for _ in range(self.encoder_iterations)))
 
         self.decoder = \
+            nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
+                                                             dropout=0.1, activation="gelu",
+                                                             n_levels=2 if self.inner_iterations > 1
+                                                             else 2 * self.num_feature_levels,
+                                                             n_heads=8, n_points=4, self_deformable=False)
+                           for _ in range(self.outer_iterations * self.inner_iterations)))
+
+        self.context_decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
                                                              dropout=0.1, activation="gelu",
                                                              n_levels=2 if self.inner_iterations > 1
@@ -183,7 +191,9 @@ class RAFT(nn.Module):
 
         self.iter_pos_embed = nn.Embedding(self.inner_iterations, self.d_model)
 
-        self.query_embed = nn.Embedding(self.num_keypoints, self.d_model)
+        # self.query_embed = nn.Embedding(self.num_keypoints, self.d_model)
+        self.moiton_query_embed = nn.Embedding(self.num_keypoints, self.d_model)
+        self.context_query_embed = nn.Embedding(self.num_keypoints, self.d_model)
         self.query_pos_embed = nn.Embedding(self.num_keypoints, self.d_model)
         # self.reference_embed = nn.Embedding(self.num_keypoints, 4)
         self.flow_embed = MLP(self.d_model, self.d_model, 2, 3)
@@ -197,8 +207,8 @@ class RAFT(nn.Module):
             # self.context_flow_head = MLP(2, self.up_dim, self.up_dim, 3)
             # self.context_scale = MLP(self.up_dim, self.up_dim, self.up_dim, 2)
             self.attention_pos_head = MLP(self.up_dim, self.d_model, self.d_model, 3)
-            self.src_pos_head = MLP(2, self.d_model, self.d_model, 3)
-            self.src_scale = MLP(self.d_model, self.d_model, self.d_model, 3)
+            # self.src_pos_head = MLP(2, self.d_model, self.d_model, 3)
+            # self.src_scale = MLP(self.d_model, self.d_model, self.d_model, 3)
 
             self.no_sine_embed = True
             self.query_scale = MLP(self.d_model, self.d_model, self.d_model, 2)
@@ -208,9 +218,13 @@ class RAFT(nn.Module):
                 self.ref_point_head = MLP(2 * self.d_model, self.d_model, self.d_model, 2)
             self.high_dim_query_update = True
             if self.high_dim_query_update:
-                self.high_dim_query_proj = MLP(self.d_model, self.d_model, self.d_model, 2)
+                # self.high_dim_query_proj = MLP(self.d_model, self.d_model, self.d_model, 2)
+                self.motion_high_dim_query_proj = MLP(self.d_model, self.d_model, self.d_model, 2)
+                self.context_high_dim_query_proj = MLP(self.d_model, self.d_model, self.d_model, 2)
+                self.motion2context_high_dim_query_proj = MLP(self.d_model, self.d_model, self.d_model, 2)
+                self.context2motion_high_dim_query_proj = MLP(self.d_model, self.d_model, self.d_model, 2)
                 # self.context_high_dim_query_proj = MLP(self.up_dim, self.up_dim, self.up_dim, 2)
-                self.src_high_dim_query_proj = MLP(self.d_model, self.d_model, self.d_model, 2)
+                # self.src_high_dim_query_proj = MLP(self.d_model, self.d_model, self.d_model, 2)
 
         self.first_query = False
 
@@ -250,7 +264,9 @@ class RAFT(nn.Module):
         #     nn.init.normal_(embed.weight)
         # nn.init.normal_(self.context_row_pos_embed.weight)
         # nn.init.normal_(self.context_col_pos_embed.weight)
-        nn.init.xavier_uniform_(self.query_embed.weight)
+        # nn.init.xavier_uniform_(self.query_embed.weight)
+        nn.init.xavier_uniform_(self.motion_query_embed.weight)
+        nn.init.xavier_uniform_(self.context_query_embed.weight)
         nn.init.normal_(self.query_pos_embed.weight)
         # nn.init.uniform_(self.reference_embed.weight)
         # nn.init.xavier_uniform_(self.reference_embed.weight)
@@ -451,11 +467,21 @@ class RAFT(nn.Module):
         # src = torch.cat(src, dim=1)
 
         # bs, HW, CU1
+        split = 0
+        context_src = [self.input_proj[i](torch.cat((feat1.flatten(2), feat2.flatten(2)), dim=0)).permute(0, 2, 1)
+               for i, (feat1, feat2) in enumerate(zip(D1, D2))]
+        context_src = torch.cat(torch.cat(context_src, dim=1).split(bs, dim=0), dim=1)
+        motion_src = [self.corr_proj[i](torch.cat((corr_01[i], corr_02[i]), dim=0))
+                      for i, (feat1, feat2) in enumerate(zip(D1, D2))]
+        motion_src = torch.cat(torch.cat(motion_src, dim=1).split(bs, dim=0), dim=1)
+        split = 0
         _, C, H, W = U1.shape
         U1 = torch.flatten(U1, 2).permute(0, 2, 1)
 
         # bs, n, c
-        query = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
+        # query = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
+        motion_query = self.motion_query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
+        context_query = self.context_query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
         if not self.use_dab:
             query_pos = self.query_pos_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
 
@@ -593,9 +619,9 @@ class RAFT(nn.Module):
 
                     # src_pos = raw_src_pos
 
-                    raw_query_pos = torch.cat((reference_points[:, :, 0], reference_flows), dim=-1)
-                    # raw_query_pos = torch.cat((reference_points[:, :, 0],
-                    #                            reference_points[:, :, self.num_feature_levels]), dim=-1)
+                    # raw_query_pos = torch.cat((reference_points[:, :, 0], reference_flows), dim=-1)
+                    raw_query_pos = torch.cat((reference_points[:, :, 0],
+                                               reference_points[:, :, self.num_feature_levels]), dim=-1)
                     # raw_query_pos = reference_points.detach()
                     if self.no_sine_embed:
                         raw_query_pos = self.ref_point_head(raw_query_pos)
@@ -612,9 +638,15 @@ class RAFT(nn.Module):
 
                     if self.inner_iterations > 1:
                         query_pos = query_pos + self.iter_pos_embed.weight[i_i].unsqueeze(0)
-
+                    split = 0
+                    # if self.high_dim_query_update and (not (o_i == 0 and i_i == 0) or self.first_query):
+                    #     query_pos = query_pos + self.high_dim_query_proj(query)
+                    split = 0
                     if self.high_dim_query_update and (not (o_i == 0 and i_i == 0) or self.first_query):
-                        query_pos = query_pos + self.high_dim_query_proj(query)
+                        motion_query_pos = query_pos + self.motion_high_dim_query_proj(motion_query)
+                        motion_query_pos = query_pos + self.context2motion_high_dim_query_proj(context_query)
+                        context_query_pos = query_pos + self.context_high_dim_query_proj(context_query)
+                        context_query_pos = query_pos + self.motion2context_high_dim_query_proj(motion_query)
                     split = 0
                     # context_pos = raw_context_pos + self.context_flow_head(context_flow.detach())
                     # context_pos_scale = self.context_scale(U1) if not (o_i == 0 and i_i == 0) else 1
@@ -649,18 +681,17 @@ class RAFT(nn.Module):
                     context_pos = raw_context_pos
                     src_pos = raw_src_pos
 
-                if self.inner_iterations > 1:
-                    query = self.decoder[o_i * i_i](query, query_pos, reference_points,
-                                                    src[i_i], src_pos[i_i], spatial_shapes, level_start_index)
-                else:
-                    query = self.decoder[o_i](query, query_pos, reference_points,
-                                              src, src_pos, spatial_shapes, level_start_index)
-                # query = self.decoder[o_i](query, query_pos, reference_points_input,
+                # query = self.decoder[o_i](query, query_pos, reference_points,
                 #                           src, src_pos, spatial_shapes, level_start_index)
+                motion_query = self.decoder[o_i](motion_query, motion_query_pos, reference_points,
+                                                 src, src_pos, spatial_shapes, level_start_index)
+                context_query = self.decoder[o_i](context_query, context_query_pos, reference_points,
+                                                  src, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, 2
 
-                flow_embed = self.flow_embed[o_i * i_i + int(self.first_query)](query)
+                # flow_embed = self.flow_embed[o_i * i_i + int(self.first_query)](query)
+                flow_embed = self.flow_embed[o_i + int(self.first_query)](motion_query)
                 flow_embed = flow_embed + inverse_sigmoid(reference_flows)
                 # reference_points = flow_embed + inverse_sigmoid(reference_points)
 
@@ -677,7 +708,8 @@ class RAFT(nn.Module):
                 # reference_points = reference_points.detach()
 
                 # bs, HW, n
-                context = self.context_embed[o_i * i_i + int(self.first_query)](query)
+                # context = self.context_embed[o_i * i_i + int(self.first_query)](query)
+                context = self.context_embed[o_i * i_i + int(self.first_query)](context_query)
                 context_flow = F.softmax(torch.bmm(U1 + context_pos, context.permute(0, 2, 1)), dim=-1)
                 masks = context_flow.permute(0, 2, 1).detach()
                 scores = torch.max(context_flow, dim=1)[0].detach()

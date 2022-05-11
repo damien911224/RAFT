@@ -679,11 +679,11 @@ class RAFT(nn.Module):
 
                     if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
                         motion_query_pos = motion_query_pos + self.motion_high_dim_query_proj(motion_query)
-                        # motion_query_pos = motion_query_pos + self.context2motion_high_dim_query_proj(context_query)
-                        motion_query = motion_query + self.context2motion_high_dim_query_proj(context_query)
+                        motion_query_pos = motion_query_pos + self.context2motion_high_dim_query_proj(context_query)
+                        # motion_query = motion_query + self.context2motion_high_dim_query_proj(context_query)
                         context_query_pos = context_query_pos + self.context_high_dim_query_proj(context_query)
-                        # context_query_pos = context_query_pos + self.motion2context_high_dim_query_proj(motion_query)
-                        context_query = context_query + self.motion2context_high_dim_query_proj(motion_query)
+                        context_query_pos = context_query_pos + self.motion2context_high_dim_query_proj(motion_query)
+                        # context_query = context_query + self.motion2context_high_dim_query_proj(motion_query)
                     split = 0
                     # context_pos = raw_context_pos + self.context_flow_head(context_flow.detach())
                     # context_pos_scale = self.context_scale(U1) if not (o_i == 0 and i_i == 0) else 1

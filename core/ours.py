@@ -747,6 +747,7 @@ class RAFT(nn.Module):
                 # bs, HW, n
                 # context = self.context_embed[o_i * i_i + int(self.first_query)](query)
                 context = self.context_embed[o_i * i_i + int(self.first_query)](context_query)
+                # context_flow = F.softmax(torch.bmm(U1 + context_pos, context.permute(0, 2, 1)), dim=-1)
                 context_flow = F.softmax(torch.bmm(U1 + context_pos, context.permute(0, 2, 1)), dim=-1)
                 masks = context_flow.permute(0, 2, 1).detach()
                 scores = torch.max(context_flow, dim=1)[0].detach()

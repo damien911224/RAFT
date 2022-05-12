@@ -203,7 +203,8 @@ class Logger:
         mask_img = list()
         top_k = len(pred[0])
         # top_k_indices = np.argsort(-confidence)[:top_k]
-        masks = masks.squeeze(0).cpu()
+        # masks = masks.squeeze(0).cpu()
+        masks = pred[1][0][2].squeeze(0).cpu()
         # masks = masks.reshape(self.num_keypoints, 1, H, W)
         masks = F.interpolate(masks, size=(I_H, I_W), mode="bilinear", align_corners=False).numpy()
         masks = masks.squeeze(1)
@@ -267,7 +268,8 @@ class Logger:
             mask_img = list()
             top_k = len(preds[0])
             # top_k_indices = np.argsort(-confidence)[:top_k]
-            masks = masks[n_i].cpu()
+            # masks = masks[n_i].cpu()
+            masks = preds[1][0][2][n_i].cpu()
             masks = F.interpolate(masks, size=(I_H, I_W), mode="bilinear", align_corners=False).numpy()
             masks = masks.squeeze(1)
             top_k_indices = np.argsort(-np.sum(masks, axis=(1, 2)))[:top_k]

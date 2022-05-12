@@ -410,6 +410,8 @@ class RAFT(nn.Module):
         # E1, E2 = self.cnn_encoder(torch.cat((image1, image2), dim=0))
         E1, E2, EU1 = self.cnn_encoder(torch.cat((image1, image2), dim=0))
         D1, D2, U1 = self.cnn_decoder(torch.cat((image1, image2), dim=0))
+        print(EU1.shape, U1.shape)
+        exit()
         # D1, U1 = self.cnn_decoder(image1)
         # features = self.extractor(torch.cat((image1, image2), dim=0))
         # _, _, U1 = self.context_extractor(torch.cat((image1, image2), dim=0))

@@ -486,7 +486,7 @@ class RAFT(nn.Module):
         split = 0
         _, C, H, W = U1.shape
         U1 = torch.flatten(U1, 2).permute(0, 2, 1)
-        EU1 = torch.flatten(EU1, 2).permute(0, 2, 1)
+        # EU1 = torch.flatten(EU1, 2).permute(0, 2, 1)
 
         # bs, n, c
         # query = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)

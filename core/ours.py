@@ -204,7 +204,6 @@ class RAFT(nn.Module):
         self.query_pos_embed = nn.Embedding(self.num_keypoints, self.d_model)
         # self.reference_embed = nn.Embedding(self.num_keypoints, 4)
         self.flow_embed = MLP(self.d_model, self.d_model, 2, 3)
-        self.motion_embed = MLP(self.d_model, self.up_dim, self.up_dim, 3)
         # self.flow_embed = MLP(self.d_model, self.d_model, 4, 3)
         self.context_embed = MLP(self.d_model, self.up_dim, self.up_dim, 3)
         # self.reference_embed = MLP(self.d_model, self.d_model, 2, 3)
@@ -242,9 +241,6 @@ class RAFT(nn.Module):
         # self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(self.outer_iterations)])
         # self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(self.outer_iterations)])
         self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed)
-                                         for _ in range(self.outer_iterations * self.inner_iterations +
-                                                        int(self.first_query))])
-        self.motion_embed = nn.ModuleList([copy.deepcopy(self.motion_embed)
                                          for _ in range(self.outer_iterations * self.inner_iterations +
                                                         int(self.first_query))])
         self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed)
@@ -407,8 +403,7 @@ class RAFT(nn.Module):
         bs, _, I_H, I_W = image1.shape
 
         # D1, D2, U1 = self.extractor(torch.cat((image1, image2), dim=0))
-        # E1, E2 = self.cnn_encoder(torch.cat((image1, image2), dim=0))
-        E1, E2, EU1 = self.cnn_encoder(torch.cat((image1, image2), dim=0))
+        E1, E2 = self.cnn_encoder(torch.cat((image1, image2), dim=0))
         D1, D2, U1 = self.cnn_decoder(torch.cat((image1, image2), dim=0))
         # D1, U1 = self.cnn_decoder(image1)
         # features = self.extractor(torch.cat((image1, image2), dim=0))
@@ -753,10 +748,8 @@ class RAFT(nn.Module):
                 # bs, HW, n
                 # context = self.context_embed[o_i * i_i + int(self.first_query)](query)
                 context = self.context_embed[o_i * i_i + int(self.first_query)](context_query)
-                motion = self.motion_embed[o_i * i_i + int(self.first_query)](motion_query)
                 # context_flow = F.softmax(torch.bmm(U1 + context_pos, context.permute(0, 2, 1)), dim=-1)
-                context_flow = F.softmax(torch.bmm(U1 + context_pos, context.permute(0, 2, 1)) +
-                                         torch.bmm(EU1 + context_pos, motion.permute(0, 2, 1)), dim=-1)
+                context_flow = F.softmax(torch.bmm(U1 + context_pos, context.permute(0, 2, 1)), dim=-1)
                 masks = context_flow.permute(0, 2, 1).detach()
                 scores = torch.max(context_flow, dim=1)[0].detach()
                 # bs, HW, 2

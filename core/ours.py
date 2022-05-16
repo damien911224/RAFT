@@ -617,6 +617,9 @@ class RAFT(nn.Module):
 
                 if not (o_i == 0 and i_i == 0):
                     context_query = self.motion2context_decoder(
+                        (context_query + context_query_pos).permute(1, 0, 2),
+                        (motion_query + motion_query_pos).permute(1, 0, 2)).permute(1, 0, 2)
+                    motion_query = self.context2motion_decoder(
                         (motion_query + motion_query_pos).permute(1, 0, 2),
                         (context_query + context_query_pos).permute(1, 0, 2)).permute(1, 0, 2)
 

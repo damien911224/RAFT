@@ -616,12 +616,12 @@ class RAFT(nn.Module):
                     level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
                 if not (o_i == 0 and i_i == 0):
-                    context_query = self.motion2context_decoder(
-                        (context_query + context_query_pos).permute(1, 0, 2),
-                        (motion_query + motion_query_pos).permute(1, 0, 2)).permute(1, 0, 2)
                     motion_query = self.context2motion_decoder(
                         (motion_query + motion_query_pos).permute(1, 0, 2),
                         (context_query + context_query_pos).permute(1, 0, 2)).permute(1, 0, 2)
+                    context_query = self.motion2context_decoder(
+                        (context_query + context_query_pos).permute(1, 0, 2),
+                        (motion_query + motion_query_pos).permute(1, 0, 2)).permute(1, 0, 2)
 
                 if self.use_dab:
                     # if o_i >= 1:

@@ -202,7 +202,7 @@ class HD1K(FlowDataset):
             seq_ix += 1
 
 
-def fetch_dataloader(args, TRAIN_DS='C+T+K+S+H'):
+def fetch_dataloader(args, TRAIN_DS='C+T+K/S'):
     """ Create the data loader for the corresponding trainign set """
 
     if args.stage == 'chairs':

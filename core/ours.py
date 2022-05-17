@@ -553,13 +553,13 @@ class RAFT(nn.Module):
             torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, self.up_dim), device=D1[0].device)
         for o_i in range(self.outer_iterations):
             for i_i in range(self.inner_iterations):
-                if not (o_i == 0 and i_i == 0):
-                    motion_query = self.context2motion_decoder[o_i](
-                        (motion_query + motion_query_pos).permute(1, 0, 2),
-                        (context_query + context_query_pos).permute(1, 0, 2)).permute(1, 0, 2)
-                    context_query = self.motion2context_decoder[o_i](
-                        (context_query + context_query_pos).permute(1, 0, 2),
-                        (motion_query + motion_query_pos).permute(1, 0, 2)).permute(1, 0, 2)
+                # if not (o_i == 0 and i_i == 0):
+                #     motion_query = self.context2motion_decoder[o_i](
+                #         (motion_query + motion_query_pos).permute(1, 0, 2),
+                #         (context_query + context_query_pos).permute(1, 0, 2)).permute(1, 0, 2)
+                #     context_query = self.motion2context_decoder[o_i](
+                #         (context_query + context_query_pos).permute(1, 0, 2),
+                #         (motion_query + motion_query_pos).permute(1, 0, 2)).permute(1, 0, 2)
 
                 if self.use_dab:
                     # raw_query_pos = torch.cat((reference_points[:, :, 0], reference_flows), dim=-1)
@@ -610,10 +610,10 @@ class RAFT(nn.Module):
                     if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
                         motion_query_pos = motion_query_pos + self.motion_high_dim_query_proj(motion_query)
                         # motion_query_pos = motion_query_pos + self.context2motion_high_dim_query_proj(context_query)
-                        # motion_query = motion_query + self.context2motion_high_dim_query_proj(context_query)
+                        motion_query = motion_query + self.context2motion_high_dim_query_proj(context_query)
                         context_query_pos = context_query_pos + self.context_high_dim_query_proj(context_query)
                         # context_query_pos = context_query_pos + self.motion2context_high_dim_query_proj(motion_query)
-                        # context_query = context_query + self.motion2context_high_dim_query_proj(motion_query)
+                        context_query = context_query + self.motion2context_high_dim_query_proj(motion_query)
                     split = 0
                     # context_pos = raw_context_pos + self.context_flow_head(context_flow.detach())
                     # context_pos_scale = self.context_scale(U1) if not (o_i == 0 and i_i == 0) else 1

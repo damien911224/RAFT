@@ -128,6 +128,15 @@ class RAFT(nn.Module):
         self.context2motion_decoder = nn.TransformerDecoderLayer(d_model=self.d_model, dim_feedforward=self.d_model * 4,
                                                                  nhead=8, dropout=0.1, activation="gelu")
 
+        self.motion2context_decoder = \
+            nn.ModuleList((nn.TransformerDecoderLayer(d_model=self.d_model, dim_feedforward=self.d_model * 4,
+                                                                 nhead=8, dropout=0.1, activation="gelu")
+                           for _ in range(self.outer_iterations)))
+        self.context2motion_decoder = \
+            nn.ModuleList((nn.TransformerDecoderLayer(d_model=self.d_model, dim_feedforward=self.d_model * 4,
+                                                                 nhead=8, dropout=0.1, activation="gelu")
+                           for _ in range(self.outer_iterations)))
+
         # self.updater = \
         #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=self.d_model, dim_feedforward=self.d_model * 4,
         #                                               nhead=8, dropout=0.1, activation="gelu")
@@ -616,10 +625,10 @@ class RAFT(nn.Module):
                     level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
                 if not (o_i == 0 and i_i == 0):
-                    motion_query = self.context2motion_decoder(
+                    motion_query = self.context2motion_decoder[o_i](
                         (motion_query + motion_query_pos).permute(1, 0, 2),
                         (context_query + context_query_pos).permute(1, 0, 2)).permute(1, 0, 2)
-                    context_query = self.motion2context_decoder(
+                    context_query = self.motion2context_decoder[o_i](
                         (context_query + context_query_pos).permute(1, 0, 2),
                         (motion_query + motion_query_pos).permute(1, 0, 2)).permute(1, 0, 2)
 

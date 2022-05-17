@@ -87,7 +87,7 @@ class RAFT(nn.Module):
         self.corr_proj = nn.ModuleList(corr_proj_list)
 
         self.encoder_iterations = 1
-        self.outer_iterations = 1
+        self.outer_iterations = 6
         self.inner_iterations = 1
         # self.inner_iterations = self.num_feature_levels
         self.num_keypoints = 100
@@ -550,7 +550,7 @@ class RAFT(nn.Module):
             reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
         reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2), device=D1[0].device) + 0.5
         reference_context = \
-            torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, self.d_model), device=D1[0].device)
+            torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, self.up_dim), device=D1[0].device)
         for o_i in range(self.outer_iterations):
             for i_i in range(self.inner_iterations):
                 if not (o_i == 0 and i_i == 0):

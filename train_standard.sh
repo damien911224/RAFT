@@ -1,7 +1,7 @@
 #!/bin/bash
 mkdir -p checkpoints
 # 0: base_lateral_decoder
-# 1: base_no_anealing
+# 1: base_lateral_decoders
 # 2: separate_query_motion_context
 # 3: base
 python -u train.py --name chairs-base --stage chairs --validation chairs --gpus 0 --num_steps 1000000 --batch_size 16 --lr 0.0002 --image_size 352 480 --wdecay 0.0001

@@ -87,7 +87,7 @@ class RAFT(nn.Module):
         self.corr_proj = nn.ModuleList(corr_proj_list)
 
         self.encoder_iterations = 1
-        self.outer_iterations = 6
+        self.outer_iterations = 1
         self.inner_iterations = 1
         # self.inner_iterations = self.num_feature_levels
         self.num_keypoints = 100
@@ -113,7 +113,7 @@ class RAFT(nn.Module):
                                                              n_levels=2 if self.inner_iterations > 1
                                                              else 2 * self.num_feature_levels,
                                                              n_heads=8, n_points=4, self_deformable=False)
-                           for _ in range(self.outer_iterations * self.inner_iterations)))
+                           for _ in range(self.outer_iterations)))
 
         self.context_decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
@@ -121,7 +121,7 @@ class RAFT(nn.Module):
                                                              n_levels=2 if self.inner_iterations > 1
                                                              else 2 * self.num_feature_levels,
                                                              n_heads=8, n_points=4, self_deformable=False)
-                           for _ in range(self.outer_iterations * self.inner_iterations)))
+                           for _ in range(self.outer_iterations)))
 
         self.motion2context_decoder = nn.TransformerDecoderLayer(d_model=self.d_model, dim_feedforward=self.d_model * 4,
                                                                  nhead=8, dropout=0.1, activation="gelu")
@@ -255,11 +255,9 @@ class RAFT(nn.Module):
         # self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(self.outer_iterations)])
         # self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(self.outer_iterations)])
         self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed)
-                                         for _ in range(self.outer_iterations * self.inner_iterations +
-                                                        int(self.first_query))])
+                                         for _ in range(self.outer_iterations)])
         self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed)
-                                            for _ in range(self.outer_iterations * self.inner_iterations +
-                                                           int(self.first_query))])
+                                            for _ in range(self.outer_iterations)])
         # self.confidence_embed = nn.ModuleList([copy.deepcopy(self.confidence_embed)
         #                                        for _ in range(self.outer_iterations * self.inner_iterations +
         #                                                       int(self.first_query))])
@@ -520,26 +518,26 @@ class RAFT(nn.Module):
             motion_src = self.encoder[i](motion_src, raw_src_pos, src_ref, spatial_shapes, level_start_index)
             context_src = self.context_encoder[i](context_src, raw_src_pos, src_ref, spatial_shapes, level_start_index)
         split = 0
-        if self.inner_iterations > 1:
-            new_src = list()
-            new_src_pos = list()
-            for l_i in range(self.num_feature_levels):
-                this_H, this_W = spatial_shapes[l_i]
-                this_start_index = level_start_index[l_i]
-                this_length = this_H * this_W
-                this_src_01 = src[:, this_start_index:this_start_index + this_length]
-                this_src_pos_01 = raw_src_pos[:, this_start_index:this_start_index + this_length]
-                this_H, this_W = spatial_shapes[l_i + self.num_feature_levels]
-                this_start_index = level_start_index[l_i + self.num_feature_levels]
-                this_length = this_H * this_W
-                this_src_02 = src[:, this_start_index:this_start_index + this_length]
-                this_src_pos_02 = raw_src_pos[:, this_start_index:this_start_index + this_length]
-                this_src = torch.cat((this_src_01, this_src_02), dim=1)
-                this_src_pos = torch.cat((this_src_pos_01, this_src_pos_02), dim=1)
-                new_src.append(this_src)
-                new_src_pos.append(this_src_pos)
-            src = new_src[::-1]
-            raw_src_pos = new_src_pos[::-1]
+        # if self.inner_iterations > 1:
+        #     new_src = list()
+        #     new_src_pos = list()
+        #     for l_i in range(self.num_feature_levels):
+        #         this_H, this_W = spatial_shapes[l_i]
+        #         this_start_index = level_start_index[l_i]
+        #         this_length = this_H * this_W
+        #         this_src_01 = src[:, this_start_index:this_start_index + this_length]
+        #         this_src_pos_01 = raw_src_pos[:, this_start_index:this_start_index + this_length]
+        #         this_H, this_W = spatial_shapes[l_i + self.num_feature_levels]
+        #         this_start_index = level_start_index[l_i + self.num_feature_levels]
+        #         this_length = this_H * this_W
+        #         this_src_02 = src[:, this_start_index:this_start_index + this_length]
+        #         this_src_pos_02 = raw_src_pos[:, this_start_index:this_start_index + this_length]
+        #         this_src = torch.cat((this_src_01, this_src_02), dim=1)
+        #         this_src_pos = torch.cat((this_src_pos_01, this_src_pos_02), dim=1)
+        #         new_src.append(this_src)
+        #         new_src_pos.append(this_src_pos)
+        #     src = new_src[::-1]
+        #     raw_src_pos = new_src_pos[::-1]
         split = 0
         flow_predictions = list()
         sparse_predictions = list()
@@ -551,79 +549,10 @@ class RAFT(nn.Module):
         else:
             reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
         reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2), device=D1[0].device) + 0.5
-        # reference_points = self.reference_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
-        # reference_points_input = torch.stack(reference_points.split(2, dim=-1), dim=2).repeat(1, 1, self.num_feature_levels, 1)
-        # context_flow = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=src.device)
-        split = 0
-        if self.first_query:
-            context_pos = raw_context_pos
-            flow_embed = self.flow_embed[0](query)
-            flow_embed = flow_embed + inverse_sigmoid(reference_flows)
-
-            src_points = reference_points[:, :, 0].detach()
-            dst_points = (inverse_sigmoid(src_points) + flow_embed).sigmoid()
-            key_flow = src_points - dst_points
-            reference_flows = flow_embed.detach().sigmoid()
-            reference_points[:, :, 1] = dst_points.detach()
-            split = 0
-            # bs, HW, n
-            context = self.context_embed[0](query)
-            context_flow = F.softmax(torch.bmm(U1 + context_pos, context.permute(0, 2, 1)), dim=-1)
-            masks = context_flow.permute(0, 2, 1).detach()
-            scores = torch.max(context_flow, dim=1)[0].detach()
-            # bs, HW, 2
-            context_flow = torch.bmm(context_flow, key_flow)
-            # bs, 2, H, W
-            flow = context_flow.permute(0, 2, 1).view(bs, 2, H, W)
-            flow = flow * torch.as_tensor((I_W, I_H), dtype=torch.float32, device=D1[0].device).view(1, 2, 1, 1)
-            if I_H != H or I_W != W:
-                flow = F.interpolate(flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
-                masks = masks.reshape(bs, -1, 1, H, W)
-
-            flow_predictions.append(flow)
-            sparse_predictions.append((reference_points[:, :, 0], key_flow, masks, scores))
-        split = 0
+        reference_context = \
+            torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, self.d_model), device=D1[0].device)
         for o_i in range(self.outer_iterations):
             for i_i in range(self.inner_iterations):
-            # for i_i in range(iters):
-                # if o_i >= 1:
-                #     step = 1
-                #     N = round(math.sqrt(self.num_keypoints)) + ((o_i - 1) * step)
-                #     reference_points = reference_points[:, :, 0].permute(0, 2, 1)
-                #     reference_points = reference_points.reshape(bs, 2, N, N)
-                #     reference_points = F.interpolate(reference_points, (N + step, N + step),
-                #                                      mode="bilinear", align_corners=False)
-                #     reference_points = reference_points.flatten(2).permute(0, 2, 1)
-                #     reference_points = reference_points.unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
-                #
-                #     query = query.permute(0, 2, 1)
-                #     query = query.reshape(bs, self.d_model, N, N)
-                #     query = F.interpolate(query, (N + step, N + step), mode="bilinear", align_corners=False)
-                #     query = query.flatten(2).permute(0, 2, 1)
-                #
-                #     reference_flows = reference_flows.permute(0, 2, 1)
-                #     reference_flows = reference_flows.reshape(bs, 2, N, N)
-                #     reference_flows = F.interpolate(reference_flows, (N + step, N + step),
-                #                                     mode="bilinear", align_corners=False)
-                #     reference_flows = reference_flows.flatten(2).permute(0, 2, 1)
-                split = 0
-                # if not (o_i == 0 and i_i == 0):
-                #     # bs, n, 2
-                #     confidence_embed = self.confidence_embed[o_i](query)
-                #     confidence_onehot = F.gumbel_softmax(confidence_embed, tau=1, hard=True, eps=1e-10, dim=-1)
-                #     # bs, n, 1
-                #     query_mask = confidence_onehot[..., 1].unsqueeze(-1)
-                #     query = query * query_mask
-                split = 0
-                # if not (o_i == 0 or i_i == 0):
-                #     src = self.updater[o_i * i_i]((src + src_pos).permute(1, 0, 2),
-                #                                   (query + query_pos).permute(1, 0, 2)).permute(1, 0, 2)
-
-                if self.inner_iterations > 1:
-                    spatial_shapes = torch.as_tensor([D1[::-1][i_i].shape[2:], ] * 2,
-                                                     dtype=torch.long, device=src[i_i].device)
-                    level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
-
                 if not (o_i == 0 and i_i == 0):
                     motion_query = self.context2motion_decoder[o_i](
                         (motion_query + motion_query_pos).permute(1, 0, 2),
@@ -633,28 +562,6 @@ class RAFT(nn.Module):
                         (motion_query + motion_query_pos).permute(1, 0, 2)).permute(1, 0, 2)
 
                 if self.use_dab:
-                    # if o_i >= 1:
-                    #     # bs, HW, N
-                    #     attention_pos = list()
-                    #     masks = masks.flatten(start_dim=0, end_dim=1)
-                    #     for H_, W_ in spatial_shapes:
-                    #         this_mask = F.interpolate(masks, size=(H_, W_), mode="bilinear", align_corners=False)
-                    #         this_mask = torch.stack(this_mask.split(bs, dim=0), dim=1)
-                    #         this_mask = this_mask.squeeze(2).flatten(2).permute(0, 2, 1)
-                    #         attention_pos.append(torch.bmm(this_mask, query_pos.detach()))
-                    #     attention_pos = torch.cat(attention_pos, dim=1)
-                    #     # bs, HW, d_model
-                    #     src_pos = raw_src_pos + self.src_pos_head(attention_pos)
-                    #     src_pos_scale = self.src_scale(src) if not (o_i == 0 and i_i == 0) else 1
-                    #     src_pos = src_pos_scale * src_pos
-                    #
-                    #     if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
-                    #         src_pos = src_pos + self.src_high_dim_query_proj(src)
-                    # else:
-                    #     src_pos = raw_src_pos
-
-                    # src_pos = raw_src_pos
-
                     # raw_query_pos = torch.cat((reference_points[:, :, 0], reference_flows), dim=-1)
                     raw_query_pos = torch.cat((reference_points[:, :, 0],
                                                reference_points[:, :, self.num_feature_levels]), dim=-1)
@@ -741,19 +648,14 @@ class RAFT(nn.Module):
                     context_pos = raw_context_pos
                     src_pos = raw_src_pos
 
-                # query = self.decoder[o_i](query, query_pos, reference_points,
-                #                           src, src_pos, spatial_shapes, level_start_index)
                 motion_query = self.decoder[o_i](motion_query, motion_query_pos, reference_points,
                                                  motion_src, src_pos, spatial_shapes, level_start_index)
                 context_query = self.decoder[o_i](context_query, context_query_pos, reference_points,
                                                   context_src, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, 2
-
-                # flow_embed = self.flow_embed[o_i * i_i + int(self.first_query)](query)
                 flow_embed = self.flow_embed[o_i + int(self.first_query)](motion_query)
                 flow_embed = flow_embed + inverse_sigmoid(reference_flows)
-                # reference_points = flow_embed + inverse_sigmoid(reference_points)
 
                 src_points = reference_points[:, :, 0].detach()
                 dst_points = (inverse_sigmoid(src_points) + flow_embed).sigmoid()
@@ -761,17 +663,10 @@ class RAFT(nn.Module):
                 reference_flows = flow_embed.detach().sigmoid()
                 reference_points[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
                 split = 0
-                # reference_points = reference_points.sigmoid()
-                # src_points = reference_points[..., :2]
-                # dst_points = reference_points[..., 2:]
-                # key_flow = src_points - dst_points
-                # reference_points = reference_points.detach()
-
                 # bs, HW, n
-                # context = self.context_embed[o_i * i_i + int(self.first_query)](query)
-                context = self.context_embed[o_i * i_i + int(self.first_query)](context_query)
-                # context_flow = F.softmax(torch.bmm(U1 + context_pos, context.permute(0, 2, 1)), dim=-1)
-                context_flow = F.softmax(torch.bmm(U1 + context_pos, context.permute(0, 2, 1)), dim=-1)
+                context_embed = reference_context + self.context_embed[o_i](context_query)
+                reference_context = context_embed.detach()
+                context_flow = F.softmax(torch.bmm(U1 + context_pos, context_embed.permute(0, 2, 1)), dim=-1)
                 masks = context_flow.permute(0, 2, 1).detach()
                 scores = torch.max(context_flow, dim=1)[0].detach()
                 # bs, HW, 2
@@ -783,112 +678,9 @@ class RAFT(nn.Module):
                 if I_H != H or I_W != W:
                     flow = F.interpolate(flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
                     masks = masks.reshape(bs, -1, 1, H, W)
-                    # masks = F.interpolate(masks, size=(I_H, I_W), mode="bilinear", align_corners=False)
-                    # masks = masks.view(bs, self.num_keypoints, I_H, I_W)
 
                 flow_predictions.append(flow)
                 sparse_predictions.append((reference_points[:, :, 0], key_flow, masks, scores))
-                # sparse_predictions.append((reference_points[..., :2], key_flow, masks, scores))
-
-        # flow_predictions = list()
-        # sparse_predictions = list()
-        # for o_i in range(self.outer_iterations):
-        #     root = round(math.sqrt(self.num_keypoints))
-        #     base_reference_points = self.get_reference_points([(root, root), ], device=image1.device).squeeze(2)
-        #     base_reference_points = base_reference_points.repeat(bs, 1, 1)
-        #     reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, 2, 1)
-        #     reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2),
-        #                                   device=image1.device) + 0.5
-        #     context_flow = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=image1.device)
-        #     for i_i in range(self.inner_iterations):
-        #         this_spatial_shapes = spatial_shapes[i_i].unsqueeze(0).repeat(2, 1)
-        #         level_start_index = \
-        #             torch.cat((this_spatial_shapes.new_zeros((1,)), this_spatial_shapes.prod(1).cumsum(0)[:-1]))
-        #
-        #         if i_i >= 1:
-        #             N = round(math.sqrt(self.num_keypoints)) * (2 ** (i_i - 1))
-        #             reference_points = reference_points[:, :, 0].permute(0, 2, 1)
-        #             reference_points = reference_points.reshape(bs, 2, N, N)
-        #             reference_points = F.interpolate(reference_points, (N * 2, N * 2),
-        #                                              mode="bilinear", align_corners=False)
-        #             reference_points = reference_points.flatten(2).permute(0, 2, 1)
-        #             reference_points = reference_points.unsqueeze(2).repeat(1, 1, 2, 1)
-        #
-        #             query = query.permute(0, 2, 1)
-        #             query = query.reshape(bs, self.d_model, N, N)
-        #             query = F.interpolate(query, (N * 2, N * 2), mode="bilinear", align_corners=False)
-        #             query = query.flatten(2).permute(0, 2, 1)
-        #
-        #             reference_flows = reference_flows.permute(0, 2, 1)
-        #             reference_flows = reference_flows.reshape(bs, 2, N, N)
-        #             reference_flows = F.interpolate(reference_flows, (N * 2, N * 2),
-        #                                             mode="bilinear", align_corners=False)
-        #             reference_flows = reference_flows.flatten(2).permute(0, 2, 1)
-        #         elif o_i >= 1:
-        #             N = round(math.sqrt(self.num_keypoints)) * (2 ** (self.num_feature_levels - 1))
-        #             n = round(math.sqrt(self.num_keypoints))
-        #             query = query.permute(0, 2, 1)
-        #             query = query.reshape(bs, self.d_model, N, N)
-        #             query = F.interpolate(query, (n, n), mode="bilinear", align_corners=False)
-        #             query = query.flatten(2).permute(0, 2, 1)
-        #
-        #         if self.use_dab:
-        #             raw_query_pos = torch.cat((reference_points[:, :, 0], reference_flows), dim=-1)
-        #             if self.no_sine_embed:
-        #                 raw_query_pos = self.ref_point_head(raw_query_pos)
-        #             else:
-        #                 query_sine_embed = self.gen_sineembed_for_position(raw_query_pos)  # bs, nq, 256*2
-        #                 raw_query_pos = self.ref_point_head(query_sine_embed)  # bs, nq, 256
-        #             pos_scale = self.query_scale(query) if not (o_i == 0 and i_i == 0) else 1
-        #             query_pos = pos_scale * raw_query_pos
-        #
-        #             if self.inner_iterations > 1:
-        #                 query_pos = query_pos + self.iter_pos_embed.weight[i_i].unsqueeze(0)
-        #
-        #             if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
-        #                 query_pos = query_pos + self.high_dim_query_proj(query)
-        #
-        #             context_pos = raw_context_pos + self.context_flow_head(context_flow.detach())
-        #             context_pos_scale = self.context_scale(U1) if not (o_i == 0 and i_i == 0) else 1
-        #             context_pos = context_pos_scale * context_pos
-        #
-        #             if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
-        #                 context_pos = context_pos + self.context_high_dim_query_proj(U1)
-        #
-        #         query = self.decoder[o_i * i_i](query, query_pos, reference_points,
-        #                                         src[i_i], src_pos[i_i], this_spatial_shapes, level_start_index)
-        #
-        #         # bs, n, 2
-        #         flow_embed = self.flow_embed[o_i * i_i](query)
-        #         flow_embed = flow_embed + inverse_sigmoid(reference_flows)
-        #
-        #         src_points = reference_points[:, :, 0].detach()
-        #         dst_points = (inverse_sigmoid(src_points) + flow_embed).sigmoid()
-        #         key_flow = src_points - dst_points
-        #         reference_points[:, :, 1] = dst_points.detach()
-        #         reference_flows = flow_embed.detach().sigmoid()
-        #
-        #         # bs, HW, n
-        #         context = self.context_embed[o_i * i_i](query)
-        #         context_flow = F.softmax(torch.bmm(U1 + context_pos, context.permute(0, 2, 1)), dim=-1)
-        #         if i_i >= self.num_feature_levels - 1:
-        #             masks = context_flow.permute(0, 2, 1).detach()
-        #             scores = torch.max(context_flow, dim=1)[0].detach()
-        #         # bs, HW, 2
-        #         context_flow = torch.bmm(context_flow, key_flow)
-        #         if i_i >= self.num_feature_levels - 1:
-        #             # bs, 2, H, W
-        #             flow = context_flow.permute(0, 2, 1).view(bs, 2, H, W)
-        #             flow = flow * torch.as_tensor((I_W, I_H), dtype=torch.float32, device=image1.device).view(1, 2, 1, 1)
-        #
-        #             if I_H != H or I_W != W:
-        #                 flow = F.interpolate(flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
-        #                 masks = masks.reshape(bs, -1, 1, H, W)
-        #                 # masks = F.interpolate(masks, size=(I_H, I_W), mode="bilinear", align_corners=False)
-        #                 # masks = masks.view(bs, self.num_keypoints, I_H, I_W)
-        #
-        #             flow_predictions.append(flow)
-        #             sparse_predictions.append((reference_points[:, :, 0], key_flow, masks, scores))
 
         if test_mode:
             return flow_predictions, sparse_predictions

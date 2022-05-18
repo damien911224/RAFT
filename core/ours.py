@@ -87,8 +87,8 @@ class RAFT(nn.Module):
         self.corr_proj = nn.ModuleList(corr_proj_list)
 
         self.encoder_iterations = 1
-        self.outer_iterations = 2
-        self.inner_iterations = 12
+        self.outer_iterations = 6
+        self.inner_iterations = 1
         # self.inner_iterations = self.num_feature_levels
         self.num_keypoints = 100
         # self.num_keypoints = 25
@@ -550,7 +550,7 @@ class RAFT(nn.Module):
         # reference_context = \
         #     torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, self.up_dim), device=D1[0].device)
         for o_i in range(self.outer_iterations):
-            for i_i in range(self.inner_iterations if o_i >= 1 else 1):
+            for i_i in range(self.inner_iterations if o_i >= self.outer_iterations - 1 else 1):
                 # if not (o_i == 0 and i_i == 0):
                 #     motion_query = self.context2motion_decoder[o_i](
                 #         (motion_query + motion_query_pos).permute(1, 0, 2),
@@ -648,8 +648,8 @@ class RAFT(nn.Module):
 
                 motion_query = self.decoder[o_i](motion_query, motion_query_pos, reference_points,
                                                  motion_src, src_pos, spatial_shapes, level_start_index)
-                context_query = self.decoder[o_i](context_query, context_query_pos, reference_points,
-                                                  context_src, src_pos, spatial_shapes, level_start_index)
+                context_query = self.context_decoder[o_i](context_query, context_query_pos, reference_points,
+                                                          context_src, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, 2
                 flow_embed = self.flow_embed[o_i](motion_query)

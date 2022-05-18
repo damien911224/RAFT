@@ -360,8 +360,8 @@ def train(args):
 
     VAL_FREQ = 5000
     # VAL_FREQ = 10
-    # IMAGE_FREQ = 5000
-    IMAGE_FREQ = 100
+    IMAGE_FREQ = 5000
+    # IMAGE_FREQ = 100
     add_noise = True
 
     should_keep_training = True

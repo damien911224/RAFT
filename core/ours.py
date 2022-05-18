@@ -692,6 +692,7 @@ class RAFT(nn.Module):
                 # bs, topk
                 topk_indices = torch.topk(scores, 25, dim=-1)[1]
                 print(topk_indices.shape)
+                print(areas.shape)
                 # bs, topk, 2
                 topk_areas = torch.gather(areas, dim=1, index=topk_indices)
                 topk_motion_query = torch.gather(motion_query, dim=1,

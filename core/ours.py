@@ -673,7 +673,7 @@ class RAFT(nn.Module):
                 scores = torch.max(context_flow, dim=1)[0].detach()
                 # bs, HW, 2
                 context_flow = torch.bmm(context_flow, key_flow)
-                context_flows = reference_flows + context_flows
+                context_flow = reference_flows + context_flow
                 reference_flows = context_flows.detach()
                 # bs, 2, H, W
                 flow = context_flow.permute(0, 2, 1).view(bs, 2, H, W)

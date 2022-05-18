@@ -688,8 +688,7 @@ class RAFT(nn.Module):
                 flow_predictions.append(flow)
                 sparse_predictions.append((reference_points[:, :, 0], key_flow, masks, scores))
                 # bs, n
-                areas = torch.sum(masks, dim=(-1, -2))
-                print(areas.shape)
+                areas = torch.sum(masks, dim=(-1, -2)).squeeze(-1)
                 # bs, topk
                 topk_indices = torch.topk(scores, 25, dim=-1)[1]
                 # bs, topk, 2

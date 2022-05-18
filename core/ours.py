@@ -704,6 +704,7 @@ class RAFT(nn.Module):
                                               std=torch.sqrt(topk_areas).unsqueeze(-1).repeat(1, 4, 1))
                 new_src_points = torch.clip(new_src_points, 0.0, 1.0)
                 reference_points[:, :, :self.num_feature_levels] = new_src_points.detach().unsqueeze(2)
+                dst_points = topk_dst_points.repeat(1, 4, 1)
                 reference_points[:, :, self.num_feature_levels:] = topk_dst_points.detach().unsqueeze(2)
                 motion_query = topk_motion_query.repeat(1, 4, 1)
                 context_query = topk_context_query.repeat(1, 4, 1)

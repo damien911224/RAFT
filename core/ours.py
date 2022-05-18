@@ -295,7 +295,7 @@ class RAFT(nn.Module):
         nn.init.normal_(self.img_pos_embed.weight)
         nn.init.normal_(self.row_pos_embed.weight)
         nn.init.normal_(self.col_pos_embed.weight)
-        nn.init.normal_(self.iter_pos_embed.weight)
+        # nn.init.normal_(self.iter_pos_embed.weight)
 
     def _get_clones(self, module, N):
         return nn.ModuleList([copy.deepcopy(module) for i in range(N)])

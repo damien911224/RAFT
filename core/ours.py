@@ -665,8 +665,9 @@ class RAFT(nn.Module):
                 reference_points[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
                 split = 0
                 # bs, HW, n
-                context_embed = reference_context + self.context_embed[o_i](context_query)
-                reference_context = context_embed.detach()
+                context_embed = self.context_embed[o_i](context_query)
+                # context_embed = reference_context + self.context_embed[o_i](context_query)
+                # reference_context = context_embed.detach()
                 context_flow = F.softmax(torch.bmm(U1 + context_pos, context_embed.permute(0, 2, 1)), dim=-1)
                 masks = context_flow.permute(0, 2, 1).detach()
                 scores = torch.max(context_flow, dim=1)[0].detach()

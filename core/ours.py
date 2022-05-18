@@ -548,8 +548,8 @@ class RAFT(nn.Module):
             reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, 2, 1)
         else:
             reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
-        # reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2), device=D1[0].device) + 0.5
-        reference_flows = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=D1[0].device)
+        reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2), device=D1[0].device) + 0.5
+        # reference_flows = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=D1[0].device)
         # reference_context = \
         #     torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, self.up_dim), device=D1[0].device)
         for o_i in range(self.outer_iterations):

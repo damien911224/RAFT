@@ -110,16 +110,14 @@ class RAFT(nn.Module):
         self.decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
                                                              dropout=0.1, activation="gelu",
-                                                             n_levels=2 if self.inner_iterations > 1
-                                                             else 2 * self.num_feature_levels,
+                                                             n_levels=2 * self.num_feature_levels,
                                                              n_heads=8, n_points=4, self_deformable=False)
                            for _ in range(self.outer_iterations)))
 
         self.context_decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
                                                              dropout=0.1, activation="gelu",
-                                                             n_levels=2 if self.inner_iterations > 1
-                                                             else 2 * self.num_feature_levels,
+                                                             n_levels=2 * self.num_feature_levels,
                                                              n_heads=8, n_points=4, self_deformable=False)
                            for _ in range(self.outer_iterations)))
 

@@ -656,12 +656,12 @@ class RAFT(nn.Module):
 
                 # bs, n, 2
                 flow_embed = self.flow_embed[o_i + int(self.first_query)](motion_query)
-                # flow_embed = flow_embed + inverse_sigmoid(reference_flows)
+                flow_embed = flow_embed + inverse_sigmoid(reference_flows)
 
                 src_points = reference_points[:, :, 0].detach()
                 dst_points = (inverse_sigmoid(src_points) + flow_embed).sigmoid()
                 key_flow = src_points - dst_points
-                # reference_flows = flow_embed.detach().sigmoid()
+                reference_flows = flow_embed.detach().sigmoid()
                 reference_points[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
                 split = 0
                 # bs, HW, n
@@ -675,8 +675,8 @@ class RAFT(nn.Module):
                 scores = torch.max(context_flow, dim=1)[0].detach()
                 # bs, HW, 2
                 context_flow = torch.bmm(context_flow, key_flow)
-                context_flow = reference_flows + context_flow
-                reference_flows = context_flow.detach()
+                # context_flow = reference_flows + context_flow
+                # reference_flows = context_flow.detach()
                 # bs, 2, H, W
                 flow = context_flow.permute(0, 2, 1).view(bs, 2, H, W)
                 flow = flow * torch.as_tensor((I_W, I_H), dtype=torch.float32, device=D1[0].device).view(1, 2, 1, 1)

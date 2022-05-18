@@ -123,19 +123,19 @@ class RAFT(nn.Module):
                                                              n_heads=8, n_points=4, self_deformable=False)
                            for _ in range(self.outer_iterations)))
 
-        self.motion2context_decoder = nn.TransformerDecoderLayer(d_model=self.d_model, dim_feedforward=self.d_model * 4,
-                                                                 nhead=8, dropout=0.1, activation="gelu")
-        self.context2motion_decoder = nn.TransformerDecoderLayer(d_model=self.d_model, dim_feedforward=self.d_model * 4,
-                                                                 nhead=8, dropout=0.1, activation="gelu")
+        # self.motion2context_decoder = nn.TransformerDecoderLayer(d_model=self.d_model, dim_feedforward=self.d_model * 4,
+        #                                                          nhead=8, dropout=0.1, activation="gelu")
+        # self.context2motion_decoder = nn.TransformerDecoderLayer(d_model=self.d_model, dim_feedforward=self.d_model * 4,
+        #                                                          nhead=8, dropout=0.1, activation="gelu")
 
-        self.motion2context_decoder = \
-            nn.ModuleList((nn.TransformerDecoderLayer(d_model=self.d_model, dim_feedforward=self.d_model * 4,
-                                                                 nhead=8, dropout=0.1, activation="gelu")
-                           for _ in range(self.outer_iterations)))
-        self.context2motion_decoder = \
-            nn.ModuleList((nn.TransformerDecoderLayer(d_model=self.d_model, dim_feedforward=self.d_model * 4,
-                                                                 nhead=8, dropout=0.1, activation="gelu")
-                           for _ in range(self.outer_iterations)))
+        # self.motion2context_decoder = \
+        #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=self.d_model, dim_feedforward=self.d_model * 4,
+        #                                                          nhead=8, dropout=0.1, activation="gelu")
+        #                    for _ in range(self.outer_iterations)))
+        # self.context2motion_decoder = \
+        #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=self.d_model, dim_feedforward=self.d_model * 4,
+        #                                                          nhead=8, dropout=0.1, activation="gelu")
+        #                    for _ in range(self.outer_iterations)))
 
         # self.updater = \
         #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=self.d_model, dim_feedforward=self.d_model * 4,

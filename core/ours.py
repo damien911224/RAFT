@@ -674,7 +674,7 @@ class RAFT(nn.Module):
                 # bs, HW, 2
                 context_flow = torch.bmm(context_flow, key_flow)
                 context_flow = reference_flows + context_flow
-                reference_flows = context_flows.detach()
+                reference_flows = context_flow.detach()
                 # bs, 2, H, W
                 flow = context_flow.permute(0, 2, 1).view(bs, 2, H, W)
                 flow = flow * torch.as_tensor((I_W, I_H), dtype=torch.float32, device=D1[0].device).view(1, 2, 1, 1)

@@ -699,8 +699,8 @@ class RAFT(nn.Module):
                                                   index=topk_indices.unsqueeze(-1).repeat(1, 1, self.d_model))
                 new_src_points = torch.gather(src_points, dim=1, index=topk_indices.unsqueeze(-1).repeat(1, 1, 2))
                 new_src_points = new_src_points.repeat(1, 4, 1)
-                new_src_points = new_src_points + torch.normal(mean=new_src_points.new_zeros(),
-                                                               std=torch.sqrt(topk_areas).unsqueeze(-1).repeat(1, 4, 1))
+                new_src_points = torch.normal(mean=new_src_points,
+                                              std=torch.sqrt(topk_areas).unsqueeze(-1).repeat(1, 4, 1))
                 new_src_points = torch.clip(new_src_points, 0.0, 1.0)
                 reference_points[:, :, :self.num_feature_levels] = new_src_points.detach().unsqueeze(2)
                 motion_query = topk_motion_query.repeat(1, 4, 1)

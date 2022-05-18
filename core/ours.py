@@ -689,6 +689,7 @@ class RAFT(nn.Module):
                 sparse_predictions.append((reference_points[:, :, 0], key_flow, masks, scores))
                 # bs, n
                 areas = torch.sum(masks, dim=(-1, -2))
+                print(areas.shape)
                 # bs, topk
                 topk_indices = torch.topk(scores, 25, dim=-1)[1]
                 # bs, topk, 2

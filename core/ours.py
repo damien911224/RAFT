@@ -551,6 +551,8 @@ class RAFT(nn.Module):
         #     torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, self.up_dim), device=D1[0].device)
         for o_i in range(self.outer_iterations):
             for i_i in range(self.inner_iterations if o_i >= self.outer_iterations - 1 else 1):
+                print(i_i)
+
                 # if not (o_i == 0 and i_i == 0):
                 #     motion_query = self.context2motion_decoder[o_i](
                 #         (motion_query + motion_query_pos).permute(1, 0, 2),

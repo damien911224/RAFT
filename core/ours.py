@@ -693,6 +693,7 @@ class RAFT(nn.Module):
                 topk_indices = torch.topk(scores, 25, dim=-1)[1]
                 # bs, topk, 2
                 topk_areas = torch.gather(areas, dim=1, index=topk_indices)
+                topk_dst_points = torch.gather(dst_points, dim=1, index=topk_indices.unsqueeze(-1).repeat(1, 1, 2))
                 topk_motion_query = torch.gather(motion_query, dim=1,
                                                  index=topk_indices.unsqueeze(-1).repeat(1, 1, self.d_model))
                 topk_context_query = torch.gather(context_query, dim=1,
@@ -705,6 +706,7 @@ class RAFT(nn.Module):
                 reference_points[:, :, :self.num_feature_levels] = new_src_points.detach().unsqueeze(2)
                 motion_query = topk_motion_query.repeat(1, 4, 1)
                 context_query = topk_context_query.repeat(1, 4, 1)
+                reference_points[:, :, self.num_feature_levels:] = topk_dst_points.detach().unsqueeze(2)
 
         if test_mode:
             return flow_predictions, sparse_predictions

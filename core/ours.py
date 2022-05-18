@@ -669,7 +669,9 @@ class RAFT(nn.Module):
                 # context_embed = reference_context + self.context_embed[o_i](context_query)
                 # reference_context = context_embed.detach()
                 context_flow = F.softmax(torch.bmm(U1 + context_pos, context_embed.permute(0, 2, 1)), dim=-1)
+                # bs, n, HW
                 masks = context_flow.permute(0, 2, 1).detach()
+                # bs, n
                 scores = torch.max(context_flow, dim=1)[0].detach()
                 # bs, HW, 2
                 context_flow = torch.bmm(context_flow, key_flow)
@@ -685,6 +687,23 @@ class RAFT(nn.Module):
 
                 flow_predictions.append(flow)
                 sparse_predictions.append((reference_points[:, :, 0], key_flow, masks, scores))
+                # bs, n
+                areas = torch.sum(masks, dim=-1)
+                # bs, topk
+                topk_indices = torch.topk(scores, 25, dim=-1)[1]
+                # bs, topk, 2
+                topk_areas = torch.gather(areas, dim=1, index=topk_indices)
+                topk_motion_query = torch.gather(motion_query, dim=1,
+                                                 index=topk_indices.unsqueeze(-1).repeat(1, 1, self.d_model))
+                topk_context_query = torch.gather(context_query, dim=1,
+                                                  index=topk_indices.unsqueeze(-1).repeat(1, 1, self.d_model))
+                new_src_points = torch.gather(src_points, dim=1, index=topk_indices.unsqueeze(-1).repeat(1, 1, 2))
+                new_src_points = new_src_points.repeat(1, 4, 1)
+                new_src_points = new_src_points + torch.normal(mean=new_src_points,
+                                                               std=torch.sqrt(topk_areas).unsqueeze(-1).repeat(1, 4, 1))
+                reference_points[:, :, :self.num_feature_levels] = new_src_points.detach().unsqueeze(2)
+                motion_query = topk_motion_query.repeat(1, 4, 1)
+                context_query = topk_context_query.repeat(1, 4, 1)
 
         if test_mode:
             return flow_predictions, sparse_predictions

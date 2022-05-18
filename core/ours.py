@@ -686,7 +686,7 @@ class RAFT(nn.Module):
                     masks = masks.reshape(bs, -1, 1, H, W)
 
                 flow_predictions.append(flow)
-                sparse_predictions.append((reference_points[:, :, 0].new_tensor(), key_flow, masks, scores))
+                sparse_predictions.append((reference_points[:, :, 0].clone(), key_flow, masks, scores))
                 # bs, n
                 areas = torch.sum(masks, dim=(-1, -2)).squeeze(-1)
                 # bs, topk

@@ -87,8 +87,8 @@ class RAFT(nn.Module):
         self.corr_proj = nn.ModuleList(corr_proj_list)
 
         self.encoder_iterations = 1
-        self.outer_iterations = 6
-        self.inner_iterations = 1
+        self.outer_iterations = 2
+        self.inner_iterations = 12
         # self.inner_iterations = self.num_feature_levels
         self.num_keypoints = 100
         # self.num_keypoints = 25
@@ -210,7 +210,7 @@ class RAFT(nn.Module):
         self.row_pos_embed = nn.Embedding(w // (2 ** 2), self.d_model // 2)
         self.col_pos_embed = nn.Embedding(h // (2 ** 2), self.d_model // 2)
 
-        self.iter_pos_embed = nn.Embedding(self.inner_iterations, self.d_model)
+        # self.iter_pos_embed = nn.Embedding(self.inner_iterations, self.d_model)
 
         # self.query_embed = nn.Embedding(self.num_keypoints, self.d_model)
         self.motion_query_embed = nn.Embedding(self.num_keypoints, self.d_model)
@@ -544,16 +544,13 @@ class RAFT(nn.Module):
         root = round(math.sqrt(self.num_keypoints))
         base_reference_points = self.get_reference_points([(root, root), ], device=D1[0].device).squeeze(2)
         base_reference_points = base_reference_points.repeat(bs, 1, 1)
-        if self.inner_iterations > 1:
-            reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, 2, 1)
-        else:
-            reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
+        reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
         reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2), device=D1[0].device) + 0.5
         # reference_flows = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=D1[0].device)
         # reference_context = \
         #     torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, self.up_dim), device=D1[0].device)
         for o_i in range(self.outer_iterations):
-            for i_i in range(self.inner_iterations):
+            for i_i in range(self.inner_iterations if o_i >= 1 else 1):
                 # if not (o_i == 0 and i_i == 0):
                 #     motion_query = self.context2motion_decoder[o_i](
                 #         (motion_query + motion_query_pos).permute(1, 0, 2),
@@ -655,7 +652,7 @@ class RAFT(nn.Module):
                                                   context_src, src_pos, spatial_shapes, level_start_index)
 
                 # bs, n, 2
-                flow_embed = self.flow_embed[o_i + int(self.first_query)](motion_query)
+                flow_embed = self.flow_embed[o_i](motion_query)
                 flow_embed = flow_embed + inverse_sigmoid(reference_flows)
 
                 src_points = reference_points[:, :, 0].detach()
@@ -691,27 +688,28 @@ class RAFT(nn.Module):
                 # src_points = (inverse_sigmoid(src_points) + flow_embed[..., :2]).sigmoid()
                 # reference_points[:, :, :self.num_feature_levels] = src_points.unsqueeze(2)
                 split = 0
-                # bs, n
-                areas = torch.sum(masks, dim=(-1, -2)).squeeze(-1)
-                # bs, topk
-                topk_indices = torch.topk(scores, 25, dim=-1)[1]
-                # bs, topk, 2
-                topk_areas = torch.gather(areas, dim=1, index=topk_indices)
-                topk_dst_points = torch.gather(dst_points, dim=1, index=topk_indices.unsqueeze(-1).repeat(1, 1, 2))
-                topk_motion_query = torch.gather(motion_query, dim=1,
-                                                 index=topk_indices.unsqueeze(-1).repeat(1, 1, self.d_model))
-                topk_context_query = torch.gather(context_query, dim=1,
-                                                  index=topk_indices.unsqueeze(-1).repeat(1, 1, self.d_model))
-                new_src_points = torch.gather(src_points, dim=1, index=topk_indices.unsqueeze(-1).repeat(1, 1, 2))
-                new_src_points = new_src_points.repeat(1, 4, 1)
-                new_src_points = torch.normal(mean=new_src_points,
-                                              std=torch.sqrt(topk_areas).unsqueeze(-1).repeat(1, 4, 1))
-                new_src_points = torch.clip(new_src_points, 0.0, 1.0)
-                reference_points[:, :, :self.num_feature_levels] = new_src_points.detach().unsqueeze(2)
-                dst_points = topk_dst_points.repeat(1, 4, 1)
-                reference_points[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
-                motion_query = topk_motion_query.repeat(1, 4, 1)
-                context_query = topk_context_query.repeat(1, 4, 1)
+                # # bs, n
+                # areas = torch.sum(masks, dim=(-1, -2)).squeeze(-1)
+                # # bs, topk
+                # topk_indices = torch.topk(scores, 25, dim=-1)[1]
+                # # bs, topk, 2
+                # topk_areas = torch.gather(areas, dim=1, index=topk_indices)
+                # topk_dst_points = torch.gather(dst_points, dim=1, index=topk_indices.unsqueeze(-1).repeat(1, 1, 2))
+                # topk_motion_query = torch.gather(motion_query, dim=1,
+                #                                  index=topk_indices.unsqueeze(-1).repeat(1, 1, self.d_model))
+                # topk_context_query = torch.gather(context_query, dim=1,
+                #                                   index=topk_indices.unsqueeze(-1).repeat(1, 1, self.d_model))
+                # new_src_points = torch.gather(src_points, dim=1, index=topk_indices.unsqueeze(-1).repeat(1, 1, 2))
+                # new_src_points = new_src_points.repeat(1, 4, 1)
+                # new_src_points = torch.normal(mean=new_src_points,
+                #                               std=torch.sqrt(topk_areas).unsqueeze(-1).repeat(1, 4, 1))
+                # new_src_points = torch.clip(new_src_points, 0.0, 1.0)
+                # reference_points[:, :, :self.num_feature_levels] = new_src_points.detach().unsqueeze(2)
+                # dst_points = topk_dst_points.repeat(1, 4, 1)
+                # reference_points[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
+                # motion_query = topk_motion_query.repeat(1, 4, 1)
+                # context_query = topk_context_query.repeat(1, 4, 1)
+                split = 0
 
         if test_mode:
             return flow_predictions, sparse_predictions

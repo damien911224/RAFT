@@ -1,7 +1,7 @@
 #!/bin/bash
 mkdir -p checkpoints
-# 0: base_lateral_decoder
-# 1: base_O4_I6
+# 0: base_fixed_context_flow
+# 1: base_fixed_O4_I6
 # 2: base_fixed
 # 3: base
 python -u train.py --name chairs-base --stage chairs --validation chairs --gpus 0 --num_steps 1000000 --batch_size 16 --lr 0.0002 --image_size 352 480 --wdecay 0.0001

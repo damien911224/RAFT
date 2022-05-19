@@ -543,8 +543,8 @@ class RAFT(nn.Module):
         base_reference_points = self.get_reference_points([(root, root), ], device=D1[0].device).squeeze(2)
         base_reference_points = base_reference_points.repeat(bs, 1, 1)
         reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
-        reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2), device=D1[0].device) + 0.5
-        # reference_flows = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=D1[0].device)
+        # reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2), device=D1[0].device) + 0.5
+        reference_flows = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=D1[0].device)
         # reference_context = \
         #     torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, self.up_dim), device=D1[0].device)
         for o_i in range(self.outer_iterations):
@@ -651,12 +651,12 @@ class RAFT(nn.Module):
 
                 # bs, n, 2
                 flow_embed = self.flow_embed[o_i](motion_query)
-                flow_embed = flow_embed + inverse_sigmoid(reference_flows)
+                # flow_embed = flow_embed + inverse_sigmoid(reference_flows)
+                # reference_flows = flow_embed.detach().sigmoid()
 
                 src_points = reference_points[:, :, 0].detach()
                 dst_points = (inverse_sigmoid(src_points) + flow_embed).sigmoid()
                 key_flow = src_points - dst_points
-                reference_flows = flow_embed.detach().sigmoid()
                 reference_points[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
                 split = 0
                 # bs, HW, n
@@ -670,8 +670,8 @@ class RAFT(nn.Module):
                 scores = torch.max(context_flow, dim=1)[0].detach()
                 # bs, HW, 2
                 context_flow = torch.bmm(context_flow, key_flow)
-                # context_flow = reference_flows + context_flow
-                # reference_flows = context_flow.detach()
+                context_flow = reference_flows + context_flow
+                reference_flows = context_flow.detach()
                 # bs, 2, H, W
                 flow = context_flow.permute(0, 2, 1).view(bs, 2, H, W)
                 flow = flow * torch.as_tensor((I_W, I_H), dtype=torch.float32, device=D1[0].device).view(1, 2, 1, 1)

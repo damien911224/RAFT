@@ -87,8 +87,8 @@ class RAFT(nn.Module):
         self.corr_proj = nn.ModuleList(corr_proj_list)
 
         self.encoder_iterations = 1
-        self.outer_iterations = 4
-        self.inner_iterations = 6
+        self.outer_iterations = 6
+        self.inner_iterations = 1
         # self.inner_iterations = self.num_feature_levels
         self.num_keypoints = 100
         # self.num_keypoints = 25
@@ -515,6 +515,7 @@ class RAFT(nn.Module):
         for i in range(len(self.encoder)):
             motion_src = self.encoder[i](motion_src, raw_src_pos, src_ref, spatial_shapes, level_start_index)
             context_src = self.context_encoder[i](context_src, raw_src_pos, src_ref, spatial_shapes, level_start_index)
+        src = torch.cat((motion_src, context_src), dim=-1)
         split = 0
         # if self.inner_iterations > 1:
         #     new_src = list()
@@ -543,8 +544,8 @@ class RAFT(nn.Module):
         base_reference_points = self.get_reference_points([(root, root), ], device=D1[0].device).squeeze(2)
         base_reference_points = base_reference_points.repeat(bs, 1, 1)
         reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
-        # reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2), device=D1[0].device) + 0.5
-        reference_flows = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=D1[0].device)
+        reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2), device=D1[0].device) + 0.5
+        # reference_flows = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=D1[0].device)
         # reference_context = \
         #     torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, self.up_dim), device=D1[0].device)
         for o_i in range(self.outer_iterations):
@@ -605,11 +606,11 @@ class RAFT(nn.Module):
 
                     if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
                         motion_query_pos = motion_query_pos + self.motion_high_dim_query_proj(motion_query)
-                        # motion_query_pos = motion_query_pos + self.context2motion_high_dim_query_proj(context_query)
-                        motion_query = motion_query + self.context2motion_high_dim_query_proj(context_query)
+                        motion_query_pos = motion_query_pos + self.context2motion_high_dim_query_proj(context_query)
+                        # motion_query = motion_query + self.context2motion_high_dim_query_proj(context_query)
                         context_query_pos = context_query_pos + self.context_high_dim_query_proj(context_query)
-                        # context_query_pos = context_query_pos + self.motion2context_high_dim_query_proj(motion_query)
-                        context_query = context_query + self.motion2context_high_dim_query_proj(motion_query)
+                        context_query_pos = context_query_pos + self.motion2context_high_dim_query_proj(motion_query)
+                        # context_query = context_query + self.motion2context_high_dim_query_proj(motion_query)
                     split = 0
                     # context_pos = raw_context_pos + self.context_flow_head(context_flow.detach())
                     # context_pos_scale = self.context_scale(U1) if not (o_i == 0 and i_i == 0) else 1
@@ -649,10 +650,13 @@ class RAFT(nn.Module):
                 context_query = self.context_decoder[o_i](context_query, context_query_pos, reference_points,
                                                           context_src, src_pos, spatial_shapes, level_start_index)
 
+                # query = self.decoder[o_i](query, query_pos, reference_points,
+                #                           src, src_pos, spatial_shapes, level_start_index)
+
                 # bs, n, 2
                 flow_embed = self.flow_embed[o_i](motion_query)
-                # flow_embed = flow_embed + inverse_sigmoid(reference_flows)
-                # reference_flows = flow_embed.detach().sigmoid()
+                flow_embed = flow_embed + inverse_sigmoid(reference_flows)
+                reference_flows = flow_embed.detach().sigmoid()
 
                 src_points = reference_points[:, :, 0].detach()
                 dst_points = (inverse_sigmoid(src_points) + flow_embed).sigmoid()
@@ -670,8 +674,8 @@ class RAFT(nn.Module):
                 scores = torch.max(context_flow, dim=1)[0].detach()
                 # bs, HW, 2
                 context_flow = torch.bmm(context_flow, key_flow)
-                context_flow = reference_flows + context_flow
-                reference_flows = context_flow.detach()
+                # context_flow = reference_flows + context_flow
+                # reference_flows = context_flow.detach()
                 # bs, 2, H, W
                 flow = context_flow.permute(0, 2, 1).view(bs, 2, H, W)
                 flow = flow * torch.as_tensor((I_W, I_H), dtype=torch.float32, device=D1[0].device).view(1, 2, 1, 1)

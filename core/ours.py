@@ -49,11 +49,12 @@ class RAFT(nn.Module):
         self.cnn_encoder = CNNEncoder(base_channel=64, norm_fn="instance")
         self.cnn_decoder = CNNDecoder(base_channel=64, norm_fn="batch")
         self.up_dim = self.cnn_decoder.up_dim
-        self.num_feature_levels = 3
+        self.num_feature_levels = 4
 
         # channels = (512, 1024, 2048)
-        channels = (128, 192, 256)
-        self.d_model = channels[0]
+        # channels = (128, 192, 256)
+        channels = (96, 128, 192, 256)
+        self.d_model = 128
         # self.d_model = channels[0] // 2
         # self.up_dim = self.d_model
         # self.extractor_embed = nn.Sequential(
@@ -86,7 +87,7 @@ class RAFT(nn.Module):
             corr_proj_list.append(MLP(in_channels, self.d_model // 2 * 2, self.d_model // 2 * 2, 3))
         self.corr_proj = nn.ModuleList(corr_proj_list)
 
-        self.encoder_iterations = 6
+        self.encoder_iterations = 1
         self.outer_iterations = 6
         self.inner_iterations = 1
         # self.inner_iterations = self.num_feature_levels

@@ -557,7 +557,8 @@ class RAFT(nn.Module):
         #     torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, self.up_dim), device=D1[0].device)
         for o_i in range(self.outer_iterations):
             # for i_i in range(self.inner_iterations if o_i >= self.outer_iterations - 1 else 1):
-            if not (o_i == 0 and i_i == 0):
+            # if not (o_i == 0 and i_i == 0):
+            if not (o_i == 0):
                 motion_query = self.context2motion_decoder(
                     (motion_query + motion_query_pos).permute(1, 0, 2),
                     (context_query + context_query_pos).permute(1, 0, 2)).permute(1, 0, 2)
@@ -594,7 +595,8 @@ class RAFT(nn.Module):
                 else:
                     query_sine_embed = self.gen_sineembed_for_position(raw_query_pos)  # bs, nq, 256*2
                     raw_query_pos = self.ref_point_head(query_sine_embed)  # bs, nq, 256
-                if not (o_i == 0 and i_i == 0):
+                # if not (o_i == 0 and i_i == 0):
+                if not (o_i == 0):
                     pos_scale = self.motion_query_scale(motion_query)
                     motion_query_pos = pos_scale * raw_query_pos
                     pos_scale = self.context_query_scale(context_query)
@@ -611,7 +613,8 @@ class RAFT(nn.Module):
                 # if self.inner_iterations > 1:
                 #     query_pos = query_pos + self.iter_pos_embed.weight[i_i].unsqueeze(0)
 
-                if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
+                # if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
+                if self.high_dim_query_update and not (o_i == 0):
                     motion_query_pos = motion_query_pos + self.motion_high_dim_query_proj(motion_query)
                     # motion_query_pos = motion_query_pos + self.context2motion_high_dim_query_proj(context_query)
                     # motion_query = motion_query + self.context2motion_high_dim_query_proj(context_query)

@@ -108,17 +108,31 @@ class RAFT(nn.Module):
                                                              n_heads=8, n_points=4)
                            for _ in range(self.encoder_iterations)))
 
+        # self.decoder = \
+        #     nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
+        #                                                      dropout=0.1, activation="gelu",
+        #                                                      n_levels=2 * self.num_feature_levels,
+        #                                                      n_heads=8, n_points=4, self_deformable=False)
+        #                    for _ in range(self.outer_iterations * self.inner_iterations)))
+        #
+        # self.context_decoder = \
+        #     nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
+        #                                                      dropout=0.1, activation="gelu",
+        #                                                      n_levels=2 * self.num_feature_levels,
+        #                                                      n_heads=8, n_points=4, self_deformable=False)
+        #                    for _ in range(self.outer_iterations * self.inner_iterations)))
+
         self.decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
                                                              dropout=0.1, activation="gelu",
-                                                             n_levels=2 * self.num_feature_levels,
+                                                             n_levels=2,
                                                              n_heads=8, n_points=4, self_deformable=False)
                            for _ in range(self.outer_iterations * self.inner_iterations)))
 
         self.context_decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
                                                              dropout=0.1, activation="gelu",
-                                                             n_levels=2 * self.num_feature_levels,
+                                                             n_levels=2,
                                                              n_heads=8, n_points=4, self_deformable=False)
                            for _ in range(self.outer_iterations * self.inner_iterations)))
 
@@ -550,7 +564,8 @@ class RAFT(nn.Module):
         root = round(math.sqrt(self.num_keypoints))
         base_reference_points = self.get_reference_points([(root, root), ], device=D1[0].device).squeeze(2)
         base_reference_points = base_reference_points.repeat(bs, 1, 1)
-        reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
+        # reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
+        reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, 2, 1)
         reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2), device=D1[0].device) + 0.5
         # reference_flows = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=D1[0].device)
         # reference_context = \
@@ -568,8 +583,11 @@ class RAFT(nn.Module):
 
             if self.use_dab:
                 # raw_query_pos = torch.cat((reference_points[:, :, 0], reference_flows), dim=-1)
+                # raw_query_pos = torch.cat((reference_points[:, :, 0],
+                #                            reference_points[:, :, self.num_feature_levels]), dim=-1)
                 raw_query_pos = torch.cat((reference_points[:, :, 0],
-                                           reference_points[:, :, self.num_feature_levels]), dim=-1)
+                                           reference_points[:, :, 1]), dim=-1)
+                split = 0
                 # raw_query_pos = reference_points.detach()
                 # if self.no_sine_embed:
                 #     raw_query_pos = self.ref_point_head(raw_query_pos)

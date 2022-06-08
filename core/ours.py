@@ -558,8 +558,10 @@ class RAFT(nn.Module):
                 new_context_src.append(this_context_src)
                 new_src_pos.append(this_src_pos)
 
-                new_spatial_shapes.append(torch.as_tensor([(this_H, this_W), ] * 2, dtype=torch.long, device=D1[0].device))
-                new_level_start_index.append(torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1])))
+                this_spatial_shapes = torch.as_tensor([(this_H, this_W), ] * 2, dtype=torch.long, device=D1[0].device)
+                this_level_start_index = torch.cat((this_spatial_shapes.new_zeros((1,)), this_spatial_shapes.prod(1).cumsum(0)[:-1]))
+                new_spatial_shapes.append(this_spatial_shapes)
+                new_level_start_index.append(this_level_start_index)
             motion_src = new_motion_src[::-1]
             context_src = new_context_src[::-1]
             raw_src_pos = new_src_pos[::-1]

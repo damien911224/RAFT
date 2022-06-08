@@ -682,9 +682,9 @@ class RAFT(nn.Module):
 
             for i_i in range(self.inner_iterations):
                 motion_query = self.decoder[o_i * i_i](motion_query, motion_query_pos, reference_points,
-                                                 motion_src[i_i], src_pos[i_i], spatial_shapes, level_start_index)
+                                                 motion_src[i_i], src_pos[i_i], spatial_shapes[i_i], level_start_index[i_i])
                 context_query = self.context_decoder[o_i * i_i](context_query, context_query_pos, reference_points,
-                                                                context_src[i_i], src_pos[i_i], spatial_shapes, level_start_index)
+                                                                context_src[i_i], src_pos[i_i], spatial_shapes[i_i], level_start_index[i_i])
 
             # query = self.decoder[o_i](query, query_pos, reference_points,
             #                           src, src_pos, spatial_shapes, level_start_index)

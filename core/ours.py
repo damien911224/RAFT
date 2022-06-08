@@ -557,105 +557,103 @@ class RAFT(nn.Module):
         #     torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, self.up_dim), device=D1[0].device)
         for o_i in range(self.outer_iterations):
             # for i_i in range(self.inner_iterations if o_i >= self.outer_iterations - 1 else 1):
-            # if not (o_i == 0 and i_i == 0):
-            if not (o_i == 0):
-                motion_query = self.context2motion_decoder(
-                    (motion_query + motion_query_pos).permute(1, 0, 2),
-                    (context_query + context_query_pos).permute(1, 0, 2)).permute(1, 0, 2)
-                context_query = self.motion2context_decoder(
-                    (context_query + context_query_pos).permute(1, 0, 2),
-                    (motion_query + motion_query_pos).permute(1, 0, 2)).permute(1, 0, 2)
-
-            if self.use_dab:
-                # raw_query_pos = torch.cat((reference_points[:, :, 0], reference_flows), dim=-1)
-                raw_query_pos = torch.cat((reference_points[:, :, 0],
-                                           reference_points[:, :, self.num_feature_levels]), dim=-1)
-                # raw_query_pos = reference_points.detach()
-                # if self.no_sine_embed:
-                #     raw_query_pos = self.ref_point_head(raw_query_pos)
-                # else:
-                #     query_sine_embed = self.gen_sineembed_for_position(raw_query_pos)  # bs, nq, 256*2
-                #     raw_query_pos = self.ref_point_head(query_sine_embed)  # bs, nq, 256
-                # pos_scale = self.query_scale(query) if not (o_i == 0 and i_i == 0) else 1
-                # query_pos = pos_scale * raw_query_pos
-                #
-                # if not (o_i == 0 and i_i == 0) or self.first_query:
-                #     masks = masks.flatten(2)
-                #     attention_pos = torch.bmm(masks, context_pos.detach())
-                #     query_pos = query_pos + self.attention_pos_head(attention_pos)
-                #
-                # if self.inner_iterations > 1:
-                #     query_pos = query_pos + self.iter_pos_embed.weight[i_i].unsqueeze(0)
-                split = 0
-                # if self.high_dim_query_update and (not (o_i == 0 and i_i == 0) or self.first_query):
-                #     query_pos = query_pos + self.high_dim_query_proj(query)
-                split = 0
-                if self.no_sine_embed:
-                    raw_query_pos = self.ref_point_head(raw_query_pos)
-                else:
-                    query_sine_embed = self.gen_sineembed_for_position(raw_query_pos)  # bs, nq, 256*2
-                    raw_query_pos = self.ref_point_head(query_sine_embed)  # bs, nq, 256
-                # if not (o_i == 0 and i_i == 0):
-                if not (o_i == 0):
-                    pos_scale = self.motion_query_scale(motion_query)
-                    motion_query_pos = pos_scale * raw_query_pos
-                    pos_scale = self.context_query_scale(context_query)
-                    context_query_pos = pos_scale * raw_query_pos
-                else:
-                    motion_query_pos = raw_query_pos
-                    context_query_pos = raw_query_pos
-
-                # if not (o_i == 0 and i_i == 0) or self.first_query:
-                #     masks = masks.flatten(2)
-                #     attention_pos = torch.bmm(masks, context_pos.detach())
-                #     query_pos = query_pos + self.attention_pos_head(attention_pos)
-
-                # if self.inner_iterations > 1:
-                #     query_pos = query_pos + self.iter_pos_embed.weight[i_i].unsqueeze(0)
-
-                # if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
-                if self.high_dim_query_update and not (o_i == 0):
-                    motion_query_pos = motion_query_pos + self.motion_high_dim_query_proj(motion_query)
-                    # motion_query_pos = motion_query_pos + self.context2motion_high_dim_query_proj(context_query)
-                    # motion_query = motion_query + self.context2motion_high_dim_query_proj(context_query)
-                    context_query_pos = context_query_pos + self.context_high_dim_query_proj(context_query)
-                    # context_query_pos = context_query_pos + self.motion2context_high_dim_query_proj(motion_query)
-                    # context_query = context_query + self.motion2context_high_dim_query_proj(motion_query)
-                split = 0
-                # context_pos = raw_context_pos + self.context_flow_head(context_flow.detach())
-                # context_pos_scale = self.context_scale(U1) if not (o_i == 0 and i_i == 0) else 1
-                # context_pos = context_pos_scale * context_pos
-                #
-                # if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
-                #     context_pos = context_pos + self.context_high_dim_query_proj(U1)
-
-                context_pos = raw_context_pos
-                split = 0
-                # if not (o_i == 0 and i_i == 0):
-                #     # bs, HW, N
-                #     flow_pos = list()
-                #     context_flow = context_flow.detach().permute(0, 2, 1).view(bs, 2, H, W)
-                #     for H_, W_ in spatial_shapes:
-                #         this_flow = F.interpolate(context_flow, size=(H_, W_), mode="bilinear", align_corners=False)
-                #         this_flow = this_flow.flatten(2).permute(0, 2, 1)
-                #         flow_pos.append(this_flow)
-                #     flow_pos = torch.cat(flow_pos, dim=1)
-                #     # bs, HW, d_model
-                #     src_pos = raw_src_pos + self.src_pos_head(flow_pos)
-                #     src_pos_scale = self.src_scale(src) if not (o_i == 0 and i_i == 0) else 1
-                #     src_pos = src_pos_scale * src_pos
-                #
-                #     if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
-                #         src_pos = src_pos + self.src_high_dim_query_proj(src)
-                # else:
-                #     src_pos = raw_src_pos
-                split = 0
-                src_pos = raw_src_pos
-            else:
-                context_pos = raw_context_pos
-                src_pos = raw_src_pos
 
             for i_i in range(self.inner_iterations):
+                if not (o_i == 0 and i_i == 0):
+                    motion_query = self.context2motion_decoder(
+                        (motion_query + motion_query_pos).permute(1, 0, 2),
+                        (context_query + context_query_pos).permute(1, 0, 2)).permute(1, 0, 2)
+                    context_query = self.motion2context_decoder(
+                        (context_query + context_query_pos).permute(1, 0, 2),
+                        (motion_query + motion_query_pos).permute(1, 0, 2)).permute(1, 0, 2)
+
+                if self.use_dab:
+                    # raw_query_pos = torch.cat((reference_points[:, :, 0], reference_flows), dim=-1)
+                    raw_query_pos = torch.cat((reference_points[:, :, 0],
+                                               reference_points[:, :, self.num_feature_levels]), dim=-1)
+                    # raw_query_pos = reference_points.detach()
+                    # if self.no_sine_embed:
+                    #     raw_query_pos = self.ref_point_head(raw_query_pos)
+                    # else:
+                    #     query_sine_embed = self.gen_sineembed_for_position(raw_query_pos)  # bs, nq, 256*2
+                    #     raw_query_pos = self.ref_point_head(query_sine_embed)  # bs, nq, 256
+                    # pos_scale = self.query_scale(query) if not (o_i == 0 and i_i == 0) else 1
+                    # query_pos = pos_scale * raw_query_pos
+                    #
+                    # if not (o_i == 0 and i_i == 0) or self.first_query:
+                    #     masks = masks.flatten(2)
+                    #     attention_pos = torch.bmm(masks, context_pos.detach())
+                    #     query_pos = query_pos + self.attention_pos_head(attention_pos)
+                    #
+                    # if self.inner_iterations > 1:
+                    #     query_pos = query_pos + self.iter_pos_embed.weight[i_i].unsqueeze(0)
+                    split = 0
+                    # if self.high_dim_query_update and (not (o_i == 0 and i_i == 0) or self.first_query):
+                    #     query_pos = query_pos + self.high_dim_query_proj(query)
+                    split = 0
+                    if self.no_sine_embed:
+                        raw_query_pos = self.ref_point_head(raw_query_pos)
+                    else:
+                        query_sine_embed = self.gen_sineembed_for_position(raw_query_pos)  # bs, nq, 256*2
+                        raw_query_pos = self.ref_point_head(query_sine_embed)  # bs, nq, 256
+                    if not (o_i == 0 and i_i == 0):
+                        pos_scale = self.motion_query_scale(motion_query)
+                        motion_query_pos = pos_scale * raw_query_pos
+                        pos_scale = self.context_query_scale(context_query)
+                        context_query_pos = pos_scale * raw_query_pos
+                    else:
+                        motion_query_pos = raw_query_pos
+                        context_query_pos = raw_query_pos
+
+                    # if not (o_i == 0 and i_i == 0) or self.first_query:
+                    #     masks = masks.flatten(2)
+                    #     attention_pos = torch.bmm(masks, context_pos.detach())
+                    #     query_pos = query_pos + self.attention_pos_head(attention_pos)
+
+                    # if self.inner_iterations > 1:
+                    #     query_pos = query_pos + self.iter_pos_embed.weight[i_i].unsqueeze(0)
+
+                    if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
+                        motion_query_pos = motion_query_pos + self.motion_high_dim_query_proj(motion_query)
+                        # motion_query_pos = motion_query_pos + self.context2motion_high_dim_query_proj(context_query)
+                        # motion_query = motion_query + self.context2motion_high_dim_query_proj(context_query)
+                        context_query_pos = context_query_pos + self.context_high_dim_query_proj(context_query)
+                        # context_query_pos = context_query_pos + self.motion2context_high_dim_query_proj(motion_query)
+                        # context_query = context_query + self.motion2context_high_dim_query_proj(motion_query)
+                    split = 0
+                    # context_pos = raw_context_pos + self.context_flow_head(context_flow.detach())
+                    # context_pos_scale = self.context_scale(U1) if not (o_i == 0 and i_i == 0) else 1
+                    # context_pos = context_pos_scale * context_pos
+                    #
+                    # if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
+                    #     context_pos = context_pos + self.context_high_dim_query_proj(U1)
+
+                    context_pos = raw_context_pos
+                    split = 0
+                    # if not (o_i == 0 and i_i == 0):
+                    #     # bs, HW, N
+                    #     flow_pos = list()
+                    #     context_flow = context_flow.detach().permute(0, 2, 1).view(bs, 2, H, W)
+                    #     for H_, W_ in spatial_shapes:
+                    #         this_flow = F.interpolate(context_flow, size=(H_, W_), mode="bilinear", align_corners=False)
+                    #         this_flow = this_flow.flatten(2).permute(0, 2, 1)
+                    #         flow_pos.append(this_flow)
+                    #     flow_pos = torch.cat(flow_pos, dim=1)
+                    #     # bs, HW, d_model
+                    #     src_pos = raw_src_pos + self.src_pos_head(flow_pos)
+                    #     src_pos_scale = self.src_scale(src) if not (o_i == 0 and i_i == 0) else 1
+                    #     src_pos = src_pos_scale * src_pos
+                    #
+                    #     if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
+                    #         src_pos = src_pos + self.src_high_dim_query_proj(src)
+                    # else:
+                    #     src_pos = raw_src_pos
+                    split = 0
+                    src_pos = raw_src_pos
+                else:
+                    context_pos = raw_context_pos
+                    src_pos = raw_src_pos
+
                 motion_query = self.decoder[o_i * i_i](motion_query, motion_query_pos, reference_points,
                                                  motion_src[i_i], src_pos, spatial_shapes, level_start_index)
                 context_query = self.context_decoder[o_i * i_i](context_query, context_query_pos, reference_points,

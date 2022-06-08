@@ -563,8 +563,8 @@ class RAFT(nn.Module):
             motion_src = new_motion_src[::-1]
             context_src = new_context_src[::-1]
             raw_src_pos = new_src_pos[::-1]
-            spatial_shapes = new_spatial_shapes
-            level_start_index = new_level_start_index
+            spatial_shapes = new_spatial_shapes[::-1]
+            level_start_index = new_level_start_index[::-1]
         split = 0
         flow_predictions = list()
         sparse_predictions = list()

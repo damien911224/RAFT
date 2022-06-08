@@ -536,6 +536,8 @@ class RAFT(nn.Module):
             new_src_pos = list()
             new_motion_src = list()
             new_context_src = list()
+            new_spatial_shapes = list()
+            new_level_start_index = list()
             for l_i in range(self.num_feature_levels):
                 this_H, this_W = spatial_shapes[l_i]
                 this_start_index = level_start_index[l_i]
@@ -555,9 +557,14 @@ class RAFT(nn.Module):
                 new_motion_src.append(this_motion_src)
                 new_context_src.append(this_context_src)
                 new_src_pos.append(this_src_pos)
+
+                new_spatial_shapes.append(torch.as_tensor([(this_H, this_W), ] * 2, dtype=torch.long, device=D1[0].device))
+                new_level_start_index.append(torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1])))
             motion_src = new_motion_src[::-1]
             context_src = new_context_src[::-1]
             raw_src_pos = new_src_pos[::-1]
+            spatial_shapes = new_spatial_shapes
+            level_start_index = new_level_start_index
         split = 0
         flow_predictions = list()
         sparse_predictions = list()

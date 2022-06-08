@@ -89,8 +89,8 @@ class RAFT(nn.Module):
 
         self.encoder_iterations = 1
         self.outer_iterations = 6
-        self.inner_iterations = 1
-        # self.inner_iterations = self.num_feature_levels
+        # self.inner_iterations = 1
+        self.inner_iterations = self.num_feature_levels
         self.num_keypoints = 100
         # self.num_keypoints = 25
 
@@ -113,14 +113,14 @@ class RAFT(nn.Module):
                                                              dropout=0.1, activation="gelu",
                                                              n_levels=2 * self.num_feature_levels,
                                                              n_heads=8, n_points=4, self_deformable=False)
-                           for _ in range(self.outer_iterations)))
+                           for _ in range(self.outer_iterations * self.inner_iterations)))
 
         self.context_decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
                                                              dropout=0.1, activation="gelu",
                                                              n_levels=2 * self.num_feature_levels,
                                                              n_heads=8, n_points=4, self_deformable=False)
-                           for _ in range(self.outer_iterations)))
+                           for _ in range(self.outer_iterations * self.inner_iterations)))
 
         self.motion2context_decoder = nn.TransformerDecoderLayer(d_model=self.d_model, dim_feedforward=self.d_model * 4,
                                                                  nhead=8, dropout=0.1, activation="gelu")
@@ -518,26 +518,32 @@ class RAFT(nn.Module):
             context_src = self.context_encoder[i](context_src, raw_src_pos, src_ref, spatial_shapes, level_start_index)
         src = torch.cat((motion_src, context_src), dim=-1)
         split = 0
-        # if self.inner_iterations > 1:
-        #     new_src = list()
-        #     new_src_pos = list()
-        #     for l_i in range(self.num_feature_levels):
-        #         this_H, this_W = spatial_shapes[l_i]
-        #         this_start_index = level_start_index[l_i]
-        #         this_length = this_H * this_W
-        #         this_src_01 = src[:, this_start_index:this_start_index + this_length]
-        #         this_src_pos_01 = raw_src_pos[:, this_start_index:this_start_index + this_length]
-        #         this_H, this_W = spatial_shapes[l_i + self.num_feature_levels]
-        #         this_start_index = level_start_index[l_i + self.num_feature_levels]
-        #         this_length = this_H * this_W
-        #         this_src_02 = src[:, this_start_index:this_start_index + this_length]
-        #         this_src_pos_02 = raw_src_pos[:, this_start_index:this_start_index + this_length]
-        #         this_src = torch.cat((this_src_01, this_src_02), dim=1)
-        #         this_src_pos = torch.cat((this_src_pos_01, this_src_pos_02), dim=1)
-        #         new_src.append(this_src)
-        #         new_src_pos.append(this_src_pos)
-        #     src = new_src[::-1]
-        #     raw_src_pos = new_src_pos[::-1]
+        if self.inner_iterations > 1:
+            new_src_pos = list()
+            new_motion_src = list()
+            new_context_src = list()
+            for l_i in range(self.num_feature_levels):
+                this_H, this_W = spatial_shapes[l_i]
+                this_start_index = level_start_index[l_i]
+                this_length = this_H * this_W
+                this_motion_src_01 = motion_src[:, this_start_index:this_start_index + this_length]
+                this_context_src_01 = context_src[:, this_start_index:this_start_index + this_length]
+                this_src_pos_01 = raw_src_pos[:, this_start_index:this_start_index + this_length]
+                this_H, this_W = spatial_shapes[l_i + self.num_feature_levels]
+                this_start_index = level_start_index[l_i + self.num_feature_levels]
+                this_length = this_H * this_W
+                this_motion_src_02 = motion_src[:, this_start_index:this_start_index + this_length]
+                this_context_src_02 = context_src[:, this_start_index:this_start_index + this_length]
+                this_src_pos_02 = raw_src_pos[:, this_start_index:this_start_index + this_length]
+                this_motion_src = torch.cat((this_motion_src_01, this_motion_src_02), dim=1)
+                this_context_src = torch.cat((this_context_src_01, this_context_src_02), dim=1)
+                this_src_pos = torch.cat((this_src_pos_01, this_src_pos_02), dim=1)
+                new_motion_src.append(this_motion_src)
+                new_context_src.append(this_context_src)
+                new_src_pos.append(this_src_pos)
+            motion_src = new_motion_src[::-1]
+            context_src = new_context_src[::-1]
+            raw_src_pos = new_src_pos[::-1]
         split = 0
         flow_predictions = list()
         sparse_predictions = list()
@@ -550,169 +556,170 @@ class RAFT(nn.Module):
         # reference_context = \
         #     torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, self.up_dim), device=D1[0].device)
         for o_i in range(self.outer_iterations):
-            for i_i in range(self.inner_iterations if o_i >= self.outer_iterations - 1 else 1):
-                if not (o_i == 0 and i_i == 0):
-                    motion_query = self.context2motion_decoder(
-                        (motion_query + motion_query_pos).permute(1, 0, 2),
-                        (context_query + context_query_pos).permute(1, 0, 2)).permute(1, 0, 2)
-                    context_query = self.motion2context_decoder(
-                        (context_query + context_query_pos).permute(1, 0, 2),
-                        (motion_query + motion_query_pos).permute(1, 0, 2)).permute(1, 0, 2)
+            # for i_i in range(self.inner_iterations if o_i >= self.outer_iterations - 1 else 1):
+            if not (o_i == 0 and i_i == 0):
+                motion_query = self.context2motion_decoder(
+                    (motion_query + motion_query_pos).permute(1, 0, 2),
+                    (context_query + context_query_pos).permute(1, 0, 2)).permute(1, 0, 2)
+                context_query = self.motion2context_decoder(
+                    (context_query + context_query_pos).permute(1, 0, 2),
+                    (motion_query + motion_query_pos).permute(1, 0, 2)).permute(1, 0, 2)
 
-                if self.use_dab:
-                    # raw_query_pos = torch.cat((reference_points[:, :, 0], reference_flows), dim=-1)
-                    raw_query_pos = torch.cat((reference_points[:, :, 0],
-                                               reference_points[:, :, self.num_feature_levels]), dim=-1)
-                    # raw_query_pos = reference_points.detach()
-                    # if self.no_sine_embed:
-                    #     raw_query_pos = self.ref_point_head(raw_query_pos)
-                    # else:
-                    #     query_sine_embed = self.gen_sineembed_for_position(raw_query_pos)  # bs, nq, 256*2
-                    #     raw_query_pos = self.ref_point_head(query_sine_embed)  # bs, nq, 256
-                    # pos_scale = self.query_scale(query) if not (o_i == 0 and i_i == 0) else 1
-                    # query_pos = pos_scale * raw_query_pos
-                    #
-                    # if not (o_i == 0 and i_i == 0) or self.first_query:
-                    #     masks = masks.flatten(2)
-                    #     attention_pos = torch.bmm(masks, context_pos.detach())
-                    #     query_pos = query_pos + self.attention_pos_head(attention_pos)
-                    #
-                    # if self.inner_iterations > 1:
-                    #     query_pos = query_pos + self.iter_pos_embed.weight[i_i].unsqueeze(0)
-                    split = 0
-                    # if self.high_dim_query_update and (not (o_i == 0 and i_i == 0) or self.first_query):
-                    #     query_pos = query_pos + self.high_dim_query_proj(query)
-                    split = 0
-                    if self.no_sine_embed:
-                        raw_query_pos = self.ref_point_head(raw_query_pos)
-                    else:
-                        query_sine_embed = self.gen_sineembed_for_position(raw_query_pos)  # bs, nq, 256*2
-                        raw_query_pos = self.ref_point_head(query_sine_embed)  # bs, nq, 256
-                    if not (o_i == 0 and i_i == 0):
-                        pos_scale = self.motion_query_scale(motion_query)
-                        motion_query_pos = pos_scale * raw_query_pos
-                        pos_scale = self.context_query_scale(context_query)
-                        context_query_pos = pos_scale * raw_query_pos
-                    else:
-                        motion_query_pos = raw_query_pos
-                        context_query_pos = raw_query_pos
-
-                    # if not (o_i == 0 and i_i == 0) or self.first_query:
-                    #     masks = masks.flatten(2)
-                    #     attention_pos = torch.bmm(masks, context_pos.detach())
-                    #     query_pos = query_pos + self.attention_pos_head(attention_pos)
-
-                    # if self.inner_iterations > 1:
-                    #     query_pos = query_pos + self.iter_pos_embed.weight[i_i].unsqueeze(0)
-
-                    if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
-                        motion_query_pos = motion_query_pos + self.motion_high_dim_query_proj(motion_query)
-                        # motion_query_pos = motion_query_pos + self.context2motion_high_dim_query_proj(context_query)
-                        # motion_query = motion_query + self.context2motion_high_dim_query_proj(context_query)
-                        context_query_pos = context_query_pos + self.context_high_dim_query_proj(context_query)
-                        # context_query_pos = context_query_pos + self.motion2context_high_dim_query_proj(motion_query)
-                        # context_query = context_query + self.motion2context_high_dim_query_proj(motion_query)
-                    split = 0
-                    # context_pos = raw_context_pos + self.context_flow_head(context_flow.detach())
-                    # context_pos_scale = self.context_scale(U1) if not (o_i == 0 and i_i == 0) else 1
-                    # context_pos = context_pos_scale * context_pos
-                    #
-                    # if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
-                    #     context_pos = context_pos + self.context_high_dim_query_proj(U1)
-
-                    context_pos = raw_context_pos
-                    split = 0
-                    # if not (o_i == 0 and i_i == 0):
-                    #     # bs, HW, N
-                    #     flow_pos = list()
-                    #     context_flow = context_flow.detach().permute(0, 2, 1).view(bs, 2, H, W)
-                    #     for H_, W_ in spatial_shapes:
-                    #         this_flow = F.interpolate(context_flow, size=(H_, W_), mode="bilinear", align_corners=False)
-                    #         this_flow = this_flow.flatten(2).permute(0, 2, 1)
-                    #         flow_pos.append(this_flow)
-                    #     flow_pos = torch.cat(flow_pos, dim=1)
-                    #     # bs, HW, d_model
-                    #     src_pos = raw_src_pos + self.src_pos_head(flow_pos)
-                    #     src_pos_scale = self.src_scale(src) if not (o_i == 0 and i_i == 0) else 1
-                    #     src_pos = src_pos_scale * src_pos
-                    #
-                    #     if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
-                    #         src_pos = src_pos + self.src_high_dim_query_proj(src)
-                    # else:
-                    #     src_pos = raw_src_pos
-                    split = 0
-                    src_pos = raw_src_pos
+            if self.use_dab:
+                # raw_query_pos = torch.cat((reference_points[:, :, 0], reference_flows), dim=-1)
+                raw_query_pos = torch.cat((reference_points[:, :, 0],
+                                           reference_points[:, :, self.num_feature_levels]), dim=-1)
+                # raw_query_pos = reference_points.detach()
+                # if self.no_sine_embed:
+                #     raw_query_pos = self.ref_point_head(raw_query_pos)
+                # else:
+                #     query_sine_embed = self.gen_sineembed_for_position(raw_query_pos)  # bs, nq, 256*2
+                #     raw_query_pos = self.ref_point_head(query_sine_embed)  # bs, nq, 256
+                # pos_scale = self.query_scale(query) if not (o_i == 0 and i_i == 0) else 1
+                # query_pos = pos_scale * raw_query_pos
+                #
+                # if not (o_i == 0 and i_i == 0) or self.first_query:
+                #     masks = masks.flatten(2)
+                #     attention_pos = torch.bmm(masks, context_pos.detach())
+                #     query_pos = query_pos + self.attention_pos_head(attention_pos)
+                #
+                # if self.inner_iterations > 1:
+                #     query_pos = query_pos + self.iter_pos_embed.weight[i_i].unsqueeze(0)
+                split = 0
+                # if self.high_dim_query_update and (not (o_i == 0 and i_i == 0) or self.first_query):
+                #     query_pos = query_pos + self.high_dim_query_proj(query)
+                split = 0
+                if self.no_sine_embed:
+                    raw_query_pos = self.ref_point_head(raw_query_pos)
                 else:
-                    context_pos = raw_context_pos
-                    src_pos = raw_src_pos
+                    query_sine_embed = self.gen_sineembed_for_position(raw_query_pos)  # bs, nq, 256*2
+                    raw_query_pos = self.ref_point_head(query_sine_embed)  # bs, nq, 256
+                if not (o_i == 0 and i_i == 0):
+                    pos_scale = self.motion_query_scale(motion_query)
+                    motion_query_pos = pos_scale * raw_query_pos
+                    pos_scale = self.context_query_scale(context_query)
+                    context_query_pos = pos_scale * raw_query_pos
+                else:
+                    motion_query_pos = raw_query_pos
+                    context_query_pos = raw_query_pos
 
-                motion_query = self.decoder[o_i](motion_query, motion_query_pos, reference_points,
-                                                 motion_src, src_pos, spatial_shapes, level_start_index)
-                context_query = self.context_decoder[o_i](context_query, context_query_pos, reference_points,
-                                                          context_src, src_pos, spatial_shapes, level_start_index)
+                # if not (o_i == 0 and i_i == 0) or self.first_query:
+                #     masks = masks.flatten(2)
+                #     attention_pos = torch.bmm(masks, context_pos.detach())
+                #     query_pos = query_pos + self.attention_pos_head(attention_pos)
 
-                # query = self.decoder[o_i](query, query_pos, reference_points,
-                #                           src, src_pos, spatial_shapes, level_start_index)
+                # if self.inner_iterations > 1:
+                #     query_pos = query_pos + self.iter_pos_embed.weight[i_i].unsqueeze(0)
 
-                # bs, n, 2
-                flow_embed = self.flow_embed[o_i](motion_query)
-                flow_embed = flow_embed + inverse_sigmoid(reference_flows)
-                reference_flows = flow_embed.detach().sigmoid()
-
-                src_points = reference_points[:, :, 0].detach()
-                dst_points = (inverse_sigmoid(src_points) + flow_embed).sigmoid()
-                key_flow = src_points - dst_points
-                reference_points[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
+                if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
+                    motion_query_pos = motion_query_pos + self.motion_high_dim_query_proj(motion_query)
+                    # motion_query_pos = motion_query_pos + self.context2motion_high_dim_query_proj(context_query)
+                    # motion_query = motion_query + self.context2motion_high_dim_query_proj(context_query)
+                    context_query_pos = context_query_pos + self.context_high_dim_query_proj(context_query)
+                    # context_query_pos = context_query_pos + self.motion2context_high_dim_query_proj(motion_query)
+                    # context_query = context_query + self.motion2context_high_dim_query_proj(motion_query)
                 split = 0
-                # bs, HW, n
-                context_embed = self.context_embed[o_i](context_query)
-                # context_embed = reference_context + self.context_embed[o_i](context_query)
-                # reference_context = context_embed.detach()
-                context_flow = F.softmax(torch.bmm(U1 + context_pos, context_embed.permute(0, 2, 1)), dim=-1)
-                # bs, n, HW
-                masks = context_flow.permute(0, 2, 1).detach()
-                # bs, n
-                scores = torch.max(context_flow, dim=1)[0].detach()
-                # bs, HW, 2
-                context_flow = torch.bmm(context_flow, key_flow)
-                # context_flow = reference_flows + context_flow
-                # reference_flows = context_flow.detach()
-                # bs, 2, H, W
-                flow = context_flow.permute(0, 2, 1).view(bs, 2, H, W)
-                flow = flow * torch.as_tensor((I_W, I_H), dtype=torch.float32, device=D1[0].device).view(1, 2, 1, 1)
+                # context_pos = raw_context_pos + self.context_flow_head(context_flow.detach())
+                # context_pos_scale = self.context_scale(U1) if not (o_i == 0 and i_i == 0) else 1
+                # context_pos = context_pos_scale * context_pos
+                #
+                # if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
+                #     context_pos = context_pos + self.context_high_dim_query_proj(U1)
 
-                if I_H != H or I_W != W:
-                    flow = F.interpolate(flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
-                    masks = masks.reshape(bs, -1, 1, H, W)
+                context_pos = raw_context_pos
+                split = 0
+                # if not (o_i == 0 and i_i == 0):
+                #     # bs, HW, N
+                #     flow_pos = list()
+                #     context_flow = context_flow.detach().permute(0, 2, 1).view(bs, 2, H, W)
+                #     for H_, W_ in spatial_shapes:
+                #         this_flow = F.interpolate(context_flow, size=(H_, W_), mode="bilinear", align_corners=False)
+                #         this_flow = this_flow.flatten(2).permute(0, 2, 1)
+                #         flow_pos.append(this_flow)
+                #     flow_pos = torch.cat(flow_pos, dim=1)
+                #     # bs, HW, d_model
+                #     src_pos = raw_src_pos + self.src_pos_head(flow_pos)
+                #     src_pos_scale = self.src_scale(src) if not (o_i == 0 and i_i == 0) else 1
+                #     src_pos = src_pos_scale * src_pos
+                #
+                #     if self.high_dim_query_update and not (o_i == 0 and i_i == 0):
+                #         src_pos = src_pos + self.src_high_dim_query_proj(src)
+                # else:
+                #     src_pos = raw_src_pos
+                split = 0
+                src_pos = raw_src_pos
+            else:
+                context_pos = raw_context_pos
+                src_pos = raw_src_pos
 
-                flow_predictions.append(flow)
-                sparse_predictions.append((reference_points[:, :, 0].clone(), key_flow, masks, scores))
-                split = 0
-                # src_points = (inverse_sigmoid(src_points) + flow_embed[..., :2]).sigmoid()
-                # reference_points[:, :, :self.num_feature_levels] = src_points.unsqueeze(2)
-                split = 0
-                # # bs, n
-                # areas = torch.sum(masks, dim=(-1, -2)).squeeze(-1)
-                # # bs, topk
-                # topk_indices = torch.topk(scores, 25, dim=-1)[1]
-                # # bs, topk, 2
-                # topk_areas = torch.gather(areas, dim=1, index=topk_indices)
-                # topk_dst_points = torch.gather(dst_points, dim=1, index=topk_indices.unsqueeze(-1).repeat(1, 1, 2))
-                # topk_motion_query = torch.gather(motion_query, dim=1,
-                #                                  index=topk_indices.unsqueeze(-1).repeat(1, 1, self.d_model))
-                # topk_context_query = torch.gather(context_query, dim=1,
-                #                                   index=topk_indices.unsqueeze(-1).repeat(1, 1, self.d_model))
-                # new_src_points = torch.gather(src_points, dim=1, index=topk_indices.unsqueeze(-1).repeat(1, 1, 2))
-                # new_src_points = new_src_points.repeat(1, 4, 1)
-                # new_src_points = torch.normal(mean=new_src_points,
-                #                               std=torch.sqrt(topk_areas).unsqueeze(-1).repeat(1, 4, 1))
-                # new_src_points = torch.clip(new_src_points, 0.0, 1.0)
-                # reference_points[:, :, :self.num_feature_levels] = new_src_points.detach().unsqueeze(2)
-                # dst_points = topk_dst_points.repeat(1, 4, 1)
-                # reference_points[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
-                # motion_query = topk_motion_query.repeat(1, 4, 1)
-                # context_query = topk_context_query.repeat(1, 4, 1)
-                split = 0
+            for i_i in range(self.inner_iterations):
+                motion_query = self.decoder[o_i * i_i](motion_query, motion_query_pos, reference_points,
+                                                 motion_src[i_i], src_pos, spatial_shapes, level_start_index)
+                context_query = self.context_decoder[o_i * i_i](context_query, context_query_pos, reference_points,
+                                                                context_src[i_i], src_pos, spatial_shapes, level_start_index)
+
+            # query = self.decoder[o_i](query, query_pos, reference_points,
+            #                           src, src_pos, spatial_shapes, level_start_index)
+
+            # bs, n, 2
+            flow_embed = self.flow_embed[o_i](motion_query)
+            flow_embed = flow_embed + inverse_sigmoid(reference_flows)
+            reference_flows = flow_embed.detach().sigmoid()
+
+            src_points = reference_points[:, :, 0].detach()
+            dst_points = (inverse_sigmoid(src_points) + flow_embed).sigmoid()
+            key_flow = src_points - dst_points
+            reference_points[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
+            split = 0
+            # bs, HW, n
+            context_embed = self.context_embed[o_i](context_query)
+            # context_embed = reference_context + self.context_embed[o_i](context_query)
+            # reference_context = context_embed.detach()
+            context_flow = F.softmax(torch.bmm(U1 + context_pos, context_embed.permute(0, 2, 1)), dim=-1)
+            # bs, n, HW
+            masks = context_flow.permute(0, 2, 1).detach()
+            # bs, n
+            scores = torch.max(context_flow, dim=1)[0].detach()
+            # bs, HW, 2
+            context_flow = torch.bmm(context_flow, key_flow)
+            # context_flow = reference_flows + context_flow
+            # reference_flows = context_flow.detach()
+            # bs, 2, H, W
+            flow = context_flow.permute(0, 2, 1).view(bs, 2, H, W)
+            flow = flow * torch.as_tensor((I_W, I_H), dtype=torch.float32, device=D1[0].device).view(1, 2, 1, 1)
+
+            if I_H != H or I_W != W:
+                flow = F.interpolate(flow, size=(I_H, I_W), mode="bilinear", align_corners=False)
+                masks = masks.reshape(bs, -1, 1, H, W)
+
+            flow_predictions.append(flow)
+            sparse_predictions.append((reference_points[:, :, 0].clone(), key_flow, masks, scores))
+            split = 0
+            # src_points = (inverse_sigmoid(src_points) + flow_embed[..., :2]).sigmoid()
+            # reference_points[:, :, :self.num_feature_levels] = src_points.unsqueeze(2)
+            split = 0
+            # # bs, n
+            # areas = torch.sum(masks, dim=(-1, -2)).squeeze(-1)
+            # # bs, topk
+            # topk_indices = torch.topk(scores, 25, dim=-1)[1]
+            # # bs, topk, 2
+            # topk_areas = torch.gather(areas, dim=1, index=topk_indices)
+            # topk_dst_points = torch.gather(dst_points, dim=1, index=topk_indices.unsqueeze(-1).repeat(1, 1, 2))
+            # topk_motion_query = torch.gather(motion_query, dim=1,
+            #                                  index=topk_indices.unsqueeze(-1).repeat(1, 1, self.d_model))
+            # topk_context_query = torch.gather(context_query, dim=1,
+            #                                   index=topk_indices.unsqueeze(-1).repeat(1, 1, self.d_model))
+            # new_src_points = torch.gather(src_points, dim=1, index=topk_indices.unsqueeze(-1).repeat(1, 1, 2))
+            # new_src_points = new_src_points.repeat(1, 4, 1)
+            # new_src_points = torch.normal(mean=new_src_points,
+            #                               std=torch.sqrt(topk_areas).unsqueeze(-1).repeat(1, 4, 1))
+            # new_src_points = torch.clip(new_src_points, 0.0, 1.0)
+            # reference_points[:, :, :self.num_feature_levels] = new_src_points.detach().unsqueeze(2)
+            # dst_points = topk_dst_points.repeat(1, 4, 1)
+            # reference_points[:, :, self.num_feature_levels:] = dst_points.detach().unsqueeze(2)
+            # motion_query = topk_motion_query.repeat(1, 4, 1)
+            # context_query = topk_context_query.repeat(1, 4, 1)
+            split = 0
 
         if test_mode:
             return flow_predictions, sparse_predictions

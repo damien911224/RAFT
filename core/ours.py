@@ -691,11 +691,11 @@ class RAFT(nn.Module):
 
             for i_i in range(self.inner_iterations):
                 d_i = i_i + self.num_feature_levels * o_i if self.inner_iterations > 1 else o_i
-                this_motion_src = motion_src[d_i] if self.inner_iterations > 1 else motion_src
-                this_context_src = context_src[d_i] if self.inner_iterations > 1 else context_src
-                this_src_pos = src_pos[d_i] if self.inner_iterations > 1 else src_pos
-                this_spatial_shapes = spatial_shapes[d_i] if self.inner_iterations > 1 else spatial_shapes
-                this_level_start_index = level_start_index[d_i] if self.inner_iterations > 1 else level_start_index
+                this_motion_src = motion_src[i_i] if self.inner_iterations > 1 else motion_src
+                this_context_src = context_src[i_i] if self.inner_iterations > 1 else context_src
+                this_src_pos = src_pos[i_i] if self.inner_iterations > 1 else src_pos
+                this_spatial_shapes = spatial_shapes[i_i] if self.inner_iterations > 1 else spatial_shapes
+                this_level_start_index = level_start_index[i_i] if self.inner_iterations > 1 else level_start_index
                 motion_query = self.decoder[d_i](motion_query, motion_query_pos, reference_points,
                                                  this_motion_src, this_src_pos, this_spatial_shapes,
                                                  this_level_start_index)

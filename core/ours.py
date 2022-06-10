@@ -108,33 +108,33 @@ class RAFT(nn.Module):
                                                              n_heads=8, n_points=4)
                            for _ in range(self.encoder_iterations)))
 
-        # self.decoder = \
-        #     nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
-        #                                                      dropout=0.1, activation="gelu",
-        #                                                      n_levels=2 * self.num_feature_levels,
-        #                                                      n_heads=8, n_points=4, self_deformable=False)
-        #                    for _ in range(self.outer_iterations * self.inner_iterations)))
-        #
-        # self.context_decoder = \
-        #     nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
-        #                                                      dropout=0.1, activation="gelu",
-        #                                                      n_levels=2 * self.num_feature_levels,
-        #                                                      n_heads=8, n_points=4, self_deformable=False)
-        #                    for _ in range(self.outer_iterations * self.inner_iterations)))
-
         self.decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
                                                              dropout=0.1, activation="gelu",
-                                                             n_levels=2,
+                                                             n_levels=2 * self.num_feature_levels,
                                                              n_heads=8, n_points=4, self_deformable=False)
                            for _ in range(self.outer_iterations * self.inner_iterations)))
 
         self.context_decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
                                                              dropout=0.1, activation="gelu",
-                                                             n_levels=2,
+                                                             n_levels=2 * self.num_feature_levels,
                                                              n_heads=8, n_points=4, self_deformable=False)
                            for _ in range(self.outer_iterations * self.inner_iterations)))
+
+        # self.decoder = \
+        #     nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
+        #                                                      dropout=0.1, activation="gelu",
+        #                                                      n_levels=2,
+        #                                                      n_heads=8, n_points=4, self_deformable=False)
+        #                    for _ in range(self.outer_iterations * self.inner_iterations)))
+        #
+        # self.context_decoder = \
+        #     nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
+        #                                                      dropout=0.1, activation="gelu",
+        #                                                      n_levels=2,
+        #                                                      n_heads=8, n_points=4, self_deformable=False)
+        #                    for _ in range(self.outer_iterations * self.inner_iterations)))
 
         self.motion2context_decoder = nn.TransformerDecoderLayer(d_model=self.d_model, dim_feedforward=self.d_model * 4,
                                                                  nhead=8, dropout=0.1, activation="gelu")

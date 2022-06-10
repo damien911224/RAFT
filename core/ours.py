@@ -53,7 +53,7 @@ class RAFT(nn.Module):
 
         # channels = (512, 1024, 2048)
         # channels = (128, 192, 256)
-        channels = (96, 128, 192, 256)
+        channels = [96, 128, 192, 256][4 - self.num_feature_levels:]
         self.d_model = 128
         # self.d_model = channels[0] // 2
         # self.up_dim = self.d_model
@@ -441,6 +441,11 @@ class RAFT(nn.Module):
         #     D2.append(x2)
         # U1 = self.extractor_embed(D1[0])
 
+        E1 = E1[4 - self.num_feature_levels:]
+        E2 = E2[4 - self.num_feature_levels:]
+        D1 = D1[4 - self.num_feature_levels:]
+        D2 = D2[4 - self.num_feature_levels:]
+
         _, c, h, w = D1[-1].shape
         # bs, hw, c
         raw_src_pos = [self.get_embedding(feat, self.col_pos_embed, self.row_pos_embed) + self.lvl_pos_embed.weight[i]
@@ -573,8 +578,10 @@ class RAFT(nn.Module):
         root = round(math.sqrt(self.num_keypoints))
         base_reference_points = self.get_reference_points([(root, root), ], device=D1[0].device).squeeze(2)
         base_reference_points = base_reference_points.repeat(bs, 1, 1)
-        # reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
-        reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, 2, 1)
+        if self.inner_iterations <= 1:
+            reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, self.num_feature_levels * 2, 1)
+        else:
+            reference_points = base_reference_points.detach().unsqueeze(2).repeat(1, 1, 2, 1)
         reference_flows = torch.zeros(dtype=torch.float32, size=(bs, self.num_keypoints, 2), device=D1[0].device) + 0.5
         # reference_flows = torch.zeros(dtype=torch.float32, size=(bs, H * W, 2), device=D1[0].device)
         # reference_context = \
@@ -683,10 +690,18 @@ class RAFT(nn.Module):
                 src_pos = raw_src_pos
 
             for i_i in range(self.inner_iterations):
-                motion_query = self.decoder[o_i * i_i](motion_query, motion_query_pos, reference_points,
-                                                 motion_src[i_i], src_pos[i_i], spatial_shapes[i_i], level_start_index[i_i])
-                context_query = self.context_decoder[o_i * i_i](context_query, context_query_pos, reference_points,
-                                                                context_src[i_i], src_pos[i_i], spatial_shapes[i_i], level_start_index[i_i])
+                d_i = i_i + self.num_feature_levels * o_i if self.inner_iterations > 1 else o_i
+                this_motion_src = motion_src[d_i] if self.inner_iterations > 1 else motion_src
+                this_context_src = context_src[d_i] if self.inner_iterations > 1 else context_src
+                this_src_pos = src_pos[d_i] if self.inner_iterations > 1 else src_pos
+                this_spatial_shapes = spatial_shapes[d_i] if self.inner_iterations > 1 else spatial_shapes
+                this_level_start_index = level_start_index[d_i] if self.inner_iterations > 1 else level_start_index
+                motion_query = self.decoder[d_i](motion_query, motion_query_pos, reference_points,
+                                                 this_motion_src, this_src_pos, this_spatial_shapes,
+                                                 this_level_start_index)
+                context_query = self.context_decoder[d_i](context_query, context_query_pos, reference_points,
+                                                          this_context_src, this_src_pos, this_spatial_shapes,
+                                                          this_level_start_index)
 
             # query = self.decoder[o_i](query, query_pos, reference_points,
             #                           src, src_pos, spatial_shapes, level_start_index)

@@ -220,8 +220,10 @@ class RAFT(nn.Module):
 
         self.lvl_pos_embed = nn.Embedding(self.num_feature_levels, self.d_model)
         self.img_pos_embed = nn.Embedding(2 + 0 + 1, self.d_model)
-        self.row_pos_embed = nn.Embedding(w // (2 ** 2), self.d_model // 2)
-        self.col_pos_embed = nn.Embedding(h // (2 ** 2), self.d_model // 2)
+        # self.row_pos_embed = nn.Embedding(w // (2 ** 2), self.d_model // 2)
+        # self.col_pos_embed = nn.Embedding(h // (2 ** 2), self.d_model // 2)
+        self.row_pos_embed = nn.Embedding(120, self.d_model // 2)
+        self.col_pos_embed = nn.Embedding(88, self.d_model // 2)
 
         # self.iter_pos_embed = nn.Embedding(self.inner_iterations, self.d_model)
 

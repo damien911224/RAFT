@@ -49,7 +49,7 @@ class RAFT(nn.Module):
         self.cnn_encoder = CNNEncoder(base_channel=64, norm_fn="instance")
         self.cnn_decoder = CNNDecoder(base_channel=64, norm_fn="batch")
         self.up_dim = self.cnn_decoder.up_dim
-        self.num_feature_levels = 3
+        self.num_feature_levels = 4
 
         # channels = (512, 1024, 2048)
         # channels = (128, 192, 256)
@@ -89,8 +89,8 @@ class RAFT(nn.Module):
 
         self.encoder_iterations = 1
         self.outer_iterations = 6
-        self.inner_iterations = 1
-        # self.inner_iterations = self.num_feature_levels
+        # self.inner_iterations = 1
+        self.inner_iterations = self.num_feature_levels
         self.num_keypoints = 100
         # self.num_keypoints = 25
 
@@ -111,14 +111,16 @@ class RAFT(nn.Module):
         self.decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
                                                              dropout=0.1, activation="gelu",
-                                                             n_levels=2 * self.num_feature_levels,
+                                                             n_levels=2 * self.num_feature_levels
+                                                             if self.inner_iterations <= 1 else 2,
                                                              n_heads=8, n_points=4, self_deformable=False)
                            for _ in range(self.outer_iterations * self.inner_iterations)))
 
         self.context_decoder = \
             nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
                                                              dropout=0.1, activation="gelu",
-                                                             n_levels=2 * self.num_feature_levels,
+                                                             n_levels=2 * self.num_feature_levels
+                                                             if self.inner_iterations <= 1 else 2,
                                                              n_heads=8, n_points=4, self_deformable=False)
                            for _ in range(self.outer_iterations * self.inner_iterations)))
 

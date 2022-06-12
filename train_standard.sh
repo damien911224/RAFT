@@ -1,7 +1,7 @@
 #!/bin/bash
 mkdir -p checkpoints
 # 0:
-# 1: base_sparse_loss
+# 1: base_S4_inner_U2
 # 2: base_things
 # 3: base_S4_inner
 python -u train.py --name chairs-base --stage chairs --validation chairs --gpus 0 --num_steps 1000000 --batch_size 16 --lr 0.0002 --image_size 352 480 --wdecay 0.0001

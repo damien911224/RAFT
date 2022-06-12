@@ -540,8 +540,9 @@ class CNNDecoder(nn.Module):
         D5_x1, D5_x2 = torch.split(D5, D5.shape[0] // 2, dim=0)
 
         T1 = self.up_top1(D3_x1)
-        D2_x1 = self.up_lateral1(D2_x1)
-        U1 = self.up_smooth1(F.gelu(F.interpolate(T1, scale_factor=2.0, mode="bilinear", align_corners=False) + D2_x1))
+        L2_x1 = self.up_lateral1(D2_x1)
+        _, _, h, w = L2_x1.shape
+        U1 = self.up_smooth1(F.gelu(F.interpolate(T1, size=(h, w), mode="bilinear", align_corners=False) + L2_x1))
         # T2 = self.up_top2(U1)
         # D1_x1 = self.up_lateral2(D1_x1)
         # U2 = self.up_smooth2(F.gelu(F.upsample(T2, scale_factor=2.0, mode="bilinear") + D1_x1))

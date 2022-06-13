@@ -403,9 +403,9 @@ def train(args):
                     if val_dataset == 'chairs':
                         results.update(evaluate.validate_chairs(model.module, logger=logger, iters=args.iters))
                     elif val_dataset == 'sintel':
-                        results.update(evaluate.validate_sintel(model.module, iters=args.iters))
+                        results.update(evaluate.validate_sintel(model.module, logger=logger, iters=args.iters))
                     elif val_dataset == 'kitti':
-                        results.update(evaluate.validate_kitti(model.module, iters=args.iters))
+                        results.update(evaluate.validate_kitti(model.module, logger=logger, iters=args.iters))
 
                 logger.write_dict(results)
                 

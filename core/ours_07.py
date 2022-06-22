@@ -92,6 +92,7 @@ class RAFT(nn.Module):
         self.inner_iterations = 1
         # self.inner_iterations = self.num_feature_levels
         self.num_keypoints = 100
+        # self.num_keypoints = 25
 
         self.encoder = \
             nn.ModuleList((DeformableTransformerEncoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
@@ -123,15 +124,114 @@ class RAFT(nn.Module):
                                                              n_heads=8, n_points=4, self_deformable=False)
                            for _ in range(self.outer_iterations * self.inner_iterations)))
 
+        # self.decoder = \
+        #     nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
+        #                                                      dropout=0.1, activation="gelu",
+        #                                                      n_levels=2,
+        #                                                      n_heads=8, n_points=4, self_deformable=False)
+        #                    for _ in range(self.outer_iterations * self.inner_iterations)))
+        #
+        # self.context_decoder = \
+        #     nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
+        #                                                      dropout=0.1, activation="gelu",
+        #                                                      n_levels=2,
+        #                                                      n_heads=8, n_points=4, self_deformable=False)
+        #                    for _ in range(self.outer_iterations * self.inner_iterations)))
+
         self.motion2context_decoder = nn.TransformerDecoderLayer(d_model=self.d_model, dim_feedforward=self.d_model * 4,
                                                                  nhead=8, dropout=0.1, activation="gelu")
         self.context2motion_decoder = nn.TransformerDecoderLayer(d_model=self.d_model, dim_feedforward=self.d_model * 4,
                                                                  nhead=8, dropout=0.1, activation="gelu")
 
+        # self.motion2context_decoder = \
+        #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=self.d_model, dim_feedforward=self.d_model * 4,
+        #                                                          nhead=8, dropout=0.1, activation="gelu")
+        #                    for _ in range(self.outer_iterations)))
+        # self.context2motion_decoder = \
+        #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=self.d_model, dim_feedforward=self.d_model * 4,
+        #                                                          nhead=8, dropout=0.1, activation="gelu")
+        #                    for _ in range(self.outer_iterations)))
+
+        # self.updater = \
+        #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=self.d_model, dim_feedforward=self.d_model * 4,
+        #                                               nhead=8, dropout=0.1, activation="gelu")
+        #                    for _ in range(self.outer_iterations * self.inner_iterations - 1)))
+
+        # self.encoder = \
+        #     nn.ModuleList((DeformableTransformerEncoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
+        #                                                      dropout=0.1, activation="gelu",
+        #                                                      n_levels=self.num_feature_levels,
+        #                                                      n_heads=8, n_points=4)
+        #                    for _ in range(self.encoder_iterations)))
+        #
+        # self.decoder = \
+        #     nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
+        #                                                      dropout=0.1, activation="gelu",
+        #                                                      n_levels=2,
+        #                                                      n_heads=8, n_points=4, self_deformable=False)
+        #                    for _ in range(self.outer_iterations * self.inner_iterations)))
+
+        # self.query_selector = nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4,
+        #                                                  nhead=8, dropout=0.1, activation="gelu")
+
+        # self.keypoint_decoder = \
+        #     nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
+        #                                                      dropout=0.1, activation="gelu",
+        #                                                      n_levels=self.num_feature_levels * 2,
+        #                                                      n_heads=8, n_points=4, self_deformable=False)
+        #                    for _ in range(self.outer_iterations)))
+
+        # self.keypoint_decoder = nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4,
+        #                                                    nhead=8, dropout=0.1, activation="gelu")
+
+        # self.keypoint_decoder = \
+        #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4,
+        #                                               nhead=8, dropout=0.1, activation="gelu")
+        #                    for _ in range(6)))
+
+        # self.correlation_decoder = \
+        #     nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
+        #                                                      dropout=0.1, activation="gelu",
+        #                                                      n_levels=self.num_feature_levels * 2,
+        #                                                      n_heads=8, n_points=4, self_deformable=False)
+        #                    for _ in range(self.outer_iterations)))
+
+        # self.keypoint_decoder = \
+        #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4,
+        #                                               nhead=8, dropout=0.1, activation="gelu")
+        #                    for _ in range(6)))
+
+        # self.correlation_decoder = \
+        #     nn.ModuleList((nn.TransformerDecoderLayer(d_model=d_model, dim_feedforward=d_model * 4,
+        #                                               nhead=8, dropout=0.1, activation="gelu")
+        #                    for _ in range(6)))
+
+        # self.correlation_decoder = \
+        #     nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
+        #                                                      dropout=0.1, activation="gelu",
+        #                                                      n_levels=self.num_feature_levels, n_heads=8, n_points=4,
+        #                                                      self_deformable=False)
+        #                    for _ in range(6)))
+
+        # self.context_decoder = \
+        #     nn.ModuleList((DeformableTransformerDecoderLayer(d_model=d_model, d_ffn=d_model * 4,
+        #                                                      dropout=0.1, activation="gelu",
+        #                                                      n_levels=self.num_feature_levels, n_heads=8, n_points=4,
+        #                                                      self_deformable=False)
+        #                    for _ in range(6)))
+
         self.lvl_pos_embed = nn.Embedding(self.num_feature_levels, self.d_model)
         self.img_pos_embed = nn.Embedding(2 + 0 + 1, self.d_model)
+        # self.row_pos_embed = nn.Embedding(w // (2 ** 2), self.d_model // 2)
+        # self.col_pos_embed = nn.Embedding(h // (2 ** 2), self.d_model // 2)
         self.row_pos_embed = nn.Embedding(120, self.d_model // 2)
         self.col_pos_embed = nn.Embedding(88, self.d_model // 2)
+        # self.row_pos_embed = nn.Embedding(200, self.d_model // 2)
+        # self.col_pos_embed = nn.Embedding(200, self.d_model // 2)
+
+        # self.iter_pos_embed = nn.Embedding(self.inner_iterations, self.d_model)
+
+        # self.query_embed = nn.Embedding(self.num_keypoints, self.d_model)
         self.motion_query_embed = nn.Embedding(self.num_keypoints, self.d_model)
         self.context_query_embed = nn.Embedding(self.num_keypoints, self.d_model)
         self.query_pos_embed = nn.Embedding(self.num_keypoints, self.d_model)
@@ -168,10 +268,18 @@ class RAFT(nn.Module):
                 # self.context_high_dim_query_proj = MLP(self.up_dim, self.up_dim, self.up_dim, 2)
                 # self.src_high_dim_query_proj = MLP(self.d_model, self.d_model, self.d_model, 2)
 
+        self.first_query = False
+
+        # self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed) for _ in range(self.outer_iterations)])
+        # self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed) for _ in range(self.outer_iterations)])
+        # self.reference_embed = nn.ModuleList([copy.deepcopy(self.reference_embed) for _ in range(self.outer_iterations)])
         self.flow_embed = nn.ModuleList([copy.deepcopy(self.flow_embed)
                                          for _ in range(self.outer_iterations)])
         self.context_embed = nn.ModuleList([copy.deepcopy(self.context_embed)
                                             for _ in range(self.outer_iterations)])
+        # self.confidence_embed = nn.ModuleList([copy.deepcopy(self.confidence_embed)
+        #                                        for _ in range(self.outer_iterations * self.inner_iterations +
+        #                                                       int(self.first_query))])
 
         self.reset_parameters()
 

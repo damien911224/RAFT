@@ -12,7 +12,7 @@ from skimage.future import graph
 import PIL.ImageOps
 import PIL.Image
 import time
-import tgdm
+import tqdm
 
 def _weight_mean_color(graph, src, dst, n):
     """Callback to handle merging nodes by recomputing mean color.
@@ -209,7 +209,7 @@ def segment(flow):
 if __name__ == "__main__":
     data_folder = os.path.join("/mnt/hdd1/damien", "FlyingChairs_release/data")
     flow_paths = os.path.join(data_folder, "*.flo")
-    for path in tgdm(flow_paths):
+    for path in tqdm(flow_paths):
         flow = frame_utils.read_gen(os.path.join("/Users/damien/Downloads/FlyingChairs_release/data", "01447_flow.flo"))
         flow = flow_vis.flow_to_color(flow, convert_to_bgr=False)
         flow = PIL.ImageOps.autocontrast(PIL.Image.fromarray(flow))

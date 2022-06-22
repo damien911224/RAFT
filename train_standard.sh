@@ -1,6 +1,6 @@
 #!/bin/bash
 mkdir -p checkpoints
-# 0:
+# 0: base_things
 # 1: base_S4_inner_U2
 # 2: base_things
 # 3: base_S4_inner

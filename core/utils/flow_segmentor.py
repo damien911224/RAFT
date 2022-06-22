@@ -184,7 +184,7 @@ def segment(flow):
     #                                     weight_func=_weight_mean_color)
 
     uniques = np.unique(flow_lbl)
-    print(len(uniques))
+    # print(len(uniques))
 
     # max_index = -1
     # max_count = -1
@@ -209,43 +209,44 @@ def segment(flow):
 
 
 if __name__ == "__main__":
-    # data_folder = os.path.join("/mnt/hdd1", "FlyingChairs_release/data")
-    # flow_paths = glob(os.path.join(data_folder, "*.flo"))
-    # for path in tqdm(flow_paths):
-    #     flow = frame_utils.read_gen(path)
-    #     flow = flow_vis.flow_to_color(flow, convert_to_bgr=False)
-    #     flow = PIL.ImageOps.autocontrast(PIL.Image.fromarray(flow))
-    #     flow = np.asarray(flow)
-    #     masks = segment(flow)
-    #     npy_path = os.path.join(data_folder, os.path.basename(path).split(".")[0] + ".npy")
-    #     np.save(npy_path, masks)
-
-    # image = frame_utils.read_gen(os.path.join("/Users/damien/Downloads/FlyingChairs_release/data", "01456_img1.ppm"))
-    flow = frame_utils.read_gen(os.path.join("/Users/damien/Downloads/FlyingChairs_release/data", "01447_flow.flo"))
-
-    # image = np.asarray(image)
-    flow = flow_vis.flow_to_color(flow, convert_to_bgr=False)
-
-    flow = PIL.ImageOps.autocontrast(PIL.Image.fromarray(flow))
-    flow = np.asarray(flow)
-
-    start_time = time.time()
-    masks = segment(flow)
-    duration = time.time() - start_time
-    print(duration)
-
-    cm = plt.get_cmap("Pastel1")
-    cNorm = matplotlib.colors.Normalize(vmin=0, vmax=len(masks) - 1)
-    scalarMap = matplotlib.cm.ScalarMappable(norm=cNorm, cmap=cm)
-    seg_image = np.zeros_like(flow)
-    for i in range(len(masks)):
-        color = np.round(np.array(scalarMap.to_rgba(i)[:3]) * 255.0).astype(np.uint8)
-        seg_image += np.expand_dims(masks[i], axis=-1) * color
-
-    cv2.imwrite(os.path.join("/Users/damien/Downloads/FlyingChairs_release", "seg.png"),
-                cv2.cvtColor(seg_image, cv2.COLOR_RGB2BGR))
-    cv2.imwrite(os.path.join("/Users/damien/Downloads/FlyingChairs_release", "flow.png"),
-                cv2.cvtColor(flow, cv2.COLOR_RGB2BGR))
+    data_folder = os.path.join("/mnt/hdd1", "FlyingChairs_release/data")
+    flow_paths = glob(os.path.join(data_folder, "*.flo"))
+    for path in tqdm(flow_paths):
+        flow = frame_utils.read_gen(path)
+        flow = flow_vis.flow_to_color(flow, convert_to_bgr=False)
+        flow = PIL.ImageOps.autocontrast(PIL.Image.fromarray(flow))
+        flow = np.asarray(flow)
+        masks = segment(flow)
+        npy_path = os.path.join(data_folder, os.path.basename(path).split(".")[0] + ".npy")
+        np.save(npy_path, masks)
+    split = 0
+    # # image = frame_utils.read_gen(os.path.join("/Users/damien/Downloads/FlyingChairs_release/data", "01456_img1.ppm"))
+    # flow = frame_utils.read_gen(os.path.join("/Users/damien/Downloads/FlyingChairs_release/data", "01447_flow.flo"))
+    #
+    # # image = np.asarray(image)
+    # flow = flow_vis.flow_to_color(flow, convert_to_bgr=False)
+    #
+    # flow = PIL.ImageOps.autocontrast(PIL.Image.fromarray(flow))
+    # flow = np.asarray(flow)
+    #
+    # start_time = time.time()
+    # masks = segment(flow)
+    # duration = time.time() - start_time
+    # print(duration)
+    #
+    # cm = plt.get_cmap("Pastel1")
+    # cNorm = matplotlib.colors.Normalize(vmin=0, vmax=len(masks) - 1)
+    # scalarMap = matplotlib.cm.ScalarMappable(norm=cNorm, cmap=cm)
+    # seg_image = np.zeros_like(flow)
+    # for i in range(len(masks)):
+    #     color = np.round(np.array(scalarMap.to_rgba(i)[:3]) * 255.0).astype(np.uint8)
+    #     seg_image += np.expand_dims(masks[i], axis=-1) * color
+    #
+    # cv2.imwrite(os.path.join("/Users/damien/Downloads/FlyingChairs_release", "seg.png"),
+    #             cv2.cvtColor(seg_image, cv2.COLOR_RGB2BGR))
+    # cv2.imwrite(os.path.join("/Users/damien/Downloads/FlyingChairs_release", "flow.png"),
+    #             cv2.cvtColor(flow, cv2.COLOR_RGB2BGR))
+    split = 0
 
 
 

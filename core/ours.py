@@ -49,7 +49,7 @@ class RAFT(nn.Module):
         self.cnn_encoder = CNNEncoder(base_channel=64, norm_fn="instance")
         self.cnn_decoder = CNNDecoder(base_channel=64, norm_fn="batch")
         self.up_dim = self.cnn_decoder.up_dim
-        self.num_feature_levels = 3
+        self.num_feature_levels = 4
 
         # channels = (512, 1024, 2048)
         # channels = (128, 192, 256)

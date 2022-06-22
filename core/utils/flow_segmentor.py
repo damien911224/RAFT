@@ -208,7 +208,7 @@ def segment(flow):
 
 if __name__ == "__main__":
     data_folder = os.path.join("/mnt/hdd1", "FlyingChairs_release/data")
-    flow_paths = os.path.join(data_folder, "*.flo")
+    flow_paths = glob.glob(os.path.join(data_folder, "*.flo"))
     print(len(flow_paths))
     for path in tqdm(flow_paths):
         flow = frame_utils.read_gen(path)

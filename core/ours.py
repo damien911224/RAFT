@@ -130,8 +130,8 @@ class RAFT(nn.Module):
 
         self.lvl_pos_embed = nn.Embedding(self.num_feature_levels, self.d_model)
         self.img_pos_embed = nn.Embedding(2 + 0 + 1, self.d_model)
-        self.row_pos_embed = nn.Embedding(120, self.d_model // 2)
-        self.col_pos_embed = nn.Embedding(88, self.d_model // 2)
+        self.row_pos_embed = nn.Embedding(1000, self.d_model // 2)
+        self.col_pos_embed = nn.Embedding(1000, self.d_model // 2)
         self.motion_query_embed = nn.Embedding(self.num_keypoints, self.d_model)
         self.context_query_embed = nn.Embedding(self.num_keypoints, self.d_model)
         self.query_pos_embed = nn.Embedding(self.num_keypoints, self.d_model)
@@ -247,8 +247,8 @@ class RAFT(nn.Module):
                                 row_embed.weight.unsqueeze(0).repeat(p_h, 1, 1)), dim=-1)
         this_embed = this_embed.permute(2, 0, 1).unsqueeze(0)
 
-        if f_h != p_h:
-            this_embed = F.interpolate(this_embed, size=(f_h, f_w), mode="bilinear", align_corners=True)
+        if f_h != p_h or f_w != p_w:
+            this_embed = F.interpolate(this_embed, size=(f_h, f_w), mode="bilinear", align_corners=False)
 
         this_embed = this_embed.flatten(2).permute(0, 2, 1)
 

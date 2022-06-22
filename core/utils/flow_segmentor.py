@@ -2,7 +2,7 @@
 import selectivesearch
 import numpy as np
 import cv2
-from . import frame_utils
+import frame_utils
 import os
 import flow_vis
 import matplotlib

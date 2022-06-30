@@ -88,7 +88,7 @@ class RAFT(nn.Module):
         self.corr_proj = nn.ModuleList(corr_proj_list)
 
         self.encoder_iterations = 1
-        self.outer_iterations = 1
+        self.outer_iterations = 6
         self.inner_iterations = 1
         # self.inner_iterations = self.num_feature_levels
         self.num_keypoints = 100
@@ -108,8 +108,11 @@ class RAFT(nn.Module):
                            for _ in range(self.encoder_iterations)))
 
         self.decoder = \
-            nn.ModuleList((nn.TransformerDecoderLayer(d_model=self.d_model * 2, dim_feedforward=self.d_model * 4,
-                                                      nhead=8, dropout=0.1, activation="gelu")
+            nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model * 2, d_ffn=self.d_model * 2 * 4,
+                                                             dropout=0.1, activation="gelu",
+                                                             n_levels=2 * self.num_feature_levels
+                                                             if self.inner_iterations <= 1 else 2,
+                                                             n_heads=8, n_points=4, self_deformable=False)
                            for _ in range(self.outer_iterations * self.inner_iterations)))
 
         self.lvl_pos_embed = nn.Embedding(self.num_feature_levels, self.d_model)
@@ -554,8 +557,11 @@ class RAFT(nn.Module):
                 this_context_src = context_src[i_i] if self.inner_iterations > 1 else context_src
                 this_src = torch.cat((this_motion_src, this_context_src), dim=-1)
                 this_src_pos = src_pos[i_i] if self.inner_iterations > 1 else src_pos
-                query = self.decoder[d_i]((query + query_pos).permute(1, 0, 2),
-                                          (this_src + this_src_pos).permute(1, 0, 2)).permute(1, 0, 2)
+                this_spatial_shapes = spatial_shapes[i_i] if self.inner_iterations > 1 else spatial_shapes
+                this_level_start_index = level_start_index[i_i] if self.inner_iterations > 1 else level_start_index
+                query = self.decoder[d_i](query, query_pos, reference_points,
+                                          this_src, this_src_pos, this_spatial_shapes,
+                                          this_level_start_index)
 
             # query = self.decoder[o_i](query, query_pos, reference_points,
             #                           src, src_pos, spatial_shapes, level_start_index)

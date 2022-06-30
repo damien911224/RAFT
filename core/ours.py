@@ -504,7 +504,7 @@ class RAFT(nn.Module):
                 # if not (o_i == 0 and i_i == 0):
                 if not (o_i == 0):
                     pos_scale = self.query_scale(query)
-                    query_pos = pos_scale * raw_query_pos
+                    query_pos = pos_scale * query_pos
 
                 # if not (o_i == 0 and i_i == 0) or self.first_query:
                 #     masks = masks.flatten(2)

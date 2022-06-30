@@ -74,8 +74,8 @@ class RAFT(nn.Module):
         for l_i in range(self.num_feature_levels):
             in_channels = channels[l_i]
             input_proj_list.append(nn.Sequential(
-                nn.Conv1d(in_channels, self.d_model // 2 * 2, kernel_size=1, padding=0),
-                nn.GroupNorm(16, self.d_model // 2 * 2)))
+                nn.Conv1d(in_channels, self.d_model // 2 * 2 // 2, kernel_size=1, padding=0),
+                nn.GroupNorm(16, self.d_model // 2 * 2 // 2)))
         self.input_proj = nn.ModuleList(input_proj_list)
         corr_proj_list = list()
         for l_i in range(self.num_feature_levels):
@@ -84,7 +84,7 @@ class RAFT(nn.Module):
             # corr_proj_list.append(nn.Sequential(
             #     nn.Conv1d(in_channels, self.d_model, kernel_size=1, padding=0),
             #     nn.GroupNorm(16, self.d_model)))
-            corr_proj_list.append(MLP(in_channels, self.d_model // 2 * 2, self.d_model // 2 * 2, 3))
+            corr_proj_list.append(MLP(in_channels, self.d_model // 2 * 2 // 2, self.d_model // 2 * 2 // 2, 3))
         self.corr_proj = nn.ModuleList(corr_proj_list)
 
         self.encoder_iterations = 1
@@ -93,22 +93,22 @@ class RAFT(nn.Module):
         # self.inner_iterations = self.num_feature_levels
         self.num_keypoints = 100
 
-        self.encoder = \
-            nn.ModuleList((DeformableTransformerEncoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
-                                                             dropout=0.1, activation="gelu",
-                                                             n_levels=self.num_feature_levels * 2,
-                                                             n_heads=8, n_points=4)
-                           for _ in range(self.encoder_iterations)))
-
-        self.context_encoder = \
-            nn.ModuleList((DeformableTransformerEncoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
-                                                             dropout=0.1, activation="gelu",
-                                                             n_levels=self.num_feature_levels * 2,
-                                                             n_heads=8, n_points=4)
-                           for _ in range(self.encoder_iterations)))
+        # self.encoder = \
+        #     nn.ModuleList((DeformableTransformerEncoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
+        #                                                      dropout=0.1, activation="gelu",
+        #                                                      n_levels=self.num_feature_levels * 2,
+        #                                                      n_heads=8, n_points=4)
+        #                    for _ in range(self.encoder_iterations)))
+        #
+        # self.context_encoder = \
+        #     nn.ModuleList((DeformableTransformerEncoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
+        #                                                      dropout=0.1, activation="gelu",
+        #                                                      n_levels=self.num_feature_levels * 2,
+        #                                                      n_heads=8, n_points=4)
+        #                    for _ in range(self.encoder_iterations)))
 
         self.decoder = \
-            nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model * 2, d_ffn=self.d_model * 2 * 4,
+            nn.ModuleList((DeformableTransformerDecoderLayer(d_model=self.d_model, d_ffn=self.d_model * 4,
                                                              dropout=0.1, activation="gelu",
                                                              n_levels=2 * self.num_feature_levels
                                                              if self.inner_iterations <= 1 else 2,
@@ -137,9 +137,9 @@ class RAFT(nn.Module):
             # self.src_scale = MLP(self.d_model, self.d_model, self.d_model, 3)
 
             self.no_sine_embed = True
-            # self.query_scale = MLP(self.d_model, self.d_model, self.d_model, 2)
-            self.motion_query_scale = MLP(self.d_model, self.d_model, self.d_model, 2)
-            self.context_query_scale = MLP(self.d_model, self.d_model, self.d_model, 2)
+            self.query_scale = MLP(self.d_model, self.d_model, self.d_model, 2)
+            # self.motion_query_scale = MLP(self.d_model, self.d_model, self.d_model, 2)
+            # self.context_query_scale = MLP(self.d_model, self.d_model, self.d_model, 2)
             if self.no_sine_embed:
                 self.ref_point_head = MLP(4, self.d_model, self.d_model, 3)
             else:
@@ -414,10 +414,10 @@ class RAFT(nn.Module):
         # for i in range(len(self.encoder)):
         #     src = self.encoder[i](src, raw_src_pos, src_ref, spatial_shapes, level_start_index)
         split = 0
-        for i in range(len(self.encoder)):
-            motion_src = self.encoder[i](motion_src, raw_src_pos, src_ref, spatial_shapes, level_start_index)
-            context_src = self.context_encoder[i](context_src, raw_src_pos, src_ref, spatial_shapes, level_start_index)
-        src = torch.cat((motion_src, context_src), dim=-1)
+        # for i in range(len(self.encoder)):
+        #     motion_src = self.encoder[i](motion_src, raw_src_pos, src_ref, spatial_shapes, level_start_index)
+        #     context_src = self.context_encoder[i](context_src, raw_src_pos, src_ref, spatial_shapes, level_start_index)
+        # src = torch.cat((motion_src, context_src), dim=-1)
         split = 0
         if self.inner_iterations > 1:
             new_src_pos = list()
@@ -555,7 +555,6 @@ class RAFT(nn.Module):
                 d_i = i_i + self.num_feature_levels * o_i if self.inner_iterations > 1 else o_i
                 this_motion_src = motion_src[i_i] if self.inner_iterations > 1 else motion_src
                 this_context_src = context_src[i_i] if self.inner_iterations > 1 else context_src
-                print(this_motion_src.shape)
                 this_src = torch.cat((this_motion_src, this_context_src), dim=-1)
                 this_src_pos = src_pos[i_i] if self.inner_iterations > 1 else src_pos
                 this_spatial_shapes = spatial_shapes[i_i] if self.inner_iterations > 1 else spatial_shapes

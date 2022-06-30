@@ -403,7 +403,7 @@ class RAFT(nn.Module):
 
         # bs, n, c
         # query = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
-        motion_query = self.motion_query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
+        query = self.query_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
         if not self.use_dab:
             query_pos = self.query_pos_embed.weight.unsqueeze(0).repeat(bs, 1, 1)
 

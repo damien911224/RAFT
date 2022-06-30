@@ -555,6 +555,7 @@ class RAFT(nn.Module):
                 d_i = i_i + self.num_feature_levels * o_i if self.inner_iterations > 1 else o_i
                 this_motion_src = motion_src[i_i] if self.inner_iterations > 1 else motion_src
                 this_context_src = context_src[i_i] if self.inner_iterations > 1 else context_src
+                print(this_motion_src.shape)
                 this_src = torch.cat((this_motion_src, this_context_src), dim=-1)
                 this_src_pos = src_pos[i_i] if self.inner_iterations > 1 else src_pos
                 this_spatial_shapes = spatial_shapes[i_i] if self.inner_iterations > 1 else spatial_shapes
